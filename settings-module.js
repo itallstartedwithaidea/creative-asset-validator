@@ -1814,9 +1814,6 @@
                 case 'data':
                     content = this.renderDataSection(settings);
                     break;
-                case 'integration-keys':
-                    content = this.renderIntegrationKeysSection(settings);
-                    break;
                 case 'platform-admin':
                     content = this.renderPlatformAdminSection(settings);
                     break;
@@ -1881,15 +1878,10 @@
                                 <span class="nav-label">Data Management</span>
                             </button>
                             ${this.manager.isSuperAdmin() ? `
-                            <button class="cav-settings-nav-btn admin-only" data-section="integration-keys">
-                                <span class="nav-icon">${ICONS.globe}</span>
-                                <span class="nav-label">Integration APIs</span>
-                                <span class="admin-badge">Admin</span>
-                            </button>
                             <button class="cav-settings-nav-btn admin-only" data-section="platform-admin">
-                                <span class="nav-icon">${ICONS.cloud}</span>
-                                <span class="nav-label">Platform Admin</span>
-                                <span class="admin-badge">Super</span>
+                                <span class="nav-icon">${ICONS.users}</span>
+                                <span class="nav-label">API Sharing</span>
+                                <span class="admin-badge">Super Admin</span>
                             </button>
                             ` : ''}
                         </div>
@@ -1902,7 +1894,6 @@
                             <div class="cav-settings-section" data-section="competitors"></div>
                             <div class="cav-settings-section" data-section="notifications"></div>
                             <div class="cav-settings-section" data-section="data"></div>
-                            ${this.manager.isSuperAdmin() ? '<div class="cav-settings-section" data-section="integration-keys"></div>' : ''}
                             ${this.manager.isSuperAdmin() ? '<div class="cav-settings-section" data-section="platform-admin"></div>' : ''}
                         </div>
                     </div>
@@ -1944,10 +1935,13 @@
                         </div>
                     </div>
                     
-                    <!-- API Access Control Section -->
-                    <div id="api-access-control-section">
-                        ${accessControl.renderAccessControlUI()}
+                    <!-- Shared Access Status (for users who have shared access) -->
+                    ${accessControl.canAccessSharedKeys?.() || this.manager.canAccessSharedKeys?.() ? `
+                    <div class="shared-access-notice" style="margin-bottom: 24px; padding: 16px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 12px;">
+                        <h4 style="margin: 0 0 8px; color: #22c55e;">${ICONS.check} Shared API Access Available</h4>
+                        <p style="margin: 0; color: #94a3b8; font-size: 14px;">Your admin has shared API access with you. You can use AI features without your own keys, or configure your own keys below to use instead.</p>
                     </div>
+                    ` : ''}
                     
                     <div class="cav-api-keys-grid">
                         ${providers.map(p => {
@@ -2600,8 +2594,8 @@
             
             return `
                 <div class="cav-settings-section" data-section="platform-admin">
-                    <h2>☁️ Platform Administration</h2>
-                    <p class="cav-settings-desc">Configure platform-wide services. As Super Admin, you can share your API access with selected users.</p>
+                    <h2>👥 API Key Sharing (Super Admin)</h2>
+                    <p class="cav-settings-desc">Share your AI API keys with team members. You can also configure your own Cloudinary account for video/image processing.</p>
                     
                     <div class="api-security-notice" style="border-color: #a855f7;">
                         <div class="security-icon">${ICONS.shield}</div>
