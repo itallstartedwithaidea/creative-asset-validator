@@ -3,7 +3,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-4.1.1-blue.svg)
+![Version](https://img.shields.io/badge/version-4.3.0-blue.svg)
 ![License](https://img.shields.io/badge/license-Proprietary-red.svg)
 ![Platform](https://img.shields.io/badge/platform-Web-green.svg)
 ![AI Powered](https://img.shields.io/badge/AI-Powered-purple.svg)
@@ -58,7 +58,7 @@ Every day, creative teams waste hours:
 | Con | Details | Workaround |
 |-----|---------|------------|
 | **🌐 Requires Internet** | AI features need API access to work | Core validation works offline |
-| **💾 Local Storage Limits** | Videos limited to 10MB per file (IndexedDB) | Use external links for large videos |
+| **💾 Local Storage Limits** | Videos limited to 100MB per file (IndexedDB) | Use external links for large videos |
 | **🔑 API Keys Required** | Need Claude/OpenAI/Gemini keys for AI features | Free tiers available from all providers |
 | **📱 Desktop-First** | Optimized for desktop; mobile is functional but limited | Full responsive design in progress |
 | **🔄 No Real-Time Sync** | Multi-device sync requires manual export/import | Use Google Drive integration for sharing |
@@ -76,7 +76,7 @@ Every day, creative teams waste hours:
 | **Platform Spec Validation** | ✅ 50+ platforms | ❌ None | ❌ None | ❌ None | ⚠️ Manual | ⚠️ Limited | ⚠️ Limited |
 | **AI-Powered Analysis** | ✅ Multi-model | ❌ None | ⚠️ Basic Magic | ❌ None | ❌ None | ❌ None | ❌ None |
 | **Hook/CTA Scoring** | ✅ Full suite | ❌ None | ❌ None | ❌ None | ❌ None | ❌ None | ❌ None |
-| **Auto-Resize with AI** | ✅ Smart crop/extend | ⚠️ Basic crop | ⚠️ Basic | ❌ Manual | ⚠️ Basic | ⚠️ Basic | ❌ None |
+| **Auto-Resize with AI** | ⚠️ Images only (video TBD) | ⚠️ Basic crop | ⚠️ Basic | ❌ Manual | ⚠️ Basic | ⚠️ Basic | ❌ None |
 | **Brand Kit Generation** | ✅ 100+ variations | ⚠️ Brand Kit Pro | ⚠️ Limited | ❌ None | ⚠️ Templates | ✅ Yes | ✅ Yes |
 | **Built-in CRM** | ✅ Full suite | ❌ None | ❌ None | ❌ None | ❌ Separate | ❌ Separate | ❌ Separate |
 | **Swipe File / Learn** | ✅ URL analyzer | ❌ None | ❌ None | ❌ None | ❌ None | ❌ None | ❌ None |
