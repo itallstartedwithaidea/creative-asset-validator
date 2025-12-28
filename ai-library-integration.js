@@ -515,8 +515,17 @@
             `;
         }
         
-        // Extract Still for videos
+        // Video actions
         if (analysis.isVideo) {
+            // Resize Video button (uses Cloudinary)
+            html += `
+                <button class="ai-btn ai-btn-resize-video" data-action="ai-resize-video" data-id="${asset.id}" title="Resize video for different platforms">
+                    <span class="ai-btn-icon">📐</span>
+                    <span class="ai-btn-text">Resize Video</span>
+                </button>
+            `;
+            
+            // Extract Still button
             html += `
                 <button class="ai-btn ai-btn-still" data-action="ai-extract-still" data-id="${asset.id}" title="Extract best frame">
                     <span class="ai-btn-icon">📸</span>
@@ -667,6 +676,10 @@
                 case 'ai-extract-still':
                     const stillAnalysis = analyzeAsset(asset);
                     openExtractStillPanel(asset, stillAnalysis);
+                    break;
+                
+                case 'ai-resize-video':
+                    openVideoResizePanel(asset);
                     break;
                     
                 case 'ai-studio':
@@ -3196,6 +3209,240 @@ If you don't know, use empty strings. Be concise.`
     }
 
     // ============================================
+    // VIDEO RESIZE PANEL (Cloudinary)
+    // ============================================
+
+    function openVideoResizePanel(asset) {
+        // Check if Cloudinary is configured
+        const cloudinaryClient = window.cloudinaryClient;
+        const hasCloudinary = cloudinaryClient?.hasCredentials?.() || false;
+        
+        // Video platform presets
+        const videoPresets = [
+            { name: 'Instagram Story', width: 1080, height: 1920, ratio: '9:16', icon: '📱' },
+            { name: 'Instagram Reel', width: 1080, height: 1920, ratio: '9:16', icon: '📹' },
+            { name: 'TikTok', width: 1080, height: 1920, ratio: '9:16', icon: '🎵' },
+            { name: 'YouTube Shorts', width: 1080, height: 1920, ratio: '9:16', icon: '📺' },
+            { name: 'Facebook/IG Feed', width: 1080, height: 1080, ratio: '1:1', icon: '⬛' },
+            { name: 'YouTube', width: 1920, height: 1080, ratio: '16:9', icon: '▶️' },
+            { name: 'Twitter/X', width: 1280, height: 720, ratio: '16:9', icon: '🐦' },
+            { name: 'LinkedIn', width: 1920, height: 1080, ratio: '16:9', icon: '💼' },
+            { name: 'Pinterest', width: 1000, height: 1500, ratio: '2:3', icon: '📌' },
+        ];
+        
+        const videoSrc = asset.file_url || asset.cloudinary_url || asset.dataUrl || '';
+        
+        const modal = document.createElement('div');
+        modal.className = 'ai-modal-overlay';
+        modal.innerHTML = `
+            <div class="ai-modal" style="max-width: 700px;">
+                <div class="ai-modal-header">
+                    <button class="ai-back-btn" onclick="this.closest('.ai-modal-overlay').remove()">← Back</button>
+                    <h3>📐 Resize Video</h3>
+                    <button class="ai-close-btn" onclick="this.closest('.ai-modal-overlay').remove()">✕</button>
+                </div>
+                
+                <div class="ai-modal-body">
+                    <div class="ai-preview-card">
+                        <video src="${videoSrc}" controls class="ai-preview-video" style="max-height: 200px;"></video>
+                        <div class="ai-preview-info">
+                            <p class="ai-preview-name">${asset.filename}</p>
+                            <p class="ai-preview-specs">${asset.width}×${asset.height} • ${asset.duration || 'N/A'}s</p>
+                        </div>
+                    </div>
+                    
+                    ${!hasCloudinary ? `
+                        <div class="ai-warning-box" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                            <h4 style="color: #f59e0b; margin: 0 0 8px;">⚠️ Cloudinary Required</h4>
+                            <p style="color: #94a3b8; margin: 0 0 12px;">Video resizing requires a Cloudinary account. Get one free at cloudinary.com</p>
+                            <button class="ai-btn-secondary" onclick="window.location.href='#settings'" style="display: inline-block;">
+                                Configure Cloudinary →
+                            </button>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="ai-option">
+                        <label style="margin-bottom: 12px; display: block; font-weight: 600;">Select Target Size</label>
+                        <div class="ai-video-presets" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                            ${videoPresets.map((p, i) => `
+                                <button class="ai-preset-btn ${i === 0 ? 'selected' : ''}" 
+                                        data-width="${p.width}" 
+                                        data-height="${p.height}" 
+                                        data-name="${p.name}"
+                                        style="padding: 12px; background: ${i === 0 ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)'}; border: 1px solid ${i === 0 ? '#a855f7' : 'rgba(255,255,255,0.1)'}; border-radius: 8px; cursor: pointer; text-align: center;">
+                                    <span style="font-size: 24px; display: block;">${p.icon}</span>
+                                    <span style="font-size: 12px; color: white; display: block; margin-top: 4px;">${p.name}</span>
+                                    <span style="font-size: 10px; color: #64748b;">${p.width}×${p.height}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="ai-option" style="margin-top: 16px;">
+                        <label>Or enter custom size:</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="number" id="custom-width" placeholder="Width" value="${asset.width}" style="width: 100px; padding: 8px; background: #0f0f14; border: 1px solid #334155; border-radius: 6px; color: white;">
+                            <span style="color: #64748b;">×</span>
+                            <input type="number" id="custom-height" placeholder="Height" value="${asset.height}" style="width: 100px; padding: 8px; background: #0f0f14; border: 1px solid #334155; border-radius: 6px; color: white;">
+                        </div>
+                    </div>
+                    
+                    <div class="ai-info-box" style="margin-top: 16px;">
+                        <p>☁️ Video will be resized using Cloudinary's powerful video transformation API with smart cropping and quality optimization.</p>
+                    </div>
+                </div>
+                
+                <div class="ai-modal-footer">
+                    <button class="ai-btn-secondary" onclick="this.closest('.ai-modal-overlay').remove()">Cancel</button>
+                    <button class="ai-btn-primary" id="resize-video-btn" ${!hasCloudinary ? 'disabled style="opacity: 0.5;"' : ''}>
+                        📐 Resize Video
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        
+        // Preset selection
+        let selectedWidth = videoPresets[0].width;
+        let selectedHeight = videoPresets[0].height;
+        let selectedName = videoPresets[0].name;
+        
+        modal.querySelectorAll('.ai-preset-btn').forEach(btn => {
+            btn.onclick = () => {
+                modal.querySelectorAll('.ai-preset-btn').forEach(b => {
+                    b.classList.remove('selected');
+                    b.style.background = 'rgba(255,255,255,0.05)';
+                    b.style.borderColor = 'rgba(255,255,255,0.1)';
+                });
+                btn.classList.add('selected');
+                btn.style.background = 'rgba(168, 85, 247, 0.2)';
+                btn.style.borderColor = '#a855f7';
+                selectedWidth = parseInt(btn.dataset.width);
+                selectedHeight = parseInt(btn.dataset.height);
+                selectedName = btn.dataset.name;
+                modal.querySelector('#custom-width').value = selectedWidth;
+                modal.querySelector('#custom-height').value = selectedHeight;
+            };
+        });
+        
+        // Custom size inputs update selection
+        modal.querySelector('#custom-width').oninput = (e) => {
+            selectedWidth = parseInt(e.target.value) || asset.width;
+            selectedName = 'Custom';
+            modal.querySelectorAll('.ai-preset-btn').forEach(b => {
+                b.classList.remove('selected');
+                b.style.background = 'rgba(255,255,255,0.05)';
+                b.style.borderColor = 'rgba(255,255,255,0.1)';
+            });
+        };
+        modal.querySelector('#custom-height').oninput = (e) => {
+            selectedHeight = parseInt(e.target.value) || asset.height;
+            selectedName = 'Custom';
+        };
+
+        // Resize button
+        modal.querySelector('#resize-video-btn').onclick = async () => {
+            if (!hasCloudinary) {
+                alert('Please configure Cloudinary credentials in Settings first.');
+                return;
+            }
+            
+            const btn = modal.querySelector('#resize-video-btn');
+            btn.innerHTML = '<span class="ai-spinner"></span> Resizing...';
+            btn.disabled = true;
+
+            try {
+                // If video isn't on Cloudinary yet, we need to upload it first
+                let cloudinaryPublicId = asset.cloudinary_id || asset.public_id;
+                
+                if (!cloudinaryPublicId && asset.dataUrl) {
+                    // Upload to Cloudinary first
+                    const uploadResult = await cloudinaryClient.upload(
+                        dataURLtoFile(asset.dataUrl, asset.filename),
+                        { folder: 'cav-videos' }
+                    );
+                    cloudinaryPublicId = uploadResult.public_id;
+                    
+                    // Update asset with Cloudinary info
+                    asset.cloudinary_id = cloudinaryPublicId;
+                    asset.cloudinary_url = uploadResult.url;
+                }
+                
+                if (!cloudinaryPublicId) {
+                    throw new Error('Video must be uploaded to Cloudinary first. Please ensure your video has a cloudinary_url.');
+                }
+                
+                // Generate the transformed URL
+                const result = await cloudinaryClient.transform(cloudinaryPublicId, {
+                    width: selectedWidth,
+                    height: selectedHeight,
+                    crop: 'fill',
+                    gravity: 'auto',
+                    resource_type: 'video'
+                });
+                
+                // Create derivative asset
+                const derivative = {
+                    id: `deriv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    filename: `${asset.filename.replace(/\.[^.]+$/, '')}_${selectedWidth}x${selectedHeight}.mp4`,
+                    file_type: 'video',
+                    width: selectedWidth,
+                    height: selectedHeight,
+                    cloudinary_url: result.url,
+                    cloudinary_id: cloudinaryPublicId,
+                    thumbnail_url: result.url.replace('/upload/', '/upload/so_0,w_400,h_400,c_fill/').replace(/\.[^.]+$/, '.jpg'),
+                    targetChannel: selectedName,
+                    targetSize: `${selectedWidth}×${selectedHeight}`,
+                    createdBy: 'Cloudinary Resize',
+                    aiModel: 'Cloudinary Video API',
+                    isDerivative: true,
+                    is_ai_derivative: true,
+                    sourceAssetId: asset.id,
+                    sourceFilename: asset.filename,
+                    created_at: new Date().toISOString()
+                };
+                
+                // Add to library
+                await addDerivativeToLibrary(asset, derivative);
+                
+                modal.remove();
+                
+                if (window.showToast) {
+                    window.showToast(`✅ Video resized to ${selectedWidth}×${selectedHeight} for ${selectedName}`, 'success');
+                } else {
+                    alert(`Video resized successfully! Size: ${selectedWidth}×${selectedHeight}`);
+                }
+                
+                // Refresh library if available
+                if (window.cavValidatorApp?.render) {
+                    window.cavValidatorApp.render();
+                }
+                
+            } catch (error) {
+                console.error('[Video Resize] Error:', error);
+                alert(`Error: ${error.message}`);
+                btn.innerHTML = '📐 Resize Video';
+                btn.disabled = false;
+            }
+        };
+    }
+    
+    // Helper to convert dataURL to File
+    function dataURLtoFile(dataurl, filename) {
+        if (!dataurl) return null;
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'video/mp4';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
+    }
+
+    // ============================================
     // LIBRARY INTEGRATION
     // ============================================
 
@@ -4382,6 +4629,7 @@ If you don't know, use empty strings. Be concise.`
         openAIFixPanel,
         openAnimationPanel,
         openExtractStillPanel,
+        openVideoResizePanel,
         openSingleChannelFix,
         CHANNEL_SPECS,
         BackgroundQueue,
@@ -4392,12 +4640,13 @@ If you don't know, use empty strings. Be concise.`
     // Setup event handlers
     setupEventHandlers();
 
-    console.log('🔗 AI Library Integration v2.9.0 - COMPREHENSIVE FIX');
+    console.log('🔗 AI Library Integration v3.0.0 - VIDEO RESIZE');
     console.log('   ✅ AI Fix button fixed for off-size images');
     console.log('   ✅ Individual resize buttons per channel');
     console.log('   ✅ Background generation queue');
-    console.log('   ✅ Improved storage and derivative linking');
-    console.log('   ✅ Improved button alignment');
+    console.log('   ✅ VIDEO RESIZE with Cloudinary');
+    console.log('   ✅ Platform presets (TikTok, Reels, YouTube, etc.)');
+    console.log('   ✅ Custom video dimensions');
     console.log('   ✅ Better navigation with back buttons');
 
 })();
