@@ -1724,6 +1724,9 @@
                 case 'integration-keys':
                     content = this.renderIntegrationKeysSection(settings);
                     break;
+                case 'platform-admin':
+                    content = this.renderPlatformAdminSection(settings);
+                    break;
             }
             
             if (content) {
@@ -1790,6 +1793,11 @@
                                 <span class="nav-label">Integration APIs</span>
                                 <span class="admin-badge">Admin</span>
                             </button>
+                            <button class="cav-settings-nav-btn admin-only" data-section="platform-admin">
+                                <span class="nav-icon">${ICONS.cloud}</span>
+                                <span class="nav-label">Platform Admin</span>
+                                <span class="admin-badge">Super</span>
+                            </button>
                             ` : ''}
                         </div>
                         
@@ -1802,6 +1810,7 @@
                             <div class="cav-settings-section" data-section="notifications"></div>
                             <div class="cav-settings-section" data-section="data"></div>
                             ${this.manager.isSuperAdmin() ? '<div class="cav-settings-section" data-section="integration-keys"></div>' : ''}
+                            ${this.manager.isSuperAdmin() ? '<div class="cav-settings-section" data-section="platform-admin"></div>' : ''}
                         </div>
                     </div>
                 </div>
@@ -2388,6 +2397,147 @@
             `;
         }
 
+        // Super Admin Platform Settings Section
+        renderPlatformAdminSection(settings) {
+            return `
+                <div class="cav-settings-section" data-section="platform-admin">
+                    <h2>☁️ Platform Administration</h2>
+                    <p class="cav-settings-desc">Configure platform-wide services like Cloudinary for video/image resizing. These settings apply to all users.</p>
+                    
+                    <div class="api-security-notice" style="border-color: #a855f7;">
+                        <div class="security-icon">${ICONS.shield}</div>
+                        <div class="security-text">
+                            <h4>Super Admin Only - Platform API Keys</h4>
+                            <p>These credentials power core platform features like video resizing. They are encrypted and stored in the MySQL database, <strong>not in code</strong>.</p>
+                            <div class="security-features">
+                                <span class="security-badge">${ICONS.lock} Encrypted Storage</span>
+                                <span class="security-badge">${ICONS.database} MySQL Backend</span>
+                                <span class="security-badge">${ICONS.check} Shared Quota</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="cav-platform-admin-grid">
+                        <!-- Cloudinary Configuration -->
+                        <div class="cav-platform-admin-card" data-service="cloudinary">
+                            <div class="platform-admin-header">
+                                <div class="platform-admin-icon" style="background: linear-gradient(135deg, #3448C5 0%, #2194E3 100%); color: white;">
+                                    ${ICONS.cloud}
+                                </div>
+                                <div class="platform-admin-info">
+                                    <h4>Cloudinary</h4>
+                                    <p>Video & image resizing, transformations, CDN delivery</p>
+                                    <span class="platform-status loading" id="cloudinary-status">Checking...</span>
+                                </div>
+                            </div>
+                            
+                            <div class="platform-admin-fields">
+                                <div class="cav-form-group">
+                                    <label>Cloud Name</label>
+                                    <input type="text" id="cloudinary-cloud-name" placeholder="your-cloud-name" class="cav-input">
+                                </div>
+                                <div class="cav-form-group">
+                                    <label>API Key</label>
+                                    <input type="text" id="cloudinary-api-key" placeholder="123456789012345" class="cav-input">
+                                </div>
+                                <div class="cav-form-group">
+                                    <label>API Secret</label>
+                                    <div class="cav-input-wrapper">
+                                        <input type="password" id="cloudinary-api-secret" placeholder="••••••••••••••••" class="cav-input">
+                                        <button type="button" class="toggle-visibility" title="Toggle visibility">${ICONS.eye}</button>
+                                    </div>
+                                </div>
+                                <button class="cav-btn cav-btn-primary save-platform-creds" data-service="cloudinary">
+                                    💾 Save Cloudinary Settings
+                                </button>
+                            </div>
+                            
+                            <div class="platform-admin-footer">
+                                <a href="https://cloudinary.com/users/register_free" target="_blank" class="platform-link">
+                                    Get free Cloudinary account →
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- OpenAI Configuration -->
+                        <div class="cav-platform-admin-card" data-service="openai">
+                            <div class="platform-admin-header">
+                                <div class="platform-admin-icon" style="background: linear-gradient(135deg, #10a37f 0%, #0d8a6a 100%); color: white;">
+                                    ${ICONS.openai}
+                                </div>
+                                <div class="platform-admin-info">
+                                    <h4>OpenAI (Shared)</h4>
+                                    <p>Platform-wide GPT-5.2 access for AI analysis</p>
+                                    <span class="platform-status" id="openai-platform-status">User-provided</span>
+                                </div>
+                            </div>
+                            
+                            <div class="platform-admin-fields">
+                                <div class="cav-form-group">
+                                    <label>API Key (for users without their own)</label>
+                                    <div class="cav-input-wrapper">
+                                        <input type="password" id="openai-platform-key" placeholder="sk-..." class="cav-input">
+                                        <button type="button" class="toggle-visibility" title="Toggle visibility">${ICONS.eye}</button>
+                                    </div>
+                                </div>
+                                <button class="cav-btn cav-btn-secondary save-platform-creds" data-service="openai">
+                                    💾 Save OpenAI Key
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Anthropic Configuration -->
+                        <div class="cav-platform-admin-card" data-service="anthropic">
+                            <div class="platform-admin-header">
+                                <div class="platform-admin-icon" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white;">
+                                    ${ICONS.brain}
+                                </div>
+                                <div class="platform-admin-info">
+                                    <h4>Anthropic Claude (Shared)</h4>
+                                    <p>Platform-wide Claude 4.5 access for creative analysis</p>
+                                    <span class="platform-status" id="anthropic-platform-status">User-provided</span>
+                                </div>
+                            </div>
+                            
+                            <div class="platform-admin-fields">
+                                <div class="cav-form-group">
+                                    <label>API Key (for users without their own)</label>
+                                    <div class="cav-input-wrapper">
+                                        <input type="password" id="anthropic-platform-key" placeholder="sk-ant-..." class="cav-input">
+                                        <button type="button" class="toggle-visibility" title="Toggle visibility">${ICONS.eye}</button>
+                                    </div>
+                                </div>
+                                <button class="cav-btn cav-btn-secondary save-platform-creds" data-service="anthropic">
+                                    💾 Save Anthropic Key
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="platform-sync-status" style="margin-top: 24px; padding: 16px; background: rgba(168, 85, 247, 0.1); border-radius: 12px; border: 1px solid rgba(168, 85, 247, 0.2);">
+                        <h4 style="margin: 0 0 12px; color: #a855f7;">📡 Real-Time Sync Status</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                            <div class="sync-stat">
+                                <span class="stat-label">Database</span>
+                                <span class="stat-value" id="db-status">Checking...</span>
+                            </div>
+                            <div class="sync-stat">
+                                <span class="stat-label">Last Sync</span>
+                                <span class="stat-value" id="last-sync-time">Never</span>
+                            </div>
+                            <div class="sync-stat">
+                                <span class="stat-label">Pending Changes</span>
+                                <span class="stat-value" id="pending-count">0</span>
+                            </div>
+                        </div>
+                        <button class="cav-btn cav-btn-secondary" id="force-sync-btn" style="margin-top: 16px;">
+                            ${ICONS.refresh} Force Sync Now
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
         attachEventHandlers(container) {
             // Navigation
             container.querySelectorAll('.cav-settings-nav-btn').forEach(btn => {
@@ -2833,6 +2983,129 @@
                         });
                     });
                     break;
+                    
+                case 'platform-admin':
+                    // Platform Admin API key handlers (Cloudinary, OpenAI, Anthropic)
+                    container.querySelectorAll('.save-platform-creds').forEach(btn => {
+                        btn.addEventListener('click', async (e) => {
+                            const service = e.target.dataset.service;
+                            const btn = e.target;
+                            btn.disabled = true;
+                            btn.textContent = 'Saving...';
+                            
+                            try {
+                                if (service === 'cloudinary') {
+                                    const cloudName = container.querySelector('#cloudinary-cloud-name')?.value?.trim();
+                                    const apiKey = container.querySelector('#cloudinary-api-key')?.value?.trim();
+                                    const apiSecret = container.querySelector('#cloudinary-api-secret')?.value?.trim();
+                                    
+                                    if (!cloudName || !apiKey || !apiSecret) {
+                                        this.showToast('error', 'Please fill in all Cloudinary fields');
+                                        return;
+                                    }
+                                    
+                                    // Save via API
+                                    const response = await fetch('/api/settings/api-keys', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${localStorage.getItem('cav_session_token')}`
+                                        },
+                                        body: JSON.stringify({
+                                            service: 'cloudinary',
+                                            cloud_name: cloudName,
+                                            api_key: apiKey,
+                                            api_secret: apiSecret
+                                        })
+                                    });
+                                    
+                                    if (response.ok) {
+                                        this.showToast('success', 'Cloudinary credentials saved securely!');
+                                        container.querySelector('#cloudinary-status').textContent = 'Configured';
+                                        container.querySelector('#cloudinary-status').className = 'platform-status configured';
+                                    } else {
+                                        const error = await response.json();
+                                        this.showToast('error', error.message || 'Failed to save credentials');
+                                    }
+                                } else if (service === 'openai' || service === 'anthropic') {
+                                    const apiKey = container.querySelector(`#${service}-platform-key`)?.value?.trim();
+                                    
+                                    if (!apiKey) {
+                                        this.showToast('error', `Please enter an ${service} API key`);
+                                        return;
+                                    }
+                                    
+                                    const response = await fetch('/api/settings/api-keys', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${localStorage.getItem('cav_session_token')}`
+                                        },
+                                        body: JSON.stringify({
+                                            service: service,
+                                            api_key: apiKey
+                                        })
+                                    });
+                                    
+                                    if (response.ok) {
+                                        this.showToast('success', `${service} API key saved securely!`);
+                                        container.querySelector(`#${service}-platform-status`).textContent = 'Configured';
+                                    } else {
+                                        const error = await response.json();
+                                        this.showToast('error', error.message || 'Failed to save');
+                                    }
+                                }
+                            } catch (error) {
+                                this.showToast('error', 'Failed to save: ' + error.message);
+                            } finally {
+                                btn.disabled = false;
+                                btn.textContent = '💾 Save ' + service.charAt(0).toUpperCase() + service.slice(1) + ' Settings';
+                            }
+                        });
+                    });
+                    
+                    // Force sync button
+                    container.querySelector('#force-sync-btn')?.addEventListener('click', async () => {
+                        if (window.syncEngine) {
+                            try {
+                                await window.syncEngine.sync();
+                                this.showToast('success', 'Sync completed!');
+                                container.querySelector('#last-sync-time').textContent = new Date().toLocaleTimeString();
+                            } catch (e) {
+                                this.showToast('error', 'Sync failed: ' + e.message);
+                            }
+                        } else {
+                            this.showToast('warning', 'Sync engine not initialized');
+                        }
+                    });
+                    
+                    // Check API health on load
+                    this.checkPlatformStatus(container);
+                    break;
+            }
+        }
+        
+        async checkPlatformStatus(container) {
+            try {
+                const response = await fetch('/api/health');
+                if (response.ok) {
+                    container.querySelector('#db-status').textContent = 'Connected ✓';
+                    container.querySelector('#db-status').style.color = '#22c55e';
+                } else {
+                    container.querySelector('#db-status').textContent = 'Error';
+                    container.querySelector('#db-status').style.color = '#ef4444';
+                }
+            } catch (e) {
+                container.querySelector('#db-status').textContent = 'Offline';
+                container.querySelector('#db-status').style.color = '#f59e0b';
+            }
+            
+            // Update sync status if engine exists
+            if (window.syncEngine) {
+                const status = window.syncEngine.getStatus();
+                container.querySelector('#pending-count').textContent = status.pendingCount || 0;
+                container.querySelector('#last-sync-time').textContent = 
+                    status.lastSync ? new Date(status.lastSync).toLocaleTimeString() : 'Never';
             }
         }
 

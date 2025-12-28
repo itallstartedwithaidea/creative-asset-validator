@@ -46,8 +46,13 @@ build/
 # Authentication config with real credentials
 auth-config.js
 
-# Keep the example template
+# API backend config (contains DB password)
+api/config/config.php
+api/logs/
+
+# Keep the example templates
 !auth-config.example.js
+!api/config/config.example.php
 
 # Local development
 *.local
