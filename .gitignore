@@ -1,0 +1,54 @@
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies (if any node modules are added later)
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.zip
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# API keys (never commit these)
+**/secrets/
+*.key
+*.pem
+
+# Authentication config with real credentials
+auth-config.js
+
+# Keep the example template
+!auth-config.example.js
+
+# Local development
+*.local
+
