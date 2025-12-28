@@ -74,7 +74,7 @@
             openaiVisionModel: 'gpt-5.2',
             analysisTemperature: 0.3,
             creativeTemperature: 0.7,
-            maxTokens: 4096
+            maxTokens: 8192
         },
         features: {
             enableAIAnalysis: true,
@@ -139,6 +139,99 @@
             // Check against AUTH_CONFIG admin emails
             const adminEmails = window.AUTH_CONFIG?.ADMIN_EMAILS || [];
             return adminEmails.some(adminEmail => email === adminEmail.toLowerCase());
+        }
+        
+        // ============================================
+        // PLATFORM CREDENTIALS (Super Admin Only)
+        // ============================================
+        
+        getPlatformCredentials() {
+            if (!this.isSuperAdmin()) return null;
+            try {
+                const stored = localStorage.getItem('cav_platform_credentials');
+                return stored ? JSON.parse(stored) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+        
+        savePlatformCredentials(credentials) {
+            if (!this.isSuperAdmin()) {
+                console.warn('[Settings] Only super admin can save platform credentials');
+                return false;
+            }
+            try {
+                localStorage.setItem('cav_platform_credentials', JSON.stringify(credentials));
+                console.log('[Settings] Platform credentials saved');
+                return true;
+            } catch (e) {
+                console.error('[Settings] Failed to save platform credentials:', e);
+                return false;
+            }
+        }
+        
+        // Get shared API key for non-super-admin users
+        getSharedApiKey(provider) {
+            const session = window.cavUserSession || window.CAVSecurity?.SecureSessionManager?.getSession?.();
+            const currentEmail = session?.email?.toLowerCase() || '';
+            
+            // If user is super admin, they use their own keys
+            if (this.isSuperAdmin()) {
+                return null;
+            }
+            
+            // Check if platform sharing is enabled and user is allowed
+            const platformCreds = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+            const sharing = platformCreds.sharing || {};
+            
+            if (!sharing.enabled) return null;
+            
+            // Check if current user is in allowed list
+            const allowedEmails = (sharing.allowedEmails || []).map(e => e.toLowerCase().trim());
+            if (!allowedEmails.includes(currentEmail) && allowedEmails.length > 0) {
+                return null; // Not in allowed list
+            }
+            
+            // Return the shared key for this provider
+            const sharedKeys = platformCreds.sharedKeys || {};
+            return sharedKeys[provider] || null;
+        }
+        
+        // Check if user can access shared keys
+        canAccessSharedKeys() {
+            if (this.isSuperAdmin()) return false; // Super admin uses their own
+            
+            const session = window.cavUserSession || window.CAVSecurity?.SecureSessionManager?.getSession?.();
+            const currentEmail = session?.email?.toLowerCase() || '';
+            
+            const platformCreds = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+            const sharing = platformCreds.sharing || {};
+            
+            if (!sharing.enabled) return false;
+            
+            const allowedEmails = (sharing.allowedEmails || []).map(e => e.toLowerCase().trim());
+            return allowedEmails.length === 0 || allowedEmails.includes(currentEmail);
+        }
+        
+        // User's own Cloudinary credentials (BYOK)
+        getUserCloudinaryCredentials() {
+            try {
+                const stored = localStorage.getItem('cav_user_cloudinary');
+                return stored ? JSON.parse(stored) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+        
+        saveUserCloudinaryCredentials(credentials) {
+            try {
+                localStorage.setItem('cav_user_cloudinary', JSON.stringify(credentials));
+                console.log('[Settings] User Cloudinary credentials saved');
+                return true;
+            } catch (e) {
+                console.error('[Settings] Failed to save Cloudinary credentials:', e);
+                return false;
+            }
         }
         
         // Load API keys from IndexedDB for current user
@@ -1935,8 +2028,108 @@
                             </ul>
                         </div>
                     </div>
+                    
+                    ${this.renderCloudinaryBYOKSection()}
                 </div>
             `;
+        }
+        
+        renderCloudinaryBYOKSection() {
+            const userCreds = this.manager.getUserCloudinaryCredentials() || {};
+            const hasCredentials = userCreds.cloudName && userCreds.apiKey && userCreds.apiSecret;
+            
+            return `
+                <div class="cav-cloudinary-byok-section" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                        <div style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3448C5 0%, #2194E3 100%); color: white;">
+                            ${ICONS.cloud}
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; color: white;">☁️ Your Cloudinary Account</h3>
+                            <p style="margin: 4px 0 0; color: #94a3b8; font-size: 14px;">Required for video/image resizing - get a free account at <a href="https://cloudinary.com/users/register_free" target="_blank" style="color: #a855f7;">cloudinary.com</a></p>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(52, 72, 197, 0.1); border: 1px solid rgba(52, 72, 197, 0.3); border-radius: 12px; padding: 20px;">
+                        ${hasCredentials ? `
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 12px; background: rgba(34, 197, 94, 0.1); border-radius: 8px;">
+                                <span style="color: #22c55e;">✓</span>
+                                <span style="color: #22c55e;">Cloudinary configured: ${userCreds.cloudName}</span>
+                            </div>
+                        ` : `
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 12px; background: rgba(245, 158, 11, 0.1); border-radius: 8px;">
+                                <span style="color: #f59e0b;">⚠</span>
+                                <span style="color: #f59e0b;">Cloudinary not configured - required for video resizing</span>
+                            </div>
+                        `}
+                        
+                        <div class="cav-cloudinary-fields" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                            <div class="cav-form-group">
+                                <label style="display: block; color: #94a3b8; margin-bottom: 6px; font-size: 13px;">Cloud Name</label>
+                                <input type="text" id="user-cloudinary-cloud-name" value="${userCreds.cloudName || ''}" placeholder="your-cloud-name" class="cav-input" style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
+                            </div>
+                            <div class="cav-form-group">
+                                <label style="display: block; color: #94a3b8; margin-bottom: 6px; font-size: 13px;">API Key</label>
+                                <input type="text" id="user-cloudinary-api-key" value="${userCreds.apiKey || ''}" placeholder="123456789012345" class="cav-input" style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
+                            </div>
+                            <div class="cav-form-group">
+                                <label style="display: block; color: #94a3b8; margin-bottom: 6px; font-size: 13px;">API Secret</label>
+                                <input type="password" id="user-cloudinary-api-secret" value="${userCreds.apiSecret || ''}" placeholder="••••••••••••••••" class="cav-input" style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 12px; margin-top: 16px;">
+                            <button class="cav-btn cav-btn-primary" id="save-user-cloudinary" style="flex: 1;">
+                                💾 Save My Cloudinary Credentials
+                            </button>
+                            ${hasCredentials ? `
+                                <button class="cav-btn cav-btn-secondary" id="clear-user-cloudinary" style="background: transparent; border: 1px solid #ef4444; color: #ef4444;">
+                                    🗑️ Clear
+                                </button>
+                            ` : ''}
+                        </div>
+                        
+                        <p style="font-size: 12px; color: #64748b; margin-top: 12px; text-align: center;">
+                            🔒 Your credentials are stored securely in your browser and never shared.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        attachCloudinaryBYOKHandlers(container) {
+            // Re-attach handlers after section refresh
+            container.querySelector('#save-user-cloudinary')?.addEventListener('click', () => {
+                const cloudName = container.querySelector('#user-cloudinary-cloud-name')?.value?.trim();
+                const apiKey = container.querySelector('#user-cloudinary-api-key')?.value?.trim();
+                const apiSecret = container.querySelector('#user-cloudinary-api-secret')?.value?.trim();
+                
+                if (!cloudName || !apiKey || !apiSecret) {
+                    this.showToast('error', 'Please fill in all Cloudinary fields');
+                    return;
+                }
+                
+                if (this.manager.saveUserCloudinaryCredentials({ cloudName, apiKey, apiSecret })) {
+                    this.showToast('success', 'Cloudinary credentials saved!');
+                    const byokSection = container.querySelector('.cav-cloudinary-byok-section');
+                    if (byokSection) {
+                        byokSection.outerHTML = this.renderCloudinaryBYOKSection();
+                        this.attachCloudinaryBYOKHandlers(container);
+                    }
+                }
+            });
+            
+            container.querySelector('#clear-user-cloudinary')?.addEventListener('click', () => {
+                if (confirm('Remove Cloudinary credentials?')) {
+                    localStorage.removeItem('cav_user_cloudinary');
+                    this.showToast('info', 'Credentials removed');
+                    const byokSection = container.querySelector('.cav-cloudinary-byok-section');
+                    if (byokSection) {
+                        byokSection.outerHTML = this.renderCloudinaryBYOKSection();
+                        this.attachCloudinaryBYOKHandlers(container);
+                    }
+                }
+            });
         }
 
         renderModelConfigSection(settings) {
@@ -2399,140 +2592,137 @@
 
         // Super Admin Platform Settings Section
         renderPlatformAdminSection(settings) {
+            // Get saved platform credentials (stored locally for super admin)
+            const platformCreds = this.manager.getPlatformCredentials() || {};
+            const cloudinaryCreds = platformCreds.cloudinary || {};
+            const sharedKeys = platformCreds.sharedKeys || { openai: '', anthropic: '' };
+            const sharingConfig = platformCreds.sharing || { enabled: false, allowedEmails: [] };
+            
             return `
                 <div class="cav-settings-section" data-section="platform-admin">
                     <h2>☁️ Platform Administration</h2>
-                    <p class="cav-settings-desc">Configure platform-wide services like Cloudinary for video/image resizing. These settings apply to all users.</p>
+                    <p class="cav-settings-desc">Configure platform-wide services. As Super Admin, you can share your API access with selected users.</p>
                     
                     <div class="api-security-notice" style="border-color: #a855f7;">
                         <div class="security-icon">${ICONS.shield}</div>
                         <div class="security-text">
                             <h4>Super Admin Only - Platform API Keys</h4>
-                            <p>These credentials power core platform features like video resizing. They are encrypted and stored in the MySQL database, <strong>not in code</strong>.</p>
+                            <p>These credentials are stored securely in your browser. Only you can see this section.</p>
                             <div class="security-features">
                                 <span class="security-badge">${ICONS.lock} Encrypted Storage</span>
-                                <span class="security-badge">${ICONS.database} MySQL Backend</span>
-                                <span class="security-badge">${ICONS.check} Shared Quota</span>
+                                <span class="security-badge">${ICONS.shield} Super Admin Only</span>
+                                <span class="security-badge">${ICONS.users} Selective Sharing</span>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="cav-platform-admin-grid">
-                        <!-- Cloudinary Configuration -->
-                        <div class="cav-platform-admin-card" data-service="cloudinary">
-                            <div class="platform-admin-header">
-                                <div class="platform-admin-icon" style="background: linear-gradient(135deg, #3448C5 0%, #2194E3 100%); color: white;">
+                    <!-- API Sharing Configuration -->
+                    <div class="platform-sharing-config" style="margin: 24px 0; padding: 20px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 12px;">
+                        <h4 style="margin: 0 0 16px; color: #22c55e;">${ICONS.users} API Access Sharing</h4>
+                        <p style="color: #94a3b8; margin-bottom: 16px;">Share your AI API keys with selected team members. They can opt to use their own keys instead.</p>
+                        
+                        <div class="sharing-toggle" style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="enable-api-sharing" ${sharingConfig.enabled ? 'checked' : ''}>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span>Enable API Sharing</span>
+                        </div>
+                        
+                        <div id="sharing-emails-section" style="display: ${sharingConfig.enabled ? 'block' : 'none'};">
+                            <label style="display: block; color: #94a3b8; margin-bottom: 8px;">Allowed Emails (one per line)</label>
+                            <textarea id="sharing-allowed-emails" rows="4" placeholder="user1@company.com&#10;user2@company.com" 
+                                style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 12px; color: white; resize: vertical;">${(sharingConfig.allowedEmails || []).join('\n')}</textarea>
+                            <p style="font-size: 12px; color: #64748b; margin-top: 8px;">These users will have access to your shared API keys but NOT your Cloudinary.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="cav-platform-admin-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                        <!-- Cloudinary Configuration (Super Admin Only - NOT shared) -->
+                        <div class="cav-platform-admin-card" data-service="cloudinary" style="background: linear-gradient(180deg, rgba(52, 72, 197, 0.1) 0%, rgba(33, 148, 227, 0.05) 100%); border: 1px solid rgba(52, 72, 197, 0.3); border-radius: 12px; padding: 20px;">
+                            <div class="platform-admin-header" style="display: flex; gap: 16px; margin-bottom: 16px;">
+                                <div class="platform-admin-icon" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3448C5 0%, #2194E3 100%); color: white;">
                                     ${ICONS.cloud}
                                 </div>
                                 <div class="platform-admin-info">
-                                    <h4>Cloudinary</h4>
-                                    <p>Video & image resizing, transformations, CDN delivery</p>
-                                    <span class="platform-status loading" id="cloudinary-status">Checking...</span>
+                                    <h4 style="margin: 0; color: white;">Cloudinary (Admin Only)</h4>
+                                    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">NOT shared - Users must use their own</p>
+                                    <span class="platform-status ${cloudinaryCreds.cloudName ? 'configured' : ''}" style="font-size: 12px; color: ${cloudinaryCreds.cloudName ? '#22c55e' : '#f59e0b'};">
+                                        ${cloudinaryCreds.cloudName ? '✓ Configured' : '⚠ Not configured'}
+                                    </span>
                                 </div>
                             </div>
                             
                             <div class="platform-admin-fields">
-                                <div class="cav-form-group">
-                                    <label>Cloud Name</label>
-                                    <input type="text" id="cloudinary-cloud-name" placeholder="your-cloud-name" class="cav-input">
+                                <div class="cav-form-group" style="margin-bottom: 12px;">
+                                    <label style="display: block; color: #94a3b8; margin-bottom: 6px; font-size: 13px;">Cloud Name</label>
+                                    <input type="text" id="admin-cloudinary-cloud-name" value="${cloudinaryCreds.cloudName || ''}" placeholder="your-cloud-name" class="cav-input" style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
                                 </div>
-                                <div class="cav-form-group">
-                                    <label>API Key</label>
-                                    <input type="text" id="cloudinary-api-key" placeholder="123456789012345" class="cav-input">
+                                <div class="cav-form-group" style="margin-bottom: 12px;">
+                                    <label style="display: block; color: #94a3b8; margin-bottom: 6px; font-size: 13px;">API Key</label>
+                                    <input type="text" id="admin-cloudinary-api-key" value="${cloudinaryCreds.apiKey || ''}" placeholder="123456789012345" class="cav-input" style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
                                 </div>
-                                <div class="cav-form-group">
-                                    <label>API Secret</label>
-                                    <div class="cav-input-wrapper">
-                                        <input type="password" id="cloudinary-api-secret" placeholder="••••••••••••••••" class="cav-input">
-                                        <button type="button" class="toggle-visibility" title="Toggle visibility">${ICONS.eye}</button>
-                                    </div>
+                                <div class="cav-form-group" style="margin-bottom: 16px;">
+                                    <label style="display: block; color: #94a3b8; margin-bottom: 6px; font-size: 13px;">API Secret</label>
+                                    <input type="password" id="admin-cloudinary-api-secret" value="${cloudinaryCreds.apiSecret || ''}" placeholder="••••••••••••••••" class="cav-input" style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
                                 </div>
-                                <button class="cav-btn cav-btn-primary save-platform-creds" data-service="cloudinary">
-                                    💾 Save Cloudinary Settings
+                                <button class="cav-btn cav-btn-primary save-admin-cloudinary" style="width: 100%;">
+                                    💾 Save Cloudinary
                                 </button>
-                            </div>
-                            
-                            <div class="platform-admin-footer">
-                                <a href="https://cloudinary.com/users/register_free" target="_blank" class="platform-link">
-                                    Get free Cloudinary account →
-                                </a>
                             </div>
                         </div>
                         
-                        <!-- OpenAI Configuration -->
-                        <div class="cav-platform-admin-card" data-service="openai">
-                            <div class="platform-admin-header">
-                                <div class="platform-admin-icon" style="background: linear-gradient(135deg, #10a37f 0%, #0d8a6a 100%); color: white;">
+                        <!-- Shared OpenAI Key -->
+                        <div class="cav-platform-admin-card" data-service="openai" style="background: linear-gradient(180deg, rgba(16, 163, 127, 0.1) 0%, rgba(13, 138, 106, 0.05) 100%); border: 1px solid rgba(16, 163, 127, 0.3); border-radius: 12px; padding: 20px;">
+                            <div class="platform-admin-header" style="display: flex; gap: 16px; margin-bottom: 16px;">
+                                <div class="platform-admin-icon" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #10a37f 0%, #0d8a6a 100%); color: white;">
                                     ${ICONS.openai}
                                 </div>
                                 <div class="platform-admin-info">
-                                    <h4>OpenAI (Shared)</h4>
-                                    <p>Platform-wide GPT-5.2 access for AI analysis</p>
-                                    <span class="platform-status" id="openai-platform-status">User-provided</span>
+                                    <h4 style="margin: 0; color: white;">OpenAI (Shareable)</h4>
+                                    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">GPT-5.2 for allowed users</p>
+                                    <span style="font-size: 12px; color: ${sharedKeys.openai ? '#22c55e' : '#64748b'};">
+                                        ${sharedKeys.openai ? '✓ Configured' : 'Not set'}
+                                    </span>
                                 </div>
                             </div>
                             
                             <div class="platform-admin-fields">
-                                <div class="cav-form-group">
-                                    <label>API Key (for users without their own)</label>
-                                    <div class="cav-input-wrapper">
-                                        <input type="password" id="openai-platform-key" placeholder="sk-..." class="cav-input">
-                                        <button type="button" class="toggle-visibility" title="Toggle visibility">${ICONS.eye}</button>
-                                    </div>
+                                <div class="cav-form-group" style="margin-bottom: 16px;">
+                                    <label style="display: block; color: #94a3b8; margin-bottom: 6px; font-size: 13px;">Shared API Key</label>
+                                    <input type="password" id="admin-shared-openai" value="${sharedKeys.openai || ''}" placeholder="sk-..." class="cav-input" style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
                                 </div>
-                                <button class="cav-btn cav-btn-secondary save-platform-creds" data-service="openai">
-                                    💾 Save OpenAI Key
+                                <button class="cav-btn cav-btn-secondary save-admin-shared-key" data-provider="openai" style="width: 100%;">
+                                    💾 Save Shared OpenAI Key
                                 </button>
                             </div>
                         </div>
                         
-                        <!-- Anthropic Configuration -->
-                        <div class="cav-platform-admin-card" data-service="anthropic">
-                            <div class="platform-admin-header">
-                                <div class="platform-admin-icon" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white;">
+                        <!-- Shared Claude Key -->
+                        <div class="cav-platform-admin-card" data-service="anthropic" style="background: linear-gradient(180deg, rgba(217, 119, 6, 0.1) 0%, rgba(180, 83, 9, 0.05) 100%); border: 1px solid rgba(217, 119, 6, 0.3); border-radius: 12px; padding: 20px;">
+                            <div class="platform-admin-header" style="display: flex; gap: 16px; margin-bottom: 16px;">
+                                <div class="platform-admin-icon" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #d97706 0%, #b45309 100%); color: white;">
                                     ${ICONS.brain}
                                 </div>
                                 <div class="platform-admin-info">
-                                    <h4>Anthropic Claude (Shared)</h4>
-                                    <p>Platform-wide Claude 4.5 access for creative analysis</p>
-                                    <span class="platform-status" id="anthropic-platform-status">User-provided</span>
+                                    <h4 style="margin: 0; color: white;">Claude (Shareable)</h4>
+                                    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Claude 4.5 for allowed users</p>
+                                    <span style="font-size: 12px; color: ${sharedKeys.anthropic ? '#22c55e' : '#64748b'};">
+                                        ${sharedKeys.anthropic ? '✓ Configured' : 'Not set'}
+                                    </span>
                                 </div>
                             </div>
                             
                             <div class="platform-admin-fields">
-                                <div class="cav-form-group">
-                                    <label>API Key (for users without their own)</label>
-                                    <div class="cav-input-wrapper">
-                                        <input type="password" id="anthropic-platform-key" placeholder="sk-ant-..." class="cav-input">
-                                        <button type="button" class="toggle-visibility" title="Toggle visibility">${ICONS.eye}</button>
-                                    </div>
+                                <div class="cav-form-group" style="margin-bottom: 16px;">
+                                    <label style="display: block; color: #94a3b8; margin-bottom: 6px; font-size: 13px;">Shared API Key</label>
+                                    <input type="password" id="admin-shared-anthropic" value="${sharedKeys.anthropic || ''}" placeholder="sk-ant-..." class="cav-input" style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
                                 </div>
-                                <button class="cav-btn cav-btn-secondary save-platform-creds" data-service="anthropic">
-                                    💾 Save Anthropic Key
+                                <button class="cav-btn cav-btn-secondary save-admin-shared-key" data-provider="anthropic" style="width: 100%;">
+                                    💾 Save Shared Claude Key
                                 </button>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="platform-sync-status" style="margin-top: 24px; padding: 16px; background: rgba(168, 85, 247, 0.1); border-radius: 12px; border: 1px solid rgba(168, 85, 247, 0.2);">
-                        <h4 style="margin: 0 0 12px; color: #a855f7;">📡 Real-Time Sync Status</h4>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
-                            <div class="sync-stat">
-                                <span class="stat-label">Database</span>
-                                <span class="stat-value" id="db-status">Checking...</span>
-                            </div>
-                            <div class="sync-stat">
-                                <span class="stat-label">Last Sync</span>
-                                <span class="stat-value" id="last-sync-time">Never</span>
-                            </div>
-                            <div class="sync-stat">
-                                <span class="stat-label">Pending Changes</span>
-                                <span class="stat-value" id="pending-count">0</span>
-                            </div>
-                        </div>
-                        <button class="cav-btn cav-btn-secondary" id="force-sync-btn" style="margin-top: 16px;">
-                            ${ICONS.refresh} Force Sync Now
-                        </button>
                     </div>
                 </div>
             `;
@@ -2630,6 +2820,45 @@
                 e.target.textContent = '🔄 Test All Connections';
                 this.render(container); // Refresh UI
                 this.showToast('success', 'All connections tested');
+            });
+            
+            // User Cloudinary BYOK - Save
+            container.querySelector('#save-user-cloudinary')?.addEventListener('click', () => {
+                const cloudName = container.querySelector('#user-cloudinary-cloud-name')?.value?.trim();
+                const apiKey = container.querySelector('#user-cloudinary-api-key')?.value?.trim();
+                const apiSecret = container.querySelector('#user-cloudinary-api-secret')?.value?.trim();
+                
+                if (!cloudName || !apiKey || !apiSecret) {
+                    this.showToast('error', 'Please fill in all Cloudinary fields');
+                    return;
+                }
+                
+                if (this.manager.saveUserCloudinaryCredentials({ cloudName, apiKey, apiSecret })) {
+                    this.showToast('success', 'Cloudinary credentials saved! You can now resize videos.');
+                    // Refresh the section
+                    const byokSection = container.querySelector('.cav-cloudinary-byok-section');
+                    if (byokSection) {
+                        byokSection.outerHTML = this.renderCloudinaryBYOKSection();
+                        // Re-attach the event handlers
+                        this.attachCloudinaryBYOKHandlers(container);
+                    }
+                } else {
+                    this.showToast('error', 'Failed to save credentials');
+                }
+            });
+            
+            // User Cloudinary BYOK - Clear
+            container.querySelector('#clear-user-cloudinary')?.addEventListener('click', () => {
+                if (confirm('Are you sure you want to remove your Cloudinary credentials?')) {
+                    localStorage.removeItem('cav_user_cloudinary');
+                    this.showToast('info', 'Cloudinary credentials removed');
+                    // Refresh the section
+                    const byokSection = container.querySelector('.cav-cloudinary-byok-section');
+                    if (byokSection) {
+                        byokSection.outerHTML = this.renderCloudinaryBYOKSection();
+                        this.attachCloudinaryBYOKHandlers(container);
+                    }
+                }
             });
 
             // Feature toggles
@@ -2985,102 +3214,81 @@
                     break;
                     
                 case 'platform-admin':
-                    // Platform Admin API key handlers (Cloudinary, OpenAI, Anthropic)
-                    container.querySelectorAll('.save-platform-creds').forEach(btn => {
-                        btn.addEventListener('click', async (e) => {
-                            const service = e.target.dataset.service;
-                            const btn = e.target;
-                            btn.disabled = true;
-                            btn.textContent = 'Saving...';
-                            
-                            try {
-                                if (service === 'cloudinary') {
-                                    const cloudName = container.querySelector('#cloudinary-cloud-name')?.value?.trim();
-                                    const apiKey = container.querySelector('#cloudinary-api-key')?.value?.trim();
-                                    const apiSecret = container.querySelector('#cloudinary-api-secret')?.value?.trim();
-                                    
-                                    if (!cloudName || !apiKey || !apiSecret) {
-                                        this.showToast('error', 'Please fill in all Cloudinary fields');
-                                        return;
-                                    }
-                                    
-                                    // Save via API
-                                    const response = await fetch('/api/settings/api-keys', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'Authorization': `Bearer ${localStorage.getItem('cav_session_token')}`
-                                        },
-                                        body: JSON.stringify({
-                                            service: 'cloudinary',
-                                            cloud_name: cloudName,
-                                            api_key: apiKey,
-                                            api_secret: apiSecret
-                                        })
-                                    });
-                                    
-                                    if (response.ok) {
-                                        this.showToast('success', 'Cloudinary credentials saved securely!');
-                                        container.querySelector('#cloudinary-status').textContent = 'Configured';
-                                        container.querySelector('#cloudinary-status').className = 'platform-status configured';
-                                    } else {
-                                        const error = await response.json();
-                                        this.showToast('error', error.message || 'Failed to save credentials');
-                                    }
-                                } else if (service === 'openai' || service === 'anthropic') {
-                                    const apiKey = container.querySelector(`#${service}-platform-key`)?.value?.trim();
-                                    
-                                    if (!apiKey) {
-                                        this.showToast('error', `Please enter an ${service} API key`);
-                                        return;
-                                    }
-                                    
-                                    const response = await fetch('/api/settings/api-keys', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'Authorization': `Bearer ${localStorage.getItem('cav_session_token')}`
-                                        },
-                                        body: JSON.stringify({
-                                            service: service,
-                                            api_key: apiKey
-                                        })
-                                    });
-                                    
-                                    if (response.ok) {
-                                        this.showToast('success', `${service} API key saved securely!`);
-                                        container.querySelector(`#${service}-platform-status`).textContent = 'Configured';
-                                    } else {
-                                        const error = await response.json();
-                                        this.showToast('error', error.message || 'Failed to save');
-                                    }
-                                }
-                            } catch (error) {
-                                this.showToast('error', 'Failed to save: ' + error.message);
-                            } finally {
-                                btn.disabled = false;
-                                btn.textContent = '💾 Save ' + service.charAt(0).toUpperCase() + service.slice(1) + ' Settings';
-                            }
-                        });
+                    // Platform Admin - Save credentials locally (Super Admin Only)
+                    
+                    // Enable API Sharing toggle
+                    container.querySelector('#enable-api-sharing')?.addEventListener('change', (e) => {
+                        const enabled = e.target.checked;
+                        const emailsSection = container.querySelector('#sharing-emails-section');
+                        if (emailsSection) {
+                            emailsSection.style.display = enabled ? 'block' : 'none';
+                        }
+                        
+                        // Save sharing config
+                        const platformCreds = this.manager.getPlatformCredentials() || {};
+                        platformCreds.sharing = platformCreds.sharing || {};
+                        platformCreds.sharing.enabled = enabled;
+                        this.manager.savePlatformCredentials(platformCreds);
+                        this.showToast('success', enabled ? 'API sharing enabled' : 'API sharing disabled');
                     });
                     
-                    // Force sync button
-                    container.querySelector('#force-sync-btn')?.addEventListener('click', async () => {
-                        if (window.syncEngine) {
-                            try {
-                                await window.syncEngine.sync();
-                                this.showToast('success', 'Sync completed!');
-                                container.querySelector('#last-sync-time').textContent = new Date().toLocaleTimeString();
-                            } catch (e) {
-                                this.showToast('error', 'Sync failed: ' + e.message);
-                            }
+                    // Save sharing allowed emails
+                    container.querySelector('#sharing-allowed-emails')?.addEventListener('blur', (e) => {
+                        const emails = e.target.value.split('\n')
+                            .map(email => email.trim().toLowerCase())
+                            .filter(email => email && email.includes('@'));
+                        
+                        const platformCreds = this.manager.getPlatformCredentials() || {};
+                        platformCreds.sharing = platformCreds.sharing || {};
+                        platformCreds.sharing.allowedEmails = emails;
+                        this.manager.savePlatformCredentials(platformCreds);
+                    });
+                    
+                    // Save Admin Cloudinary
+                    container.querySelector('.save-admin-cloudinary')?.addEventListener('click', (e) => {
+                        const btn = e.target;
+                        const cloudName = container.querySelector('#admin-cloudinary-cloud-name')?.value?.trim();
+                        const apiKey = container.querySelector('#admin-cloudinary-api-key')?.value?.trim();
+                        const apiSecret = container.querySelector('#admin-cloudinary-api-secret')?.value?.trim();
+                        
+                        if (!cloudName || !apiKey || !apiSecret) {
+                            this.showToast('error', 'Please fill in all Cloudinary fields');
+                            return;
+                        }
+                        
+                        // Save to platform credentials (local storage for super admin)
+                        const platformCreds = this.manager.getPlatformCredentials() || {};
+                        platformCreds.cloudinary = { cloudName, apiKey, apiSecret };
+                        
+                        if (this.manager.savePlatformCredentials(platformCreds)) {
+                            this.showToast('success', 'Cloudinary credentials saved!');
                         } else {
-                            this.showToast('warning', 'Sync engine not initialized');
+                            this.showToast('error', 'Failed to save credentials');
                         }
                     });
                     
-                    // Check API health on load
-                    this.checkPlatformStatus(container);
+                    // Save shared API keys (OpenAI, Anthropic)
+                    container.querySelectorAll('.save-admin-shared-key').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const provider = e.target.dataset.provider;
+                            const apiKey = container.querySelector(`#admin-shared-${provider}`)?.value?.trim();
+                            
+                            if (!apiKey) {
+                                this.showToast('error', `Please enter a ${provider} API key`);
+                                return;
+                            }
+                            
+                            const platformCreds = this.manager.getPlatformCredentials() || {};
+                            platformCreds.sharedKeys = platformCreds.sharedKeys || {};
+                            platformCreds.sharedKeys[provider] = apiKey;
+                            
+                            if (this.manager.savePlatformCredentials(platformCreds)) {
+                                this.showToast('success', `${provider} shared key saved!`);
+                            } else {
+                                this.showToast('error', 'Failed to save');
+                            }
+                        });
+                    });
                     break;
             }
         }
