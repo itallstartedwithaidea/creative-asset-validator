@@ -1894,7 +1894,7 @@
                     };
                     return icons[type] || '📁';
                 };
-                
+
                 results.totalFiles = allFiles.length;
                 results.imagesFound = allFiles.filter(f => f.mimeType?.startsWith('image/')).length;
                 results.videosFound = allFiles.filter(f => f.mimeType?.startsWith('video/')).length;
@@ -1919,8 +1919,8 @@
                         viewUrl: f.webViewLink,
                         source: 'Google Drive',
                         sourcePath: connection.settings.selectedFolder?.name || 'Root',
-                        integrationId: 'google_drive',
-                        scannedAt: new Date().toISOString(),
+                integrationId: 'google_drive',
+                scannedAt: new Date().toISOString(),
                         createdAt: f.createdTime,
                         modifiedAt: f.modifiedTime,
                         canImport: fileType === 'image' || fileType === 'video' || fileType === 'pdf' || fileType === 'design',
@@ -2294,8 +2294,8 @@
                     integrationId: 'slack',
                     scannedAt: new Date().toISOString(),
                     createdAt: new Date(f.created * 1000).toISOString(),
-                    canImport: true,
-                }));
+                canImport: true,
+            }));
                 
             } catch (error) {
                 console.error('Slack scan error:', error);
@@ -2659,7 +2659,7 @@
                     const mimeType = f.file?.mimeType || '';
                     return mimeType.startsWith('image/') || mimeType.startsWith('video/');
                 });
-                
+
                 results.totalFiles = mediaFiles.length;
                 results.imagesFound = mediaFiles.filter(f => f.file?.mimeType?.startsWith('image/')).length;
                 results.videosFound = mediaFiles.filter(f => f.file?.mimeType?.startsWith('video/')).length;
@@ -2678,11 +2678,11 @@
                     downloadUrl: f['@microsoft.graph.downloadUrl'],
                     source: 'OneDrive',
                     sourcePath: connection.settings.selectedFolder?.name || 'Root',
-                    integrationId: 'onedrive',
-                    scannedAt: new Date().toISOString(),
+                integrationId: 'onedrive',
+                scannedAt: new Date().toISOString(),
                     createdAt: f.createdDateTime,
-                    canImport: true,
-                }));
+                canImport: true,
+            }));
                 
             } catch (error) {
                 console.error('OneDrive scan error:', error);
@@ -2874,9 +2874,9 @@
                                     emailSubject: subject,
                                     emailFrom: from,
                                     senderDomain: senderDomain,
-                                    integrationId: 'gmail',
-                                    scannedAt: new Date().toISOString(),
-                                    canImport: true,
+                integrationId: 'gmail',
+                scannedAt: new Date().toISOString(),
+                canImport: true,
                                 });
                             }
                         }
@@ -3088,9 +3088,9 @@
                                     source: 'Outlook',
                                     emailSubject: msg.subject,
                                     emailFrom: msg.from?.emailAddress?.address || 'Unknown',
-                                    integrationId: 'outlook',
-                                    scannedAt: new Date().toISOString(),
-                                    canImport: true,
+                integrationId: 'outlook',
+                scannedAt: new Date().toISOString(),
+                canImport: true,
                                 });
                             }
                         }
@@ -3170,10 +3170,10 @@
                         source: 'Dropbox',
                         sourcePath: connection.settings.selectedFolder?.name || 'Root',
                         path: f.path_lower,
-                        integrationId: 'dropbox',
-                        scannedAt: new Date().toISOString(),
+                integrationId: 'dropbox',
+                scannedAt: new Date().toISOString(),
                         createdAt: f.client_modified,
-                        canImport: true,
+                canImport: true,
                     };
                 });
                 
@@ -3186,7 +3186,7 @@
                 results.totalFiles = 0;
                 results.error = error.message;
                 this.showToast(`❌ Dropbox error: ${error.message}`, 'error');
-            }
+        }
         }
 
         /**
@@ -3238,10 +3238,10 @@
                         downloadUrl: att.url,
                         source: 'Wrike',
                         taskId: att.taskId,
-                        integrationId: 'wrike',
-                        scannedAt: new Date().toISOString(),
+                integrationId: 'wrike',
+                scannedAt: new Date().toISOString(),
                         createdAt: att.createdDate,
-                        canImport: true,
+                canImport: true,
                     };
                 });
                 
@@ -3251,7 +3251,7 @@
                 results.totalFiles = 0;
                 results.error = error.message;
                 this.showToast(`❌ Wrike error: ${error.message}`, 'error');
-            }
+        }
         }
 
         /**
@@ -3321,10 +3321,10 @@
                                     source: 'Monday.com',
                                     boardName: board.name,
                                     itemName: item.name,
-                                    integrationId: 'monday',
-                                    scannedAt: new Date().toISOString(),
+                integrationId: 'monday',
+                scannedAt: new Date().toISOString(),
                                     createdAt: asset.created_at,
-                                    canImport: true,
+                canImport: true,
                                 });
                             }
                         }
@@ -3412,10 +3412,10 @@
                                         downloadUrl: doc.download_url,
                                         source: 'Basecamp',
                                         projectName: project.name,
-                                        integrationId: 'basecamp',
-                                        scannedAt: new Date().toISOString(),
+                integrationId: 'basecamp',
+                scannedAt: new Date().toISOString(),
                                         createdAt: doc.created_at,
-                                        canImport: true,
+                canImport: true,
                                     });
                                 }
                             }
@@ -4219,18 +4219,18 @@ This folder contains all assets imported from external integrations (Google Driv
             ${Object.entries(categories).filter(([_, cat]) => cat.integrations.length > 0).map(([key, category]) => `
                 <div class="integration-category">
                     <h3 class="category-title">${category.icon} ${category.name}</h3>
-                    <div class="integrations-grid">
+            <div class="integrations-grid">
                         ${category.integrations.map(int => `
-                            <div class="integration-card ${int.connected ? 'connected' : ''}" data-id="${int.id}">
+                    <div class="integration-card ${int.connected ? 'connected' : ''}" data-id="${int.id}">
                                 <div class="integration-header">
-                                    <div class="integration-icon" style="background: ${int.color}20; color: ${int.color};">
+                        <div class="integration-icon" style="background: ${int.color}20; color: ${int.color};">
                                         ${int.iconSvg || INTEGRATION_ICONS[int.id] || ''}
-                                    </div>
-                                    <div class="integration-info">
+                        </div>
+                        <div class="integration-info">
                                         <h4>${int.name}</h4>
                                         <p class="integration-desc">${int.description || int.features.map(f => f.replace(/_/g, ' ')).join(', ')}</p>
-                                    </div>
-                                </div>
+                        </div>
+                        </div>
                                 
                                 ${int.connected ? `
                                     <div class="integration-connected-info">
@@ -4278,9 +4278,9 @@ This folder contains all assets imported from external integrations (Google Driv
                                         <button class="int-btn-copy" data-url="${int.connectionInfo?.webhookUrl || ''}">${INTEGRATION_ICONS.copy} Copy</button>
                                     </div>
                                 ` : ''}
-                            </div>
-                        `).join('')}
                     </div>
+                `).join('')}
+            </div>
                 </div>
             `).join('')}
             
@@ -4293,34 +4293,34 @@ This folder contains all assets imported from external integrations (Google Driv
                             <input type="checkbox" id="int-auto-import" ${settings.autoImport ? 'checked' : ''}>
                         </label>
                     </div>
-                    <div class="settings-row">
-                        <label>
-                            <span>Notify when issues found</span>
-                            <input type="checkbox" id="int-notify-issues" ${settings.notifyOnIssues ? 'checked' : ''}>
-                        </label>
-                    </div>
-                    <div class="settings-row">
-                        <label>
-                            <span>Notification method</span>
-                            <select id="int-notify-via">
-                                <option value="email" ${settings.notifyVia === 'email' ? 'selected' : ''}>Email</option>
-                                <option value="slack" ${settings.notifyVia === 'slack' ? 'selected' : ''}>Slack</option>
-                                <option value="both" ${settings.notifyVia === 'both' ? 'selected' : ''}>Both</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div class="settings-row">
-                        <label>
-                            <span>Email address</span>
-                            <input type="email" id="int-email" value="${settings.emailAddress}" placeholder="you@company.com">
-                        </label>
-                    </div>
-                    <div class="settings-row">
-                        <label>
-                            <span>Slack webhook URL</span>
-                            <input type="url" id="int-slack-webhook" value="${settings.slackWebhookUrl}" placeholder="https://hooks.slack.com/...">
-                        </label>
-                    </div>
+                <div class="settings-row">
+                    <label>
+                        <span>Notify when issues found</span>
+                        <input type="checkbox" id="int-notify-issues" ${settings.notifyOnIssues ? 'checked' : ''}>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <label>
+                        <span>Notification method</span>
+                        <select id="int-notify-via">
+                            <option value="email" ${settings.notifyVia === 'email' ? 'selected' : ''}>Email</option>
+                            <option value="slack" ${settings.notifyVia === 'slack' ? 'selected' : ''}>Slack</option>
+                            <option value="both" ${settings.notifyVia === 'both' ? 'selected' : ''}>Both</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <label>
+                        <span>Email address</span>
+                        <input type="email" id="int-email" value="${settings.emailAddress}" placeholder="you@company.com">
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <label>
+                        <span>Slack webhook URL</span>
+                        <input type="url" id="int-slack-webhook" value="${settings.slackWebhookUrl}" placeholder="https://hooks.slack.com/...">
+                    </label>
+                </div>
                     <div class="settings-row">
                         <label>
                             <span>Log scans to CRM</span>

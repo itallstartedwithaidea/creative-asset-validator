@@ -52,7 +52,7 @@
     }
 
     // ============================================
-    // VISUAL EXTRACTION PROMPTS (GPT-5.2/GPT-4o)
+    // VISUAL EXTRACTION PROMPTS (GPT-5.2)
     // ============================================
     
     const VISUAL_EXTRACTION_PROMPT = `You are a visual forensics analyst. Extract ONLY observable facts from this creative asset.
@@ -329,7 +329,7 @@ CONSTRAINTS (FOLLOW STRICTLY):
         }
 
         // ============================================
-        // STEP 1: VISUAL EXTRACTION (GPT-4o/GPT-5.2)
+        // STEP 1: VISUAL EXTRACTION (GPT-5.2)
         // ============================================
 
         async extractVisualData(imageBase64, contentType) {
@@ -344,7 +344,7 @@ CONSTRAINTS (FOLLOW STRICTLY):
                 result = await orchestrator.callOpenAI(VISUAL_EXTRACTION_PROMPT, { 
                     image: imageBase64,
                     temperature: 0.1, // Low temp for factual extraction
-                    model: 'gpt-4o' // or gpt-5.2 when available
+                    model: 'gpt-5.2' // Latest GPT model
                 });
             } else if (orchestrator.isProviderAvailable('gemini')) {
                 result = await orchestrator.callGemini(VISUAL_EXTRACTION_PROMPT, { 
@@ -355,7 +355,7 @@ CONSTRAINTS (FOLLOW STRICTLY):
             }
 
             const extracted = this.parseJSON(result.content);
-            extracted._extractedBy = 'gpt-4o';
+            extracted._extractedBy = 'gpt-5.2';
             extracted._extractedAt = new Date().toISOString();
             extracted._contentType = contentType;
             
@@ -469,7 +469,7 @@ CONSTRAINTS (FOLLOW STRICTLY):
 
 ## CONTEXT
 
-### Raw Visual Data (extracted by GPT-4o, treat as factual):
+### Raw Visual Data (extracted by GPT-5.2, treat as factual):
 ${JSON.stringify(visualData, null, 2)}
 
 ### Market Research & Benchmarks:
@@ -575,7 +575,7 @@ Return ONLY valid JSON:
             if (orchestrator.isProviderAvailable('claude')) {
                 result = await orchestrator.callClaude(strategicPrompt, {
                     temperature: 0.4,
-                    model: 'claude-sonnet-4-20250514'
+                    model: 'claude-sonnet-4-5-20250929'
                 });
             } else if (orchestrator.isProviderAvailable('openai')) {
                 // Fallback to OpenAI for strategic analysis
@@ -627,7 +627,7 @@ Return ONLY valid JSON:
                 analysis.visualExtraction = await this.extractVisualData(imageBase64, contentType);
                 analysis.pipelineSteps.push({
                     step: 'visual_extraction',
-                    provider: 'gpt-4o',
+                    provider: 'gpt-5.2',
                     duration: Date.now() - step1Start,
                     success: true
                 });
@@ -758,7 +758,7 @@ Return ONLY valid JSON:
             if (orchestrator?.isProviderAvailable('openai')) {
                 const result = await orchestrator.callOpenAI(prompt, {
                     image: imageBase64,
-                    model: 'gpt-4o-mini', // Fast, cheap classification
+                    model: 'gpt-5-mini', // Fast, efficient classification
                     temperature: 0.2
                 });
                 return this.parseJSON(result.content);
@@ -897,7 +897,7 @@ Return JSON:
 
     console.log(`🧠 AI Intelligence Engine v${ENGINE_VERSION} loaded`);
     console.log('   Features: Chained Analysis, Content-Type Prompts, Version Tracking');
-    console.log('   Pipeline: GPT-4o → SearchAPI → Claude Opus');
+    console.log('   Pipeline: GPT-5.2 → SearchAPI → Claude Opus 4.5');
 
 })();
 

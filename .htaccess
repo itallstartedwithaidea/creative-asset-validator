@@ -1,0 +1,182 @@
+# Creative Asset Validator - SiteGround Optimized .htaccess
+# Version 4.2.0 - Performance Edition
+
+# =============================================
+# FORCE HTTPS (SiteGround SSL)
+# =============================================
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# =============================================
+# GZIP COMPRESSION (Major Speed Boost)
+# =============================================
+<IfModule mod_deflate.c>
+    # Compress HTML, CSS, JavaScript, Text, XML and fonts
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+    AddOutputFilterByType DEFLATE application/x-font-ttf
+    AddOutputFilterByType DEFLATE application/x-font-opentype
+    AddOutputFilterByType DEFLATE font/eot
+    AddOutputFilterByType DEFLATE font/opentype
+    AddOutputFilterByType DEFLATE font/otf
+    AddOutputFilterByType DEFLATE font/woff
+    AddOutputFilterByType DEFLATE font/woff2
+</IfModule>
+
+# =============================================
+# BROWSER CACHING (Huge Speed Improvement)
+# =============================================
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Default expiration: 1 month
+    ExpiresDefault "access plus 1 month"
+    
+    # HTML - check for updates more frequently
+    ExpiresByType text/html "access plus 1 hour"
+    
+    # CSS and JavaScript - cache for 1 year (use versioning)
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType application/x-javascript "access plus 1 year"
+    ExpiresByType text/javascript "access plus 1 year"
+    
+    # Images - cache for 1 year
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    
+    # Fonts - cache for 1 year
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/otf "access plus 1 year"
+    
+    # JSON/XML - shorter cache
+    ExpiresByType application/json "access plus 1 hour"
+    ExpiresByType application/xml "access plus 1 hour"
+</IfModule>
+
+# =============================================
+# CACHE-CONTROL HEADERS
+# =============================================
+<IfModule mod_headers.c>
+    # Cache static assets aggressively
+    <FilesMatch "\.(css|js|ico|pdf|jpg|jpeg|png|gif|webp|svg|woff|woff2|ttf|otf)$">
+        Header set Cache-Control "max-age=31536000, public, immutable"
+    </FilesMatch>
+    
+    # HTML should revalidate
+    <FilesMatch "\.(html|htm)$">
+        Header set Cache-Control "max-age=3600, must-revalidate"
+    </FilesMatch>
+    
+    # Don't cache auth config (security)
+    <FilesMatch "auth-config\.js$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+    
+    # Enable keep-alive
+    Header set Connection keep-alive
+    
+    # Security headers
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# =============================================
+# CORS FOR GOOGLE APIs
+# =============================================
+<IfModule mod_headers.c>
+    <FilesMatch "\.(js|css|json)$">
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+</IfModule>
+
+# =============================================
+# PROPER MIME TYPES
+# =============================================
+<IfModule mod_mime.c>
+    # JavaScript
+    AddType application/javascript .js
+    AddType application/json .json
+    
+    # CSS
+    AddType text/css .css
+    
+    # Web fonts
+    AddType font/woff .woff
+    AddType font/woff2 .woff2
+    AddType font/ttf .ttf
+    AddType font/otf .otf
+    AddType application/vnd.ms-fontobject .eot
+    
+    # Images
+    AddType image/svg+xml .svg
+    AddType image/webp .webp
+    
+    # Video
+    AddType video/mp4 .mp4
+    AddType video/webm .webm
+</IfModule>
+
+# =============================================
+# ETAG OPTIMIZATION
+# =============================================
+<IfModule mod_headers.c>
+    Header unset ETag
+</IfModule>
+FileETag None
+
+# =============================================
+# PREVENT HOTLINKING (Optional - saves bandwidth)
+# =============================================
+# Uncomment if you want to prevent other sites from using your images
+# RewriteCond %{HTTP_REFERER} !^$
+# RewriteCond %{HTTP_REFERER} !^https?://(www\.)?itallstartedwithaidea\.com [NC]
+# RewriteRule \.(jpg|jpeg|png|gif|webp|svg)$ - [F,L]
+
+# =============================================
+# BLOCK BAD BOTS (Reduces server load)
+# =============================================
+<IfModule mod_rewrite.c>
+    RewriteCond %{HTTP_USER_AGENT} ^.*(AhrefsBot|MJ12bot|SemrushBot|DotBot).*$ [NC]
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# =============================================
+# DEFAULT INDEX
+# =============================================
+DirectoryIndex index.html
+
+# =============================================
+# DISABLE DIRECTORY BROWSING (Security)
+# =============================================
+Options -Indexes
+
+# =============================================
+# PROTECT SENSITIVE FILES
+# =============================================
+<FilesMatch "(^\.htaccess|\.git|\.env|composer\.(json|lock)|package\.json)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+

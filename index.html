@@ -6,13 +6,25 @@
     <title>Creative Asset Validator</title>
     <meta name="description" content="Professional creative asset validation tool with Google SSO authentication">
     
+    <!-- Performance: DNS Prefetch & Preconnect -->
+    <link rel="dns-prefetch" href="https://accounts.google.com">
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://apis.google.com">
+    <link rel="preconnect" href="https://accounts.google.com" crossorigin>
+    
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
     
-    <!-- Google Fonts -->
+    <!-- Performance: Preload Critical Resources -->
+    <link rel="preload" href="validator.css?v=4.2.0" as="style">
+    <link rel="preload" href="security-core.js?v=4.2.0" as="script">
+    <link rel="preload" href="validator-app.js?v=4.2.0" as="script">
+    
+    <!-- Google Fonts - Optimized Loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
     
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -33,7 +45,7 @@
     </script>
     
     <!-- Main Styles -->
-    <link rel="stylesheet" href="validator.css?v=4.0.0">
+    <link rel="stylesheet" href="validator.css?v=4.2.0">
     
     <style>
         /* ============================================
@@ -1505,7 +1517,7 @@
 
     <!-- Footer - Simplified (navigation now in sidebar) -->
     <footer class="site-footer">
-        <p>Creative Asset Validator v4.0.0 • Creative Intelligence Platform</p>
+        <p>Creative Asset Validator v4.3.0 • Creative Intelligence Platform</p>
         <p style="margin-top: 0.5rem; font-size: 0.75rem;">
             <a href="#" id="clear-data-link">Clear My Data</a>
         </p>
@@ -1576,69 +1588,69 @@
     </script>
 
     <!-- Main Application Script v3.2.0 - Adobe Express Sidebar Navigation -->
-    <script src="validator-app.js?v=4.0.0"></script>
+    <script src="validator-app.js?v=4.2.0"></script>
     
     <!-- AI Asset Adapter (Google AI Studio Integration) -->
-    <script src="ai-adapter.js?v=3.16.0"></script>
+    <script src="ai-adapter.js?v=4.2.0"></script>
     
     <!-- Internal CRM Module -->
-    <script src="crm.js?v=4.1.0"></script>
+    <script src="crm.js?v=4.2.0"></script>
     
     <!-- Integration Hub (Google Drive, OneDrive, Gmail, etc.) -->
-    <script src="integrations.js?v=4.0.0"></script>
+    <script src="integrations.js?v=4.2.0"></script>
     
     <!-- Auto-Fix Workflow -->
-    <script src="auto-fix.js?v=3.16.0"></script>
+    <script src="auto-fix.js?v=4.2.0"></script>
     
     <!-- AI Studio Interface (Nano Banana Pro + Veo 3.1 style) -->
-    <script src="ai-studio.js?v=3.16.0"></script>
+    <script src="ai-studio.js?v=4.2.0"></script>
     
     <!-- Brand Kit Generator (Logo Generator / Nano Banana) -->
-    <script src="logo-generator.js?v=2.1.0"></script>
+    <script src="logo-generator.js?v=4.2.0"></script>
     
     <!-- AI Library Manager (Session-based storage, CRM integration) -->
-    <script src="ai-library-manager.js?v=3.16.0"></script>
+    <script src="ai-library-manager.js?v=4.2.0"></script>
     
     <!-- AI Library Integration (adds AI buttons to asset cards) v3.0.0 -->
-    <script src="ai-library-integration.js?v=4.0.1"></script>
+    <script src="ai-library-integration.js?v=4.2.0"></script>
     
     <!-- Advanced Features (Queue, Batch, Pagination, Folders, Reports, Versioning) -->
-    <script src="advanced-features.js?v=3.16.0"></script>
+    <script src="advanced-features.js?v=4.2.0"></script>
     
     <!-- Advanced Toolbar (Quick access to all features) -->
-    <script src="advanced-toolbar.js?v=3.16.0"></script>
+    <script src="advanced-toolbar.js?v=4.2.0"></script>
     
     <!-- ===== v3.0 CREATIVE INTELLIGENCE MODULES ===== -->
     
     <!-- Data Models - Extended v3.0 schemas -->
-    <script src="data-models.js?v=3.16.0"></script>
+    <script src="data-models.js?v=4.2.0"></script>
     
     <!-- Settings Module - API key management for Claude, OpenAI, SearchAPI -->
-    <script src="settings-module.js?v=3.16.0"></script>
+    <script src="settings-module.js?v=4.2.0"></script>
     
     <!-- AI Orchestrator - Multi-AI task routing -->
-    <script src="ai-orchestrator.js?v=4.0.0"></script>
+    <script src="ai-orchestrator.js?v=4.2.0"></script>
     
     <!-- AI Intelligence Engine - Chained Analysis Pipeline (GPT→SearchAPI→Claude) -->
-    <script src="ai-intelligence-engine.js?v=4.0.0"></script>
+    <script src="ai-intelligence-engine.js?v=4.2.0"></script>
     
     <!-- Analyze Module - Hook, CTA, Brand, Audio, Thumb-Stop, Predictions -->
     <!-- v4.0: Advanced chained analysis, brand guidelines, audience personas -->
-    <script src="analyze-module.js?v=4.0.0"></script>
+    <script src="analyze-module.js?v=4.2.0"></script>
     
     <!-- Strategy Module - Placement Matrix, Roadmap, Budget, A/B, Fatigue -->
     <!-- v4.0: Advanced strategy, brand context, competitor comparison -->
-    <script src="strategy-module.js?v=4.0.1"></script>
+    <script src="strategy-module.js?v=4.2.0"></script>
     
     <!-- Learn Module - URL Analyzer, Competitors, Benchmarks, Swipe File -->
     <!-- v4.0: Competitor creative comparison, industry benchmarks, compliance checking -->
-    <script src="learn-module.js?v=4.0.0"></script>
+    <script src="learn-module.js?v=4.2.0"></script>
     
     <!-- Security Core Module (must load first) -->
-    <script src="security-core.js?v=3.16.0"></script>
+    <script src="security-core.js?v=4.2.0"></script>
     
     <!-- Auth Configuration -->
-    <script src="auth-config.js?v=3.16.0"></script>
+    <script src="auth-config.js?v=4.2.0"></script>
     
     <!-- Authentication & Admin System (v3.0 - Enterprise Security) -->
     <script>
@@ -2687,6 +2699,30 @@
                 return;
             }
 
+            // Show loading state immediately for better UX
+            let existingModal = document.getElementById('admin-modal-container');
+            if (existingModal) existingModal.remove();
+            
+            const loadingModal = document.createElement('div');
+            loadingModal.id = 'admin-modal-container';
+            loadingModal.innerHTML = `
+                <div class="admin-modal-overlay">
+                    <div class="admin-modal" style="display:flex;justify-content:center;align-items:center;min-height:300px;">
+                        <div style="text-align:center;">
+                            <div style="font-size:2rem;margin-bottom:1rem;">👑</div>
+                            <div style="color:#a855f7;font-size:1.2rem;">Loading Admin Dashboard...</div>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(loadingModal);
+
+            // Use requestAnimationFrame for smoother rendering
+            requestAnimationFrame(() => {
+                renderAdminDashboardContent(session);
+            });
+        }
+
+        function renderAdminDashboardContent(session) {
             const activities = getActivityLog();
             const managedUsers = getManagedUsers();
             const settings = getSettings();
@@ -2728,6 +2764,10 @@
                 new Date(b.lastLogin || 0) - new Date(a.lastLogin || 0)
             );
 
+            // Replace loading modal with actual content
+            const existingModal = document.getElementById('admin-modal-container');
+            if (existingModal) existingModal.remove();
+            
             // Create admin modal
             const modal = document.createElement('div');
             modal.id = 'admin-modal-container';
@@ -7378,6 +7418,57 @@ Provide actionable, specific strategic advice. Use data points where available. 
         // Also run after a short delay to ensure all elements are rendered
         setTimeout(handleResponsiveLayout, 100);
         setTimeout(handleResponsiveLayout, 500);
+    })();
+    </script>
+    
+    <!-- Service Worker Registration for Speed & Offline Support -->
+    <script>
+    (function() {
+        // Register Service Worker for instant loading
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(function(registration) {
+                        console.log('[CAV] Service Worker registered successfully');
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', function() {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', function() {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New version available
+                                    console.log('[CAV] New version available');
+                                    // Auto-update without prompting
+                                    newWorker.postMessage('SKIP_WAITING');
+                                }
+                            });
+                        });
+                    })
+                    .catch(function(error) {
+                        console.warn('[CAV] Service Worker registration failed:', error);
+                    });
+            });
+            
+            // Listen for controller changes (update applied)
+            navigator.serviceWorker.addEventListener('controllerchange', function() {
+                console.log('[CAV] Service Worker updated, refreshing...');
+                // Optionally refresh the page
+                // window.location.reload();
+            });
+        }
+        
+        // Performance monitoring
+        if ('performance' in window) {
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    const timing = performance.getEntriesByType('navigation')[0];
+                    if (timing) {
+                        console.log('[CAV Performance] Page load: ' + Math.round(timing.loadEventEnd - timing.startTime) + 'ms');
+                        console.log('[CAV Performance] DOM ready: ' + Math.round(timing.domContentLoadedEventEnd - timing.startTime) + 'ms');
+                    }
+                }, 0);
+            });
+        }
     })();
     </script>
 </body>

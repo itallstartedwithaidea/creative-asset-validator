@@ -64,14 +64,14 @@
     const DEFAULT_SETTINGS = {
         version: SETTINGS_VERSION,
         apiKeys: {
-            claude: { key: '', model: 'claude-sonnet-4-20250514', status: 'untested', lastTested: null },
-            openai: { key: '', orgId: '', model: 'gpt-4o', status: 'untested', lastTested: null },
+            claude: { key: '', model: 'claude-sonnet-4-5-20250929', status: 'untested', lastTested: null },
+            openai: { key: '', orgId: '', model: 'gpt-5.2', status: 'untested', lastTested: null },
             searchapi: { key: '', status: 'untested', lastTested: null },
             gemini: { key: '', model: 'gemini-2.0-flash', status: 'untested', lastTested: null }
         },
         modelConfig: {
-            claudeModel: 'claude-sonnet-4-20250514',
-            openaiVisionModel: 'gpt-4o',
+            claudeModel: 'claude-sonnet-4-5-20250929',
+            openaiVisionModel: 'gpt-5.2',
             analysisTemperature: 0.3,
             creativeTemperature: 0.7,
             maxTokens: 4096
@@ -191,7 +191,7 @@
             }
         }
         
-        // Wait for user session to be available
+        // Wait for user session to be available (fast timeout for better UX)
         waitForSession() {
             return new Promise((resolve) => {
                 if (window.cavUserSession || window.CAVSecurity?.SecureSessionManager?.getSession?.()) {
@@ -199,11 +199,11 @@
                     return;
                 }
                 
-                // Wait up to 3 seconds for session
+                // Wait up to 500ms max for session (was 3 seconds - too slow)
                 let attempts = 0;
                 const check = setInterval(() => {
                     attempts++;
-                    if (window.cavUserSession || window.CAVSecurity?.SecureSessionManager?.getSession?.() || attempts > 30) {
+                    if (window.cavUserSession || window.CAVSecurity?.SecureSessionManager?.getSession?.() || attempts > 5) {
                         clearInterval(check);
                         resolve();
                     }
@@ -457,7 +457,7 @@
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
-                        model: 'gpt-4o-mini',
+                        model: 'gpt-5-mini',
                         max_tokens: 10,
                         messages: [{ role: 'user', content: 'Say "connected" in one word.' }]
                     })
@@ -792,7 +792,9 @@
         // Check if current user is super admin
         isSuperAdmin() {
             const email = this.getCurrentUserEmail();
-            return email === APIKeyAccessControl.SUPER_ADMIN_EMAIL.toLowerCase();
+            const superAdminEmail = APIKeyAccessControl.SUPER_ADMIN_EMAIL;
+            if (!email || !superAdminEmail) return false;
+            return email === superAdminEmail.toLowerCase();
         }
         
         // Check if current user is admin (domain admin or super admin)
@@ -1656,8 +1658,95 @@
         }
 
         render(container) {
-            const settings = this.manager.getSettings();
+            console.time('[Settings] Initial render');
             
+            // Store container reference for lazy loading
+            this._container = container;
+            this._loadedSections = new Set(['api-keys']); // Track which sections are loaded
+            this._currentSection = 'api-keys';
+            
+            // Get settings once (fast - just reads from memory)
+            try {
+                this._settings = this.manager.getSettings();
+            } catch (error) {
+                console.error('[Settings] Failed to get settings:', error);
+                this._settings = {};
+            }
+            
+            // Render immediately with only the first section
+            this.renderContent(container, this._settings);
+            console.timeEnd('[Settings] Initial render');
+            console.log('[Settings] Loaded sections:', [...this._loadedSections]);
+        }
+        
+        // Lazy load a section when its tab is clicked
+        loadSection(sectionId) {
+            if (this._loadedSections.has(sectionId)) {
+                console.log(`[Settings] Section "${sectionId}" already loaded, skipping`);
+                return false; // Already loaded
+            }
+            
+            console.time(`[Settings] Load ${sectionId}`);
+            
+            const contentArea = this._container?.querySelector('.cav-settings-content');
+            if (!contentArea) return false;
+            
+            // Get the placeholder
+            const placeholder = contentArea.querySelector(`.cav-settings-section[data-section="${sectionId}"]`);
+            if (!placeholder) {
+                console.error(`[Settings] No placeholder found for ${sectionId}`);
+                return false;
+            }
+            
+            // Render the section content synchronously
+            const settings = this._settings || this.manager.getSettings();
+            let content = '';
+            
+            switch(sectionId) {
+                case 'model-config':
+                    content = this.renderModelConfigSection(settings);
+                    break;
+                case 'features':
+                    content = this.renderFeaturesSection(settings);
+                    break;
+                case 'brand-profiles':
+                    content = this.renderBrandProfilesSection(settings);
+                    break;
+                case 'competitors':
+                    content = this.renderCompetitorsSection(settings);
+                    break;
+                case 'notifications':
+                    content = this.renderNotificationsSection(settings);
+                    break;
+                case 'data':
+                    content = this.renderDataSection(settings);
+                    break;
+                case 'integration-keys':
+                    content = this.renderIntegrationKeysSection(settings);
+                    break;
+            }
+            
+            if (content) {
+                // Create temp element to parse HTML
+                const temp = document.createElement('div');
+                temp.innerHTML = content.trim(); // trim to avoid whitespace issues
+                const newSection = temp.firstElementChild;
+                
+                if (newSection) {
+                    placeholder.replaceWith(newSection);
+                    // Re-attach event handlers for new content
+                    this.attachSectionEventHandlers(this._container, sectionId);
+                    this._loadedSections.add(sectionId);
+                    console.timeEnd(`[Settings] Load ${sectionId}`);
+                    return true;
+                }
+            }
+            
+            console.error(`[Settings] Failed to load ${sectionId}`);
+            return false;
+        }
+        
+        renderContent(container, settings) {
             container.innerHTML = `
                 <div class="cav-settings-page">
                     <div class="cav-settings-header">
@@ -1706,13 +1795,13 @@
                         
                         <div class="cav-settings-content">
                             ${this.renderAPIKeysSection(settings)}
-                            ${this.renderModelConfigSection(settings)}
-                            ${this.renderFeaturesSection(settings)}
-                            ${this.renderBrandProfilesSection(settings)}
-                            ${this.renderCompetitorsSection(settings)}
-                            ${this.renderNotificationsSection(settings)}
-                            ${this.renderDataSection(settings)}
-                            ${this.manager.isSuperAdmin() ? this.renderIntegrationKeysSection(settings) : ''}
+                            <div class="cav-settings-section" data-section="model-config"></div>
+                            <div class="cav-settings-section" data-section="features"></div>
+                            <div class="cav-settings-section" data-section="brand-profiles"></div>
+                            <div class="cav-settings-section" data-section="competitors"></div>
+                            <div class="cav-settings-section" data-section="notifications"></div>
+                            <div class="cav-settings-section" data-section="data"></div>
+                            ${this.manager.isSuperAdmin() ? '<div class="cav-settings-section" data-section="integration-keys"></div>' : ''}
                         </div>
                     </div>
                 </div>
@@ -1853,11 +1942,11 @@
                         <div class="cav-config-item">
                             <label>Claude Model</label>
                             <select id="config-claude-model">
-                                <option value="claude-sonnet-4-20250514" ${config.claudeModel === 'claude-sonnet-4-20250514' ? 'selected' : ''}>
-                                    Claude Sonnet 4 (Recommended)
+                                <option value="claude-sonnet-4-5-20250929" ${config.claudeModel === 'claude-sonnet-4-5-20250929' ? 'selected' : ''}>
+                                    Claude Sonnet 4.5 🔥 (Recommended)
                                 </option>
-                                <option value="claude-opus-4-20250514" ${config.claudeModel === 'claude-opus-4-20250514' ? 'selected' : ''}>
-                                    Claude Opus 4 (Complex Tasks)
+                                <option value="claude-opus-4-5-20250929" ${config.claudeModel === 'claude-opus-4-5-20250929' ? 'selected' : ''}>
+                                    Claude Opus 4.5 (Complex Tasks)
                                 </option>
                             </select>
                             <span class="cav-config-hint">Sonnet for most tasks, Opus for complex analysis</span>
@@ -1866,14 +1955,17 @@
                         <div class="cav-config-item">
                             <label>OpenAI Vision Model</label>
                             <select id="config-openai-model">
-                                <option value="gpt-4o" ${config.openaiVisionModel === 'gpt-4o' ? 'selected' : ''}>
-                                    GPT-4o (Best Quality)
+                                <option value="gpt-5.2" ${config.openaiVisionModel === 'gpt-5.2' ? 'selected' : ''}>
+                                    GPT-5.2 🚀 (Latest & Best)
                                 </option>
-                                <option value="gpt-4o-mini" ${config.openaiVisionModel === 'gpt-4o-mini' ? 'selected' : ''}>
-                                    GPT-4o Mini (Faster)
+                                <option value="gpt-5-mini" ${config.openaiVisionModel === 'gpt-5-mini' ? 'selected' : ''}>
+                                    GPT-5 Mini (Faster)
+                                </option>
+                                <option value="gpt-4.1" ${config.openaiVisionModel === 'gpt-4.1' ? 'selected' : ''}>
+                                    GPT-4.1 (Stable)
                                 </option>
                             </select>
-                            <span class="cav-config-hint">GPT-4o for best visual analysis quality</span>
+                            <span class="cav-config-hint">GPT-5.2 for best visual analysis quality</span>
                         </div>
                         
                         <div class="cav-config-item">
@@ -2300,11 +2392,25 @@
             // Navigation
             container.querySelectorAll('.cav-settings-nav-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const section = e.target.dataset.section;
+                    const target = e.target.closest('.cav-settings-nav-btn');
+                    const section = target?.dataset.section;
+                    if (!section) return;
+                    
+                    // Update active state for nav buttons
                     container.querySelectorAll('.cav-settings-nav-btn').forEach(b => b.classList.remove('active'));
+                    target.classList.add('active');
+                    
+                    // Lazy load the section content if not yet loaded
+                    this.loadSection(section);
+                    
+                    // Update active state for sections
                     container.querySelectorAll('.cav-settings-section').forEach(s => s.classList.remove('active'));
-                    e.target.classList.add('active');
-                    container.querySelector(`.cav-settings-section[data-section="${section}"]`)?.classList.add('active');
+                    const sectionEl = container.querySelector(`.cav-settings-section[data-section="${section}"]`);
+                    if (sectionEl) {
+                        sectionEl.classList.add('active');
+                    }
+                    
+                    this._currentSection = section;
                 });
             });
 
@@ -2605,6 +2711,129 @@
                     }
                 });
             });
+        }
+        
+        // Attach event handlers for a specific lazily-loaded section
+        attachSectionEventHandlers(container, sectionId) {
+            switch(sectionId) {
+                case 'model-config':
+                    // Model config selects
+                    container.querySelectorAll('.cav-model-select').forEach(select => {
+                        select.addEventListener('change', (e) => {
+                            const modelType = e.target.dataset.modelType;
+                            this.manager.settings.modelConfig[modelType] = e.target.value;
+                            this.manager.saveSettings();
+                        });
+                    });
+                    container.querySelectorAll('.cav-temp-slider').forEach(slider => {
+                        slider.addEventListener('input', (e) => {
+                            this.manager.settings.modelConfig.temperature = parseFloat(e.target.value);
+                            const display = container.querySelector('.temp-value');
+                            if (display) display.textContent = e.target.value;
+                        });
+                        slider.addEventListener('change', () => this.manager.saveSettings());
+                    });
+                    break;
+                    
+                case 'features':
+                    // Feature toggles
+                    container.querySelectorAll('.cav-feature-item input[type="checkbox"]').forEach(toggle => {
+                        toggle.addEventListener('change', (e) => {
+                            const feature = e.target.dataset.feature;
+                            this.manager.setFeature(feature, e.target.checked);
+                        });
+                    });
+                    break;
+                    
+                case 'brand-profiles':
+                    // Brand profile actions
+                    container.querySelectorAll('[data-action="add-brand"]').forEach(btn => {
+                        btn.addEventListener('click', () => this.showBrandProfileModal());
+                    });
+                    container.querySelectorAll('[data-action="edit-brand"]').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const id = e.target.dataset.id;
+                            const profile = this.manager.settings.brandProfiles?.find(p => p.id === id);
+                            if (profile) this.showBrandProfileModal(profile);
+                        });
+                    });
+                    container.querySelectorAll('[data-action="delete-brand"]').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const id = e.target.dataset.id;
+                            if (confirm('Delete this brand profile?')) {
+                                this.manager.deleteBrandProfile(id);
+                                this.loadSection('brand-profiles'); // Refresh section
+                            }
+                        });
+                    });
+                    break;
+                    
+                case 'competitors':
+                    // Competitor actions
+                    container.querySelectorAll('[data-action="add-competitor"]').forEach(btn => {
+                        btn.addEventListener('click', () => this.showCompetitorModal());
+                    });
+                    container.querySelectorAll('[data-action="delete-competitor"]').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const id = e.target.dataset.id;
+                            if (confirm('Delete this competitor?')) {
+                                this.manager.deleteCompetitor(id);
+                                this.loadSection('competitors'); // Refresh section
+                            }
+                        });
+                    });
+                    break;
+                    
+                case 'notifications':
+                    // Notification toggles
+                    container.querySelectorAll('.cav-notification-toggle').forEach(toggle => {
+                        toggle.addEventListener('change', (e) => {
+                            const channel = e.target.dataset.channel;
+                            const type = e.target.dataset.type;
+                            if (!this.manager.settings.notifications) this.manager.settings.notifications = {};
+                            if (!this.manager.settings.notifications[channel]) this.manager.settings.notifications[channel] = {};
+                            this.manager.settings.notifications[channel][type] = e.target.checked;
+                            this.manager.saveSettings();
+                        });
+                    });
+                    break;
+                    
+                case 'data':
+                    // Data management
+                    container.querySelector('#export-data')?.addEventListener('click', () => this.exportData());
+                    container.querySelector('#import-data')?.addEventListener('click', () => {
+                        container.querySelector('#import-data-file')?.click();
+                    });
+                    container.querySelector('#import-data-file')?.addEventListener('change', (e) => this.importData(e));
+                    container.querySelector('#clear-all-data')?.addEventListener('click', () => {
+                        if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+                            this.manager.clearAllData();
+                            this.showToast('success', 'All data cleared');
+                            this.render(this._container);
+                        }
+                    });
+                    break;
+                    
+                case 'integration-keys':
+                    // Integration API key handlers
+                    container.querySelectorAll('.save-integration-creds').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const integrationId = e.target.dataset.integration;
+                            const card = container.querySelector(`.cav-integration-key-card[data-integration="${integrationId}"]`);
+                            if (!card) return;
+                            
+                            const inputs = card.querySelectorAll('input[data-field]');
+                            const credentials = {};
+                            inputs.forEach(input => {
+                                credentials[input.dataset.field] = input.value;
+                            });
+                            
+                            this.manager.saveIntegrationCredentials(integrationId, credentials);
+                            this.showToast('success', `${integrationId} credentials saved`);
+                        });
+                    });
+                    break;
+            }
         }
 
         showBrandProfileModal(existingProfile = null) {
