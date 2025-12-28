@@ -296,9 +296,9 @@
       console.log('[CAV Storage] User role:', sessionRole, 'Derived permissions:', this.permissions);
       
       // Video storage limits - Using IndexedDB for larger storage
-      this.maxVideoUploadMB = 10; // Max 10MB per video upload
+      this.maxVideoUploadMB = 100; // Max 100MB per video upload
       this.maxVideoUploadBytes = this.maxVideoUploadMB * 1024 * 1024;
-      this.maxVideoStorageMB = 100; // Max 100MB total video storage per user
+      this.maxVideoStorageMB = 500; // Max 500MB total video storage per user
       this.maxVideoStorageBytes = this.maxVideoStorageMB * 1024 * 1024;
       
       // IndexedDB database name and version - Use v4 for complete schema

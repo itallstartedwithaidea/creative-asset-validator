@@ -141,7 +141,7 @@
             }
 
             const modelConfig = window.CAVSettings?.getModelConfig() || {};
-            const model = options.model || modelConfig.claudeModel || 'claude-sonnet-4-20250514';
+            const model = options.model || modelConfig.claudeModel || 'claude-sonnet-4-5-20250929';
             const temperature = options.temperature ?? modelConfig.analysisTemperature ?? 0.3;
             const maxTokens = options.maxTokens || modelConfig.maxTokens || 4096;
 
@@ -188,7 +188,7 @@
             }
 
             const modelConfig = window.CAVSettings?.getModelConfig() || {};
-            const model = options.mini ? 'gpt-4o-mini' : (options.model || modelConfig.openaiVisionModel || 'gpt-4o');
+            const model = options.mini ? 'gpt-5-mini' : (options.model || modelConfig.openaiVisionModel || 'gpt-5.2');
             const temperature = options.temperature ?? modelConfig.analysisTemperature ?? 0.3;
             const maxTokens = options.maxTokens || modelConfig.maxTokens || 4096;
 
