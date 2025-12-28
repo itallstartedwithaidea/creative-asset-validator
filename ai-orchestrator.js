@@ -143,7 +143,7 @@
             const modelConfig = window.CAVSettings?.getModelConfig() || {};
             const model = options.model || modelConfig.claudeModel || 'claude-sonnet-4-5-20250929';
             const temperature = options.temperature ?? modelConfig.analysisTemperature ?? 0.3;
-            const maxTokens = options.maxTokens || modelConfig.maxTokens || 4096;
+            const maxTokens = options.maxTokens || modelConfig.maxTokens || 8192;
 
             const messages = Array.isArray(prompt) ? prompt : [{ role: 'user', content: prompt }];
 
@@ -190,7 +190,7 @@
             const modelConfig = window.CAVSettings?.getModelConfig() || {};
             const model = options.mini ? 'gpt-5-mini' : (options.model || modelConfig.openaiVisionModel || 'gpt-5.2');
             const temperature = options.temperature ?? modelConfig.analysisTemperature ?? 0.3;
-            const maxTokens = options.maxTokens || modelConfig.maxTokens || 4096;
+            const maxTokens = options.maxTokens || modelConfig.maxTokens || 8192;
 
             let messages;
             if (options.image) {

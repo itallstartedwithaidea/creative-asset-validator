@@ -9,11 +9,11 @@ class CloudinaryClient {
         this.apiBase = options.apiBase || '/api';
         this.syncEngine = options.syncEngine || window.syncEngine;
         
-        // Quota state
+        // Quota state (for backend mode)
         this.quota = {
-            type: 'shared',
+            type: 'byok', // Default to BYOK since we're using local credentials
             used: 0,
-            limit: 25,
+            limit: -1, // Unlimited for BYOK
             percent: 0,
             can_transform: true
         };
@@ -25,74 +25,151 @@ class CloudinaryClient {
     }
     
     // ========================================================
+    // CREDENTIALS MANAGEMENT
+    // ========================================================
+    
+    getCredentials() {
+        // Get user's Cloudinary credentials from localStorage
+        try {
+            const stored = localStorage.getItem('cav_user_cloudinary');
+            if (stored) {
+                const creds = JSON.parse(stored);
+                if (creds.cloudName && creds.apiKey && creds.apiSecret) {
+                    return creds;
+                }
+            }
+        } catch (e) {
+            console.error('[CloudinaryClient] Error reading credentials:', e);
+        }
+        return null;
+    }
+    
+    hasCredentials() {
+        return this.getCredentials() !== null;
+    }
+    
+    // ========================================================
     // QUOTA MANAGEMENT
     // ========================================================
     
     async getQuota() {
-        try {
-            const response = await this.request('GET', '/cloudinary/quota');
-            this.quota = response;
-            return response;
-        } catch (error) {
-            console.error('[CloudinaryClient] Failed to get quota:', error);
-            return this.quota;
+        // Since we're using BYOK (user's own credentials), quota is unlimited
+        if (this.hasCredentials()) {
+            this.quota = {
+                type: 'byok',
+                used: 0,
+                limit: -1,
+                percent: 0,
+                remaining: -1,
+                can_transform: true
+            };
+        } else {
+            this.quota = {
+                type: 'none',
+                used: 0,
+                limit: 0,
+                percent: 100,
+                remaining: 0,
+                can_transform: false,
+                exceeded: true
+            };
         }
+        return this.quota;
     }
     
     async canTransform(credits = 1) {
         await this.getQuota();
-        
-        if (this.quota.type === 'byok') {
-            return true; // Unlimited for BYOK users
-        }
-        
-        return this.quota.remaining >= credits;
+        return this.quota.can_transform;
     }
     
     checkQuotaAndShowWarning() {
-        if (this.quota.exceeded) {
-            this.showQuotaExceededModal();
+        if (!this.hasCredentials()) {
+            this.showCloudinaryRequiredModal();
             return false;
         }
-        
-        if (this.quota.warning) {
-            this.showQuotaWarningToast();
-        }
-        
         return true;
     }
     
+    showCloudinaryRequiredModal() {
+        const modal = document.createElement('div');
+        modal.className = 'cav-quota-modal';
+        modal.innerHTML = `
+            <div class="cav-quota-modal-overlay" onclick="this.parentElement.remove()"></div>
+            <div class="cav-quota-modal-content">
+                <div class="cav-quota-modal-header">
+                    <span style="font-size: 48px;">☁️</span>
+                    <h2>Cloudinary Required</h2>
+                </div>
+                <div class="cav-quota-modal-body">
+                    <p>To resize images and videos, you need to add your own Cloudinary account.</p>
+                    <p style="margin-top: 12px;">It's free! Get an account at:</p>
+                    <a href="https://cloudinary.com/users/register_free" target="_blank" 
+                       style="display: inline-block; margin: 16px 0; padding: 12px 24px; background: linear-gradient(135deg, #3448C5 0%, #2194E3 100%); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                        Get Free Cloudinary Account →
+                    </a>
+                    <p style="font-size: 14px; color: #64748b;">Then add your credentials in Settings → API Keys → Your Cloudinary Account</p>
+                </div>
+                <div class="cav-quota-modal-actions">
+                    <button class="cav-btn-secondary" onclick="this.closest('.cav-quota-modal').remove()">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        this.ensureModalStyles();
+    }
+    
     // ========================================================
-    // UPLOAD
+    // UPLOAD (Direct to Cloudinary using user's credentials)
     // ========================================================
     
-    async getUploadSignature(options = {}) {
-        return this.request('POST', '/cloudinary/signature', options);
+    getUploadSignature(options = {}) {
+        const creds = this.getCredentials();
+        if (!creds) {
+            throw new Error('Cloudinary credentials not configured');
+        }
+        
+        const timestamp = Math.floor(Date.now() / 1000);
+        const folder = options.folder || 'cav-uploads';
+        
+        // Generate signature (for unsigned uploads, we just return the basic params)
+        return {
+            cloud_name: creds.cloudName,
+            api_key: creds.apiKey,
+            timestamp: timestamp,
+            folder: folder,
+            upload_url: `https://api.cloudinary.com/v1_1/${creds.cloudName}/auto/upload`
+        };
     }
     
     async upload(file, options = {}) {
         const progressCallback = options.onProgress || (() => {});
         
+        // Check if user has Cloudinary credentials
+        if (!this.hasCredentials()) {
+            this.showCloudinaryRequiredModal();
+            throw new Error('Cloudinary credentials not configured. Please add your credentials in Settings.');
+        }
+        
+        const creds = this.getCredentials();
+        
         try {
-            // Get signature from backend
-            const signatureData = await this.getUploadSignature({
-                resource_type: this.getResourceType(file),
-                ...options
-            });
-            
-            // Create form data
+            // Create form data for unsigned upload
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('api_key', signatureData.api_key);
-            formData.append('timestamp', signatureData.timestamp);
-            formData.append('signature', signatureData.signature);
-            formData.append('folder', signatureData.folder);
+            formData.append('upload_preset', 'cav_unsigned'); // Need to create this preset in Cloudinary
+            formData.append('folder', options.folder || 'cav-uploads');
             
             if (options.public_id) {
                 formData.append('public_id', options.public_id);
             }
             
-            // Upload to Cloudinary
+            // Determine resource type
+            const resourceType = this.getResourceType(file);
+            const uploadUrl = `https://api.cloudinary.com/v1_1/${creds.cloudName}/${resourceType}/upload`;
+            
+            // Upload to Cloudinary using unsigned upload
             const xhr = new XMLHttpRequest();
             
             return new Promise((resolve, reject) => {
@@ -119,13 +196,23 @@ class CloudinaryClient {
                             resource_type: result.resource_type
                         });
                     } else {
-                        reject(new Error(`Upload failed: ${xhr.statusText}`));
+                        // Handle Cloudinary errors
+                        try {
+                            const error = JSON.parse(xhr.responseText);
+                            if (error.error?.message?.includes('preset')) {
+                                reject(new Error('Please create an unsigned upload preset named "cav_unsigned" in your Cloudinary settings.'));
+                            } else {
+                                reject(new Error(error.error?.message || `Upload failed: ${xhr.statusText}`));
+                            }
+                        } catch {
+                            reject(new Error(`Upload failed: ${xhr.statusText}`));
+                        }
                     }
                 };
                 
-                xhr.onerror = () => reject(new Error('Upload failed'));
+                xhr.onerror = () => reject(new Error('Upload failed - network error'));
                 
-                xhr.open('POST', signatureData.upload_url);
+                xhr.open('POST', uploadUrl);
                 xhr.send(formData);
             });
             
@@ -152,32 +239,52 @@ class CloudinaryClient {
     }
     
     // ========================================================
-    // TRANSFORM / RESIZE
+    // TRANSFORM / RESIZE (Direct URL generation - no server needed)
     // ========================================================
     
     async transform(publicId, options = {}) {
-        // Check quota first
-        if (!await this.canTransform()) {
-            this.showQuotaExceededModal();
-            throw new Error('Transform quota exceeded');
+        // Check if user has credentials
+        if (!this.hasCredentials()) {
+            this.showCloudinaryRequiredModal();
+            throw new Error('Cloudinary credentials required');
         }
         
+        const creds = this.getCredentials();
         const isVideo = options.resource_type === 'video';
-        const endpoint = isVideo ? '/cloudinary/transform-video' : '/cloudinary/transform';
         
-        return this.request('POST', endpoint, {
+        // Generate transformation URL directly
+        const transformations = [];
+        
+        if (options.width) transformations.push(`w_${options.width}`);
+        if (options.height) transformations.push(`h_${options.height}`);
+        transformations.push(`c_${options.crop || 'fill'}`);
+        transformations.push(`g_${options.gravity || 'auto'}`);
+        if (options.format) transformations.push(`f_${options.format}`);
+        transformations.push('q_auto'); // Auto quality
+        
+        const transformStr = transformations.join(',');
+        const resourceType = isVideo ? 'video' : 'image';
+        
+        const transformedUrl = `https://res.cloudinary.com/${creds.cloudName}/${resourceType}/upload/${transformStr}/${publicId}`;
+        
+        return {
+            success: true,
+            url: transformedUrl,
             public_id: publicId,
             width: options.width,
             height: options.height,
-            crop: options.crop || 'fill',
-            gravity: options.gravity || 'auto',
             format: options.format,
-            platform: options.platform
-        });
+            transformations: transformStr
+        };
     }
     
     async resize(asset, targetSpec) {
         console.log('[CloudinaryClient] Resizing asset:', asset.name, 'to', targetSpec);
+        
+        if (!this.hasCredentials()) {
+            this.showCloudinaryRequiredModal();
+            throw new Error('Please add your Cloudinary credentials in Settings to resize assets');
+        }
         
         if (!asset.cloudinary_id && !asset.cloudinary_url) {
             throw new Error('Asset must be uploaded to Cloudinary first');
@@ -193,9 +300,6 @@ class CloudinaryClient {
             platform: targetSpec.platform,
             format: targetSpec.format
         });
-        
-        // Refresh quota after transform
-        this.getQuota();
         
         return result;
     }
@@ -213,9 +317,9 @@ class CloudinaryClient {
     }
     
     getTransformUrl(publicId, width, height, options = {}) {
-        // Generate transform URL without using credits
-        // This is for preview/display purposes
-        const cloudName = this.syncEngine?.status?.cloudName || 'demo';
+        // Generate transform URL directly using user's credentials
+        const creds = this.getCredentials();
+        const cloudName = creds?.cloudName || 'demo';
         const crop = options.crop || 'fill';
         const gravity = options.gravity || 'auto';
         const format = options.format || 'auto';
@@ -485,7 +589,7 @@ class CloudinaryClient {
         }
         
         try {
-            await this.saveBYOKCredentials(cloudName, apiKey, apiSecret);
+            this.saveBYOKCredentials(cloudName, apiKey, apiSecret);
             
             // Refresh quota
             await this.getQuota();
@@ -506,11 +610,95 @@ class CloudinaryClient {
         }
     }
     
+    saveBYOKCredentials(cloudName, apiKey, apiSecret) {
+        // Save to local storage
+        const creds = { cloudName, apiKey, apiSecret };
+        localStorage.setItem('cav_user_cloudinary', JSON.stringify(creds));
+        console.log('[CloudinaryClient] BYOK credentials saved');
+    }
+    
+    ensureModalStyles() {
+        if (document.getElementById('cav-quota-modal-styles')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'cav-quota-modal-styles';
+        style.textContent = `
+            .cav-quota-modal {
+                position: fixed;
+                inset: 0;
+                z-index: 100000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .cav-quota-modal-overlay {
+                position: absolute;
+                inset: 0;
+                background: rgba(0,0,0,0.7);
+                backdrop-filter: blur(4px);
+            }
+            .cav-quota-modal-content {
+                position: relative;
+                background: linear-gradient(180deg, #1e1e2e 0%, #12121a 100%);
+                border: 1px solid rgba(168, 85, 247, 0.3);
+                border-radius: 16px;
+                padding: 32px;
+                max-width: 480px;
+                text-align: center;
+                box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            }
+            .cav-quota-modal-header h2 {
+                color: #a855f7;
+                margin: 16px 0 0;
+                font-size: 24px;
+            }
+            .cav-quota-modal-body {
+                color: #94a3b8;
+                margin: 24px 0;
+                line-height: 1.6;
+            }
+            .cav-quota-modal-actions {
+                display: flex;
+                gap: 12px;
+                justify-content: center;
+            }
+            .cav-quota-modal-actions button {
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .cav-btn-secondary {
+                background: transparent;
+                border: 1px solid #64748b;
+                color: #94a3b8;
+            }
+            .cav-btn-secondary:hover {
+                border-color: #a855f7;
+                color: #a855f7;
+            }
+            .cav-btn-primary {
+                background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+                border: none;
+                color: white;
+            }
+            .cav-btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
     // ========================================================
-    // API REQUESTS
+    // API REQUESTS (Deprecated - keeping for compatibility)
     // ========================================================
     
     async request(method, path, body = null) {
+        // This is deprecated - we now use direct Cloudinary API calls
+        console.warn('[CloudinaryClient] API request method is deprecated');
+        
         const token = this.syncEngine?.sessionToken || localStorage.getItem('cav_session_token');
         
         const headers = {
