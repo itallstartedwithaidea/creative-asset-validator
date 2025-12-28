@@ -137,7 +137,7 @@
             const session = window.cavUserSession || window.CAVSecurity?.SecureSessionManager?.getSession?.();
             const email = session?.email?.toLowerCase() || '';
             // Check against AUTH_CONFIG admin emails
-            const adminEmails = window.AUTH_CONFIG?.ADMIN_EMAILS || ['john@itallstartedwithaidea.com'];
+            const adminEmails = window.AUTH_CONFIG?.ADMIN_EMAILS || [];
             return adminEmails.some(adminEmail => email === adminEmail.toLowerCase());
         }
         
@@ -786,7 +786,7 @@
         }
 
         // Super admin email - can see and manage all domains
-        static SUPER_ADMIN_EMAIL = 'john@itallstartedwithaidea.com';
+        static SUPER_ADMIN_EMAIL = window.AUTH_CONFIG?.ADMIN_EMAILS?.[0] || null;
         static SUPER_ADMIN_DOMAIN = 'itallstartedwithaidea.com';
         
         // Check if current user is super admin

@@ -532,7 +532,7 @@
                 return {
                     allowed: false,
                     reason: 'personal_domain',
-                    message: 'Personal email accounts (Gmail, Hotmail, Yahoo, etc.) are not permitted.\n\nPlease use your corporate email address or contact john@itallstartedwithaidea.com to request access.'
+                    message: 'Personal email accounts (Gmail, Hotmail, Yahoo, etc.) are not permitted.\n\nPlease use your corporate email address or contact your administrator to request access.'
                 };
             }
 
@@ -551,7 +551,7 @@
                 const saved = localStorage.getItem(SECURE_KEYS.SETTINGS);
                 const defaults = {
                     corporateDomains: ['itallstartedwithaidea.com'],
-                    adminEmails: ['john@itallstartedwithaidea.com'],
+                    adminEmails: window.AUTH_CONFIG?.ADMIN_EMAILS || [],
                     whitelistedEmails: [],
                     blockedEmails: [],
                     blockedDomains: [],
@@ -562,7 +562,7 @@
             } catch {
                 return {
                     corporateDomains: ['itallstartedwithaidea.com'],
-                    adminEmails: ['john@itallstartedwithaidea.com'],
+                    adminEmails: window.AUTH_CONFIG?.ADMIN_EMAILS || [],
                     whitelistedEmails: [],
                     blockedEmails: [],
                     blockedDomains: [],

@@ -1523,9 +1523,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('dev') === '1') {
             console.log('[CAV Auth] EARLY DEV MODE - Creating session before modules load');
+            const devEmail = window.AUTH_CONFIG?.ADMIN_EMAILS?.[0] || 'dev@localhost';
             window.cavUserSession = {
-                email: 'john@itallstartedwithaidea.com',
-                name: 'John Williams',
+                email: devEmail,
+                name: 'Developer',
                 picture: '',
                 role: 'admin',
                 isSuperAdmin: true,
@@ -1669,8 +1670,8 @@
             personalUsersEnabled: false,  // LOCKED: Personal emails blocked by default
             requireApproval: false,
             defaultRole: 'editor',
-            corporateDomains: ['itallstartedwithaidea.com'],
-            adminEmails: ['john@itallstartedwithaidea.com'],
+            corporateDomains: window.AUTH_CONFIG?.CORPORATE_DOMAINS || [],
+            adminEmails: window.AUTH_CONFIG?.ADMIN_EMAILS || [],
             whitelistedEmails: [],
             blockedEmails: [],
             blockedDomains: [],
@@ -1931,7 +1932,7 @@
                         </button>
                     </div>
                     <p style="color:#6b7280;font-size:0.8rem;margin-top:1.5rem;">
-                        Need access? Contact <strong style="color:#ec4899;">john@itallstartedwithaidea.com</strong>
+                        Need access? Contact <strong style="color:#ec4899;">your administrator</strong>
                     </p>
                 </div>
             `;
@@ -2496,7 +2497,7 @@
                 const isUserWhitelisted = isWhitelisted(email);
                 
                 if (!personalAllowed && !isUserWhitelisted) {
-                    showAccessDeniedModal(email, 'Access denied. Personal email accounts (Gmail, Yahoo, Hotmail, etc.) are not permitted.\n\nPlease use a corporate email or contact john@itallstartedwithaidea.com to request access.');
+                    showAccessDeniedModal(email, 'Access denied. Personal email accounts (Gmail, Yahoo, Hotmail, etc.) are not permitted.\n\nPlease use a corporate email or contact your administrator to request access.');
                     return;
                 }
             }
@@ -7202,8 +7203,8 @@ Provide actionable, specific strategic advice. Use data points where available. 
                 // Create mock admin session
                 const devSession = {
                     id: 'dev_session_' + Date.now(),
-                    email: 'john@itallstartedwithaidea.com',
-                    name: 'John Williams',
+                    email: window.AUTH_CONFIG?.ADMIN_EMAILS?.[0] || 'dev@localhost',
+                    name: 'Developer',
                     picture: '',
                     role: 'admin',
                     userType: 'corporate',

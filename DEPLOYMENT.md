@@ -296,7 +296,7 @@ To update the application:
 ## 📞 Support
 
 - **Documentation:** README.md, FEATURES.md
-- **Admin:** john@itallstartedwithaidea.com
+- **Admin:** Configure in auth-config.js → ADMIN_EMAILS
 
 ---
 
