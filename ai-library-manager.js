@@ -540,7 +540,7 @@ Respond in JSON format:
                         'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-5-mini',
+                        model: 'gpt-4o-mini',
                         messages: [{ role: 'user', content: prompt }],
                         temperature: 0.2,
                         response_format: { type: 'json_object' }

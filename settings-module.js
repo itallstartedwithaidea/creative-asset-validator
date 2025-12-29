@@ -186,9 +186,32 @@
             
             if (!sharing.enabled) return null;
             
-            // Check if current user is in allowed list
+            // If global universal share is enabled, allow all authenticated users
+            if (sharing.globalUniversalShare) {
+                const sharedKeys = platformCreds.sharedKeys || {};
+                return sharedKeys[provider] || null;
+            }
+            
+            // Check if current user is in allowed list (or allowed by domain)
             const allowedEmails = (sharing.allowedEmails || []).map(e => e.toLowerCase().trim());
-            if (!allowedEmails.includes(currentEmail) && allowedEmails.length > 0) {
+            
+            // If no emails specified, allow all
+            if (allowedEmails.length === 0) {
+                const sharedKeys = platformCreds.sharedKeys || {};
+                return sharedKeys[provider] || null;
+            }
+            
+            // Check for exact email match or domain match
+            const userDomain = '@' + (currentEmail.split('@')[1] || '');
+            const isAllowed = allowedEmails.some(entry => {
+                if (entry.startsWith('@')) {
+                    // Domain-based access: @company.com allows all @company.com users
+                    return entry === userDomain;
+                }
+                return entry === currentEmail;
+            });
+            
+            if (!isAllowed) {
                 return null; // Not in allowed list
             }
             
@@ -209,8 +232,22 @@
             
             if (!sharing.enabled) return false;
             
+            // Global universal share grants access to all authenticated users
+            if (sharing.globalUniversalShare) return true;
+            
             const allowedEmails = (sharing.allowedEmails || []).map(e => e.toLowerCase().trim());
-            return allowedEmails.length === 0 || allowedEmails.includes(currentEmail);
+            
+            // If no emails specified, allow all
+            if (allowedEmails.length === 0) return true;
+            
+            // Check for exact email match or domain match
+            const userDomain = '@' + (currentEmail.split('@')[1] || '');
+            return allowedEmails.some(entry => {
+                if (entry.startsWith('@')) {
+                    return entry === userDomain;
+                }
+                return entry === currentEmail;
+            });
         }
         
         // User's own Cloudinary credentials (BYOK)
@@ -550,8 +587,8 @@
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
-                        model: 'gpt-5-mini',
-                        max_tokens: 10,
+                        model: 'gpt-4o-mini',
+                        max_completion_tokens: 10,
                         messages: [{ role: 'user', content: 'Say "connected" in one word.' }]
                     })
                 });
@@ -2589,8 +2626,8 @@
             // Get saved platform credentials (stored locally for super admin)
             const platformCreds = this.manager.getPlatformCredentials() || {};
             const cloudinaryCreds = platformCreds.cloudinary || {};
-            const sharedKeys = platformCreds.sharedKeys || { openai: '', anthropic: '' };
-            const sharingConfig = platformCreds.sharing || { enabled: false, allowedEmails: [] };
+            const sharedKeys = platformCreds.sharedKeys || { openai: '', anthropic: '', gemini: '', searchapi: '' };
+            const sharingConfig = platformCreds.sharing || { enabled: false, allowedEmails: [], globalUniversalShare: false };
             
             return `
                 <div class="cav-settings-section" data-section="platform-admin">
@@ -2623,11 +2660,29 @@
                             <span>Enable API Sharing</span>
                         </div>
                         
-                        <div id="sharing-emails-section" style="display: ${sharingConfig.enabled ? 'block' : 'none'};">
-                            <label style="display: block; color: #94a3b8; margin-bottom: 8px;">Allowed Emails (one per line)</label>
-                            <textarea id="sharing-allowed-emails" rows="4" placeholder="user1@company.com&#10;user2@company.com" 
+                        <!-- Global Universal Share Access (Super Admin Only) -->
+                        <div class="global-share-section" style="margin: 20px 0; padding: 16px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; display: ${sharingConfig.enabled ? 'block' : 'none'};" id="global-share-container">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="enable-global-universal-share" ${sharingConfig.globalUniversalShare ? 'checked' : ''}>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <div>
+                                    <span style="font-weight: 600; color: #a855f7;">🌐 Global Universal Share Access</span>
+                                    <p style="margin: 4px 0 0; font-size: 12px; color: #94a3b8;">Grant API access to ALL domains and ALL users automatically</p>
+                                </div>
+                            </div>
+                            <p style="font-size: 12px; color: #64748b; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                                ⚠️ When enabled, all authenticated users across all domains will have access to your shared API keys. 
+                                Individual user restrictions below will be ignored.
+                            </p>
+                        </div>
+                        
+                        <div id="sharing-emails-section" style="display: ${sharingConfig.enabled && !sharingConfig.globalUniversalShare ? 'block' : 'none'};">
+                            <label style="display: block; color: #94a3b8; margin-bottom: 8px;">Allowed Emails or Domains (one per line)</label>
+                            <textarea id="sharing-allowed-emails" rows="4" placeholder="user1@company.com&#10;@entirecompany.com (allow all from domain)&#10;specific@user.com" 
                                 style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 12px; color: white; resize: vertical;">${(sharingConfig.allowedEmails || []).join('\n')}</textarea>
-                            <p style="font-size: 12px; color: #64748b; margin-top: 8px;">These users will have access to your shared API keys but NOT your Cloudinary.</p>
+                            <p style="font-size: 12px; color: #64748b; margin-top: 8px;">Enter specific emails or @domain.com to allow all users from that domain. Leave empty to allow ALL users.</p>
                         </div>
                     </div>
                     
@@ -2714,6 +2769,58 @@
                                 </div>
                                 <button class="cav-btn cav-btn-secondary save-admin-shared-key" data-provider="anthropic" style="width: 100%;">
                                     💾 Save Shared Claude Key
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Shared Gemini Key -->
+                        <div class="cav-platform-admin-card" data-service="gemini" style="background: linear-gradient(180deg, rgba(66, 133, 244, 0.1) 0%, rgba(52, 168, 83, 0.05) 100%); border: 1px solid rgba(66, 133, 244, 0.3); border-radius: 12px; padding: 20px;">
+                            <div class="platform-admin-header" style="display: flex; gap: 16px; margin-bottom: 16px;">
+                                <div class="platform-admin-icon" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #4285F4 0%, #34A853 100%); color: white;">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                </div>
+                                <div class="platform-admin-info">
+                                    <h4 style="margin: 0; color: white;">Google Gemini (Shareable)</h4>
+                                    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Gemini 2.0 Flash for allowed users</p>
+                                    <span style="font-size: 12px; color: ${sharedKeys.gemini ? '#22c55e' : '#64748b'};">
+                                        ${sharedKeys.gemini ? '✓ Configured' : 'Not set'}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="platform-admin-fields">
+                                <div class="cav-form-group" style="margin-bottom: 16px;">
+                                    <label style="display: block; color: #94a3b8; margin-bottom: 6px; font-size: 13px;">Shared API Key</label>
+                                    <input type="password" id="admin-shared-gemini" value="${sharedKeys.gemini || ''}" placeholder="AIza..." class="cav-input" style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
+                                </div>
+                                <button class="cav-btn cav-btn-secondary save-admin-shared-key" data-provider="gemini" style="width: 100%;">
+                                    💾 Save Shared Gemini Key
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Shared SearchAPI Key -->
+                        <div class="cav-platform-admin-card" data-service="searchapi" style="background: linear-gradient(180deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 20px;">
+                            <div class="platform-admin-header" style="display: flex; gap: 16px; margin-bottom: 16px;">
+                                <div class="platform-admin-icon" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%); color: white;">
+                                    ${ICONS.search}
+                                </div>
+                                <div class="platform-admin-info">
+                                    <h4 style="margin: 0; color: white;">SearchAPI (Shareable)</h4>
+                                    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Web research for allowed users</p>
+                                    <span style="font-size: 12px; color: ${sharedKeys.searchapi ? '#22c55e' : '#64748b'};">
+                                        ${sharedKeys.searchapi ? '✓ Configured' : 'Not set'}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="platform-admin-fields">
+                                <div class="cav-form-group" style="margin-bottom: 16px;">
+                                    <label style="display: block; color: #94a3b8; margin-bottom: 6px; font-size: 13px;">Shared API Key</label>
+                                    <input type="password" id="admin-shared-searchapi" value="${sharedKeys.searchapi || ''}" placeholder="searchapi_..." class="cav-input" style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
+                                </div>
+                                <button class="cav-btn cav-btn-secondary save-admin-shared-key" data-provider="searchapi" style="width: 100%;">
+                                    💾 Save Shared SearchAPI Key
                                 </button>
                             </div>
                         </div>
@@ -3214,8 +3321,14 @@
                     container.querySelector('#enable-api-sharing')?.addEventListener('change', (e) => {
                         const enabled = e.target.checked;
                         const emailsSection = container.querySelector('#sharing-emails-section');
+                        const globalShareContainer = container.querySelector('#global-share-container');
+                        
                         if (emailsSection) {
-                            emailsSection.style.display = enabled ? 'block' : 'none';
+                            const globalShareEnabled = container.querySelector('#enable-global-universal-share')?.checked;
+                            emailsSection.style.display = enabled && !globalShareEnabled ? 'block' : 'none';
+                        }
+                        if (globalShareContainer) {
+                            globalShareContainer.style.display = enabled ? 'block' : 'none';
                         }
                         
                         // Save sharing config
@@ -3226,11 +3339,30 @@
                         this.showToast('success', enabled ? 'API sharing enabled' : 'API sharing disabled');
                     });
                     
+                    // Global Universal Share toggle (Super Admin only)
+                    container.querySelector('#enable-global-universal-share')?.addEventListener('change', (e) => {
+                        const globalEnabled = e.target.checked;
+                        const emailsSection = container.querySelector('#sharing-emails-section');
+                        
+                        if (emailsSection) {
+                            emailsSection.style.display = globalEnabled ? 'none' : 'block';
+                        }
+                        
+                        // Save sharing config
+                        const platformCreds = this.manager.getPlatformCredentials() || {};
+                        platformCreds.sharing = platformCreds.sharing || {};
+                        platformCreds.sharing.globalUniversalShare = globalEnabled;
+                        this.manager.savePlatformCredentials(platformCreds);
+                        this.showToast('success', globalEnabled ? 
+                            '🌐 Global Universal Share enabled - ALL users can access shared keys' : 
+                            'Global Universal Share disabled - using allowed emails list');
+                    });
+                    
                     // Save sharing allowed emails
                     container.querySelector('#sharing-allowed-emails')?.addEventListener('blur', (e) => {
                         const emails = e.target.value.split('\n')
                             .map(email => email.trim().toLowerCase())
-                            .filter(email => email && email.includes('@'));
+                            .filter(email => email && (email.includes('@') || email.startsWith('@')));
                         
                         const platformCreds = this.manager.getPlatformCredentials() || {};
                         platformCreds.sharing = platformCreds.sharing || {};
