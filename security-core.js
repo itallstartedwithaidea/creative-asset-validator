@@ -31,6 +31,7 @@
     const SECURE_KEYS = {
         SESSION: 'cav_secure_session_v3',
         SESSION_SIGNATURE: 'cav_session_sig_v3',
+        SESSION_BACKUP: 'cav_session_backup_v3', // Unencrypted backup for refresh persistence
         DEVICE_FINGERPRINT: 'cav_device_fp_v3',
         ENCRYPTION_SALT: 'cav_enc_salt_v3',
         USERS: 'cav_managed_users_v3',
@@ -280,6 +281,21 @@
                 const signature = await CryptoUtils.createSignature(session, this._encryptionKey);
                 localStorage.setItem(SECURE_KEYS.SESSION_SIGNATURE, signature);
                 
+                // BACKUP: Also store unencrypted session for refresh persistence
+                // This is less secure but ensures session survives browser changes
+                const backupSession = {
+                    email: session.email,
+                    name: session.name,
+                    picture: session.picture,
+                    googleId: session.googleId,
+                    userType: session.userType,
+                    role: session.role,
+                    expiresAt: session.expiresAt,
+                    createdAt: session.createdAt
+                };
+                localStorage.setItem(SECURE_KEYS.SESSION_BACKUP, JSON.stringify(backupSession));
+                console.log('[Security] Backup session stored');
+                
                 this._currentSession = session;
                 
                 // Log activity
@@ -311,12 +327,55 @@
                 }
 
                 // Decrypt session
-                const session = await CryptoUtils.decrypt(encryptedSession, this._encryptionKey);
+                let session = await CryptoUtils.decrypt(encryptedSession, this._encryptionKey);
                 if (!session) {
-                    console.warn('[Security] Failed to decrypt session - key may have changed');
-                    console.warn('[Security] This can happen if browser fingerprint changed');
-                    this.clearSession();
-                    return null;
+                    console.warn('[Security] Failed to decrypt session - attempting backup restore');
+                    
+                    // Try to restore from backup
+                    const backupData = localStorage.getItem(SECURE_KEYS.SESSION_BACKUP);
+                    if (backupData) {
+                        try {
+                            const backup = JSON.parse(backupData);
+                            if (backup && backup.email && backup.expiresAt > Date.now()) {
+                                console.log('[Security] Restoring from backup session');
+                                session = {
+                                    id: CryptoUtils.generateSessionId(),
+                                    email: backup.email,
+                                    name: backup.name,
+                                    picture: backup.picture,
+                                    googleId: backup.googleId,
+                                    userType: backup.userType,
+                                    role: backup.role,
+                                    expiresAt: backup.expiresAt,
+                                    createdAt: backup.createdAt,
+                                    lastActivity: Date.now(),
+                                    deviceFingerprint: this._deviceFingerprint,
+                                    restoredFromBackup: true
+                                };
+                                
+                                // Re-encrypt with new fingerprint
+                                const reEncrypted = await CryptoUtils.encrypt(session, this._encryptionKey);
+                                if (reEncrypted) {
+                                    localStorage.setItem(SECURE_KEYS.SESSION, reEncrypted);
+                                    const newSig = await CryptoUtils.createSignature(session, this._encryptionKey);
+                                    localStorage.setItem(SECURE_KEYS.SESSION_SIGNATURE, newSig);
+                                    console.log('[Security] Backup session re-encrypted successfully');
+                                }
+                            } else {
+                                console.warn('[Security] Backup session expired or invalid');
+                                this.clearSession();
+                                return null;
+                            }
+                        } catch (e) {
+                            console.error('[Security] Backup restore failed:', e);
+                            this.clearSession();
+                            return null;
+                        }
+                    } else {
+                        console.warn('[Security] No backup session available');
+                        this.clearSession();
+                        return null;
+                    }
                 }
 
                 console.log('[Security] Session decrypted successfully for:', session.email);
@@ -382,8 +441,9 @@
             }
             localStorage.removeItem(SECURE_KEYS.SESSION);
             localStorage.removeItem(SECURE_KEYS.SESSION_SIGNATURE);
+            localStorage.removeItem(SECURE_KEYS.SESSION_BACKUP);
             this._currentSession = null;
-            console.log('[Security] Session cleared');
+            console.log('[Security] Session cleared (including backup)');
         },
 
         // Update session activity (silent, doesn't re-encrypt to avoid signature issues)

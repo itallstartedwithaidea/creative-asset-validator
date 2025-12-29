@@ -72,12 +72,114 @@
     };
 
     // ============================================
-    // CRM CLASS
+    // CRM CLASS (with MySQL Sync for cross-browser persistence)
     // ============================================
     class InternalCRM {
         constructor() {
             this._loadUserData();
+            this._syncEnabled = false;
             console.log('[CRM] Initialized with user prefix:', getUserStoragePrefix());
+            
+            // Listen for sync engine ready
+            this._setupSyncListener();
+        }
+        
+        // Setup listener for when SyncEngine becomes available
+        _setupSyncListener() {
+            // Check if sync engine is already available
+            if (window.syncEngine?.sessionToken) {
+                this._enableSync();
+            }
+            
+            // Listen for authentication
+            const checkSync = setInterval(() => {
+                if (window.syncEngine?.sessionToken && !this._syncEnabled) {
+                    this._enableSync();
+                    clearInterval(checkSync);
+                }
+            }, 1000);
+            
+            // Clear after 30 seconds if not connected
+            setTimeout(() => clearInterval(checkSync), 30000);
+        }
+        
+        // Enable sync and pull data from backend
+        async _enableSync() {
+            this._syncEnabled = true;
+            console.log('[CRM] Sync enabled - loading data from MySQL backend');
+            
+            try {
+                await this._pullFromBackend();
+            } catch (e) {
+                console.warn('[CRM] Backend sync failed, using local data:', e.message);
+            }
+        }
+        
+        // Pull CRM data from MySQL backend
+        async _pullFromBackend() {
+            if (!window.syncEngine?.sessionToken) return;
+            
+            const entityTypes = ['companies', 'projects', 'contacts', 'deals', 'activities', 'tags', 'competitors'];
+            
+            for (const entityType of entityTypes) {
+                try {
+                    const items = await window.syncEngine.getAllFromLocal(entityType);
+                    if (items && items.length > 0) {
+                        // Merge with local data
+                        this._mergeBackendData(entityType, items);
+                    }
+                } catch (e) {
+                    console.warn(`[CRM] Failed to pull ${entityType}:`, e.message);
+                }
+            }
+            
+            console.log('[CRM] Backend data merged successfully');
+        }
+        
+        // Merge backend data with local data
+        _mergeBackendData(entityType, items) {
+            const localKey = this._getLocalKeyForEntity(entityType);
+            const localData = this.loadData(localKey, {});
+            
+            items.forEach(item => {
+                const id = item.uuid || item.id;
+                // Backend wins if newer
+                if (!localData[id] || new Date(item.updated_at) > new Date(localData[id].updatedAt)) {
+                    localData[id] = this._convertFromBackend(entityType, item);
+                }
+            });
+            
+            // Save merged data
+            this.saveDataLocal(localKey, localData);
+            
+            // Update in-memory
+            this[entityType] = localData;
+        }
+        
+        // Convert backend format to local format
+        _convertFromBackend(entityType, item) {
+            return {
+                id: item.uuid || item.id,
+                uuid: item.uuid,
+                ...item,
+                createdAt: item.created_at,
+                updatedAt: item.updated_at
+            };
+        }
+        
+        // Get localStorage key for entity type
+        _getLocalKeyForEntity(entityType) {
+            const map = {
+                'contacts': CRM_STORAGE.CONTACTS,
+                'companies': CRM_STORAGE.COMPANIES,
+                'projects': CRM_STORAGE.PROJECTS,
+                'deals': CRM_STORAGE.DEALS,
+                'activities': CRM_STORAGE.ACTIVITIES,
+                'tags': CRM_STORAGE.TAGS,
+                'competitors': CRM_STORAGE.COMPETITORS,
+                'custom_fields': CRM_STORAGE.CUSTOM_FIELDS
+            };
+            return map[entityType] || entityType;
         }
         
         // Load user-specific data - called on init and when user changes
@@ -94,15 +196,26 @@
         }
         
         // Reload CRM data for current user (call this after login)
-        reloadForCurrentUser() {
+        async reloadForCurrentUser() {
             console.log('[CRM] Reloading data for user prefix:', getUserStoragePrefix());
             this._loadUserData();
+            
+            // Also sync from backend if available
+            if (window.syncEngine?.sessionToken) {
+                await this._pullFromBackend();
+            }
+            
             return this;
         }
         
         // Get current user's storage prefix (for debugging)
         getCurrentUserPrefix() {
             return getUserStoragePrefix();
+        }
+        
+        // Check if sync is enabled
+        isSyncEnabled() {
+            return this._syncEnabled && !!window.syncEngine?.sessionToken;
         }
         
         // ----------------------------------------
@@ -112,6 +225,7 @@
             const id = this.generateId();
             const competitor = {
                 id,
+                uuid: id, // For backend sync
                 name: data.name || '',
                 website: data.website || '',
                 industry: data.industry || '',
@@ -137,6 +251,9 @@
             this.saveData(CRM_STORAGE.COMPETITORS, this.competitors);
             this.logActivity('competitor_created', { competitorId: id, name: competitor.name });
             
+            // Sync to MySQL backend
+            this._syncToBackend('competitors', competitor);
+            
             return competitor;
         }
         
@@ -152,6 +269,9 @@
             this.saveData(CRM_STORAGE.COMPETITORS, this.competitors);
             this.logActivity('competitor_updated', { competitorId: id });
             
+            // Sync to MySQL backend
+            this._syncToBackend('competitors', this.competitors[id]);
+            
             return this.competitors[id];
         }
         
@@ -159,9 +279,13 @@
             if (!this.competitors[id]) return false;
             
             const competitor = this.competitors[id];
+            const uuid = competitor.uuid || id;
             delete this.competitors[id];
             this.saveData(CRM_STORAGE.COMPETITORS, this.competitors);
             this.logActivity('competitor_deleted', { competitorId: id, name: competitor.name });
+            
+            // Delete from MySQL backend
+            this._deleteFromBackend('competitors', uuid);
             
             return true;
         }
@@ -225,13 +349,73 @@
                 return defaultValue;
             }
         }
-
-        saveData(key, data) {
+        
+        // Save to localStorage only (no sync)
+        saveDataLocal(key, data) {
             localStorage.setItem(key, JSON.stringify(data));
         }
 
+        // Save to localStorage AND sync to MySQL backend
+        saveData(key, data) {
+            // Always save locally first (fast)
+            localStorage.setItem(key, JSON.stringify(data));
+            
+            // No backend sync needed for settings
+            if (key.includes('_settings')) return;
+        }
+        
+        // Sync a single entity to backend
+        async _syncToBackend(entityType, item) {
+            if (!this.isSyncEnabled()) return;
+            
+            try {
+                // Convert to backend format
+                const backendData = {
+                    uuid: item.uuid || item.id,
+                    name: item.name || item.firstName + ' ' + item.lastName || '',
+                    description: item.description || item.notes || '',
+                    ...item,
+                    created_at: item.createdAt,
+                    updated_at: item.updatedAt
+                };
+                
+                // Use SyncEngine's save method
+                const saveMethod = window.syncEngine[`save${this._capitalizeFirst(entityType.replace(/s$/, ''))}`];
+                if (saveMethod) {
+                    await saveMethod.call(window.syncEngine, backendData);
+                    console.log(`[CRM] Synced ${entityType} to backend:`, backendData.uuid);
+                }
+            } catch (e) {
+                console.warn(`[CRM] Failed to sync ${entityType} to backend:`, e.message);
+            }
+        }
+        
+        // Delete from backend
+        async _deleteFromBackend(entityType, uuid) {
+            if (!this.isSyncEnabled()) return;
+            
+            try {
+                const deleteMethod = window.syncEngine[`delete${this._capitalizeFirst(entityType.replace(/s$/, ''))}`];
+                if (deleteMethod) {
+                    await deleteMethod.call(window.syncEngine, uuid);
+                    console.log(`[CRM] Deleted ${entityType} from backend:`, uuid);
+                }
+            } catch (e) {
+                console.warn(`[CRM] Failed to delete ${entityType} from backend:`, e.message);
+            }
+        }
+        
+        _capitalizeFirst(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
         generateId() {
-            return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            // Generate UUID for backend compatibility
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
         }
 
         // ----------------------------------------
@@ -241,6 +425,7 @@
             const id = this.generateId();
             const contact = {
                 id,
+                uuid: id, // For backend sync
                 type: data.type || 'client', // client, team, vendor, partner
                 firstName: data.firstName || '',
                 lastName: data.lastName || '',
@@ -270,6 +455,9 @@
             this.saveData(CRM_STORAGE.CONTACTS, this.contacts);
             this.logActivity('contact_created', { contactId: id, name: `${contact.firstName} ${contact.lastName}` });
             
+            // Sync to MySQL backend (async, non-blocking)
+            this._syncToBackend('contacts', contact);
+            
             return contact;
         }
 
@@ -285,6 +473,9 @@
             this.saveData(CRM_STORAGE.CONTACTS, this.contacts);
             this.logActivity('contact_updated', { contactId: id });
             
+            // Sync to MySQL backend
+            this._syncToBackend('contacts', this.contacts[id]);
+            
             return this.contacts[id];
         }
 
@@ -292,9 +483,13 @@
             if (!this.contacts[id]) return false;
             
             const contact = this.contacts[id];
+            const uuid = contact.uuid || id;
             delete this.contacts[id];
             this.saveData(CRM_STORAGE.CONTACTS, this.contacts);
             this.logActivity('contact_deleted', { contactId: id, name: `${contact.firstName} ${contact.lastName}` });
+            
+            // Delete from MySQL backend
+            this._deleteFromBackend('contacts', uuid);
             
             return true;
         }
@@ -349,6 +544,7 @@
             
             const company = {
                 id,
+                uuid: id, // For backend sync
                 name: data.name || '',
                 domain: data.domain || '',
                 industry: data.industry || '',
@@ -393,6 +589,9 @@
             this.saveData(CRM_STORAGE.COMPANIES, this.companies);
             this.logActivity('company_created', { companyId: id, name: company.name });
             
+            // Sync to MySQL backend (async, non-blocking)
+            this._syncToBackend('companies', company);
+            
             return company;
         }
 
@@ -407,6 +606,9 @@
             
             this.saveData(CRM_STORAGE.COMPANIES, this.companies);
             this.logActivity('company_updated', { companyId: id });
+            
+            // Sync to MySQL backend
+            this._syncToBackend('companies', this.companies[id]);
             
             return this.companies[id];
         }
@@ -889,6 +1091,7 @@
             
             const project = {
                 id,
+                uuid: id, // For backend sync
                 name: data.name || '',
                 description: data.description || '',
                 client: data.client || '', // Company ID
@@ -925,6 +1128,9 @@
             this.projects[id] = project;
             this.saveData(CRM_STORAGE.PROJECTS, this.projects);
             this.logActivity('project_created', { projectId: id, name: project.name });
+            
+            // Sync to MySQL backend
+            this._syncToBackend('projects', project);
             
             return project;
         }
@@ -1042,6 +1248,9 @@
             this.saveData(CRM_STORAGE.PROJECTS, this.projects);
             this.logActivity('project_updated', { projectId: id });
             
+            // Sync to MySQL backend
+            this._syncToBackend('projects', this.projects[id]);
+            
             return this.projects[id];
         }
 
@@ -1049,9 +1258,13 @@
             if (!this.projects[id]) return false;
             
             const project = this.projects[id];
+            const uuid = project.uuid || id;
             delete this.projects[id];
             this.saveData(CRM_STORAGE.PROJECTS, this.projects);
             this.logActivity('project_deleted', { projectId: id, name: project.name });
+            
+            // Delete from MySQL backend
+            this._deleteFromBackend('projects', uuid);
             
             return true;
         }
@@ -1378,6 +1591,7 @@
             const id = this.generateId();
             const deal = {
                 id,
+                uuid: id, // For backend sync
                 name: data.name || '',
                 company: data.company || '',
                 companyName: data.companyName || '',
@@ -1404,6 +1618,9 @@
             this.saveData(CRM_STORAGE.DEALS, this.deals);
             this.logActivity('deal_created', { dealId: id, name: deal.name, value: deal.value });
             
+            // Sync to MySQL backend
+            this._syncToBackend('deals', deal);
+            
             return deal;
         }
 
@@ -1428,6 +1645,9 @@
             } else {
                 this.logActivity('deal_updated', { dealId: id });
             }
+            
+            // Sync to MySQL backend
+            this._syncToBackend('deals', this.deals[id]);
             
             return this.deals[id];
         }
@@ -1470,11 +1690,16 @@
 
             const activity = {
                 id: this.generateId(),
+                uuid: this.generateId(), // For backend sync
                 type,
+                activity_type: type, // Backend field name
                 data,
+                details: data, // Backend field name
                 user: window.cavUserSession?.email || 'system',
                 userName: window.cavUserSession?.name || 'System',
                 timestamp: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
             };
 
             this.activities.unshift(activity);
@@ -1485,6 +1710,9 @@
             }
             
             this.saveData(CRM_STORAGE.ACTIVITIES, this.activities);
+            
+            // Sync to MySQL backend (non-blocking)
+            this._syncToBackend('activities', activity);
         }
 
         getActivities(filters = {}) {

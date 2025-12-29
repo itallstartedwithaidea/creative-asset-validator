@@ -356,6 +356,77 @@ $router->delete('/assets/{uuid}', function(Request $req) use ($auth, $db) {
 });
 
 // ============================================================
+// USER API KEYS (for cross-browser persistence)
+// ============================================================
+
+$router->get('/user/api-keys', function(Request $req) use ($auth, $db, $encryption) {
+    $user = $auth->requireAuth();
+    
+    // Get user's API keys (decrypted)
+    $keys = $db->fetchAll(
+        "SELECT service, key_name, key_value FROM user_api_keys WHERE user_id = ? AND is_valid = 1",
+        [$user['id']]
+    );
+    
+    // Decrypt keys
+    $decrypted = [];
+    foreach ($keys as $key) {
+        try {
+            $decrypted[] = [
+                'service' => $key['service'],
+                'key_name' => $key['key_name'],
+                'key_value' => $encryption->decrypt($key['key_value'])
+            ];
+        } catch (\Exception $e) {
+            // Skip invalid keys
+            Logger::warning('Failed to decrypt API key', ['service' => $key['service'], 'user' => $user['id']]);
+        }
+    }
+    
+    return ['keys' => $decrypted];
+});
+
+$router->post('/user/api-keys', function(Request $req) use ($auth, $db, $encryption) {
+    $user = $auth->requireAuth();
+    
+    $data = $req->validate([
+        'service' => 'required|string',
+        'key_name' => 'string',
+        'key_value' => 'required|string'
+    ]);
+    
+    $service = $data['service'];
+    $keyName = $data['key_name'] ?? 'api_key';
+    $keyValue = $data['key_value'];
+    
+    // Encrypt the key
+    $encrypted = $encryption->encrypt($keyValue);
+    
+    // Upsert
+    $db->query(
+        "INSERT INTO user_api_keys (user_id, service, key_name, key_value, is_valid)
+         VALUES (?, ?, ?, ?, 1)
+         ON DUPLICATE KEY UPDATE key_value = ?, is_valid = 1, updated_at = NOW()",
+        [$user['id'], $service, $keyName, $encrypted, $encrypted]
+    );
+    
+    Logger::info('User API key saved', ['user' => $user['id'], 'service' => $service]);
+    return Response::success("API key for {$service} saved");
+});
+
+$router->delete('/user/api-keys/{service}', function(Request $req) use ($auth, $db) {
+    $user = $auth->requireAuth();
+    $service = $req->params['service'];
+    
+    $db->query(
+        "DELETE FROM user_api_keys WHERE user_id = ? AND service = ?",
+        [$user['id'], $service]
+    );
+    
+    return Response::success("API key for {$service} deleted");
+});
+
+// ============================================================
 // CLOUDINARY
 // ============================================================
 
