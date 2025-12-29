@@ -12,9 +12,9 @@ from cloudinary import CloudinaryVideo
 import sys
 
 # Your Cloudinary credentials
-CLOUD_NAME = "drqvu2lrs"
-API_KEY = "462481466637115"
-API_SECRET = "qpO2cPl2rodtCxCZeE09EVBC1WE"
+//CLOUD_NAME = "drqvv2lrs"
+//API_KEY = "462480066637115"
+//API_SECRET = "qpO2cPl2ryutCxCZeE09EVBC1WE"
 
 # Configure Cloudinary
 cloudinary.config(
