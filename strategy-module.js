@@ -1494,7 +1494,13 @@ Return ONLY valid JSON:
                         btn.dataset.spec = userSpec;
                     }
                     
-                    const finalSpec = btn.dataset.spec || '1080x1080';
+                    const finalSpec = (btn.dataset.spec || '1080x1080').trim();
+                    
+                    // Validate spec is not empty
+                    if (!finalSpec || finalSpec === '') {
+                        alert('No target specification provided. Please try again.');
+                        return;
+                    }
                     
                     // Show loading state
                     const originalText = btn.innerHTML;
@@ -1505,20 +1511,24 @@ Return ONLY valid JSON:
                         // Parse the target spec (e.g., "1080x1920" or "9:16")
                         let targetWidth, targetHeight;
                         
-                        if (finalSpec.includes('x')) {
-                            [targetWidth, targetHeight] = finalSpec.split('x').map(Number);
-                        } else if (finalSpec.includes(':')) {
-                            const [w, h] = finalSpec.split(':').map(Number);
+                        if (finalSpec && finalSpec.includes('x')) {
+                            const parts = finalSpec.split('x').map(Number);
+                            targetWidth = parts[0] || 1080;
+                            targetHeight = parts[1] || 1080;
+                        } else if (finalSpec && finalSpec.includes(':')) {
+                            const parts = finalSpec.split(':').map(Number);
+                            const w = parts[0] || 1;
+                            const h = parts[1] || 1;
                             // Calculate dimensions based on aspect ratio and original size
-                            const maxDim = Math.max(this.currentAsset.width || 1080, this.currentAsset.height || 1920);
+                            const maxDim = Math.max(this.currentAsset?.width || 1080, this.currentAsset?.height || 1920);
                             if (w > h) {
                                 targetWidth = maxDim;
-                                targetHeight = Math.round(maxDim * h / w);
+                                targetHeight = Math.round(maxDim * h / w) || 1080;
                             } else {
                                 targetHeight = maxDim;
-                                targetWidth = Math.round(maxDim * w / h);
+                                targetWidth = Math.round(maxDim * w / h) || 1080;
                             }
-                        } else {
+                        } else if (finalSpec) {
                             // Default to common sizes based on spec name
                             const specLower = finalSpec.toLowerCase();
                             if (specLower.includes('story') || specLower.includes('reel') || specLower.includes('9:16')) {
@@ -1726,7 +1736,10 @@ Return ONLY valid JSON:
             if (!actual || !required) return false;
             
             const parseRatio = (r) => {
-                const [w, h] = r.split(':').map(Number);
+                if (!r || typeof r !== 'string' || !r.includes(':')) return 1;
+                const parts = r.split(':').map(Number);
+                const w = parts[0] || 1;
+                const h = parts[1] || 1;
                 return w / h;
             };
             
