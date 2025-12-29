@@ -446,9 +446,22 @@
             return { ...this.settings };
         }
 
-        // Get specific API key
+        // Get specific API key (checks user's own key first, then shared keys)
         getAPIKey(provider) {
-            return this.settings.apiKeys[provider]?.key || '';
+            // First check user's own key
+            const ownKey = this.settings.apiKeys[provider]?.key;
+            if (ownKey && ownKey.length >= 10) {
+                return ownKey;
+            }
+            
+            // Then check for shared key from super admin
+            const sharedKey = this.getSharedApiKey(provider);
+            if (sharedKey && sharedKey.length >= 10) {
+                console.log(`[Settings] Using shared ${provider} key from admin`);
+                return sharedKey;
+            }
+            
+            return '';
         }
 
         // Set API key

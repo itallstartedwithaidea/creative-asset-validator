@@ -449,64 +449,118 @@ Respond in JSON format:
 }`;
 
             let result = null;
-
-            // Try Gemini first (if available)
-            if (window.cavAIStudio?.hasApiKey?.()) {
-                try {
-                    const response = await this.callGeminiAnalysis(analysisPrompt);
-                    if (response) {
-                        result = JSON.parse(response);
-                        result.analyzedBy = 'gemini';
-                    }
-                } catch (e) {
-                    console.warn('[AI Library] Gemini analysis failed:', e);
+            
+            // Helper to get API key from settings or legacy storage
+            const getKey = (provider) => {
+                // Try settings manager first
+                if (window.cavSettings?.getAPIKey) {
+                    const key = window.cavSettings.getAPIKey(provider);
+                    if (key && key.length >= 10) return key;
                 }
-            }
+                // Try CAVSettings
+                if (window.CAVSettings?.getAPIKey) {
+                    const key = window.CAVSettings.getAPIKey(provider);
+                    if (key && key.length >= 10) return key;
+                }
+                // Try localStorage fallbacks
+                if (provider === 'gemini') {
+                    return localStorage.getItem('cav_gemini_api_key') || 
+                           localStorage.getItem('cav_ai_api_key') || '';
+                }
+                return '';
+            };
 
-            // Try OpenAI as fallback (if configured)
-            if (!result && window.cavSettings?.getAPIKey?.('openai')) {
+            // Try OpenAI first (GPT-5.2 / GPT-4o for best analysis)
+            const openaiKey = getKey('openai');
+            if (!result && openaiKey) {
                 try {
-                    const response = await this.callOpenAIAnalysis(analysisPrompt);
+                    console.log('[AI Library] Analyzing with OpenAI (GPT-4o)...');
+                    const response = await this.callOpenAIAnalysis(analysisPrompt, openaiKey);
                     if (response) {
-                        result = JSON.parse(response);
-                        result.analyzedBy = 'openai';
+                        result = this.parseJSONResponse(response);
+                        if (result) result.analyzedBy = 'openai-gpt4o';
                     }
                 } catch (e) {
                     console.warn('[AI Library] OpenAI analysis failed:', e);
                 }
             }
 
-            // Try Claude as fallback (if configured)
-            if (!result && window.cavSettings?.getAPIKey?.('claude')) {
+            // Try Claude as fallback (Claude 4.5 for deep analysis)
+            const claudeKey = getKey('claude');
+            if (!result && claudeKey) {
                 try {
-                    const response = await this.callClaudeAnalysis(analysisPrompt);
+                    console.log('[AI Library] Analyzing with Claude...');
+                    const response = await this.callClaudeAnalysis(analysisPrompt, claudeKey);
                     if (response) {
-                        result = JSON.parse(response);
-                        result.analyzedBy = 'claude';
+                        result = this.parseJSONResponse(response);
+                        if (result) result.analyzedBy = 'claude';
                     }
                 } catch (e) {
                     console.warn('[AI Library] Claude analysis failed:', e);
                 }
             }
 
+            // Try Gemini as fallback
+            const geminiKey = getKey('gemini') || window.cavAIStudio?.apiKey;
+            if (!result && geminiKey) {
+                try {
+                    console.log('[AI Library] Analyzing with Gemini...');
+                    const response = await this.callGeminiAnalysis(analysisPrompt, geminiKey);
+                    if (response) {
+                        result = this.parseJSONResponse(response);
+                        if (result) result.analyzedBy = 'gemini';
+                    }
+                } catch (e) {
+                    console.warn('[AI Library] Gemini analysis failed:', e);
+                }
+            }
+
             // Validate company name with web search if detected
             if (result?.company?.name && result.company.confidence > 0.5) {
-                const validated = await this.validateCompanyWithSearch(result.company.name);
-                if (validated) {
-                    result.company = { ...result.company, ...validated };
-                    result.company.validated = true;
+                const searchKey = getKey('searchapi');
+                if (searchKey) {
+                    console.log('[AI Library] Validating company with SearchAPI...');
+                    const validated = await this.validateCompanyWithSearch(result.company.name, searchKey);
+                    if (validated) {
+                        result.company = { ...result.company, ...validated };
+                        result.company.validated = true;
+                    }
                 }
+            }
+            
+            if (result) {
+                console.log('[AI Library] CRM Analysis complete:', result.analyzedBy, result.company?.name || 'no company detected');
+            } else {
+                console.warn('[AI Library] No AI analysis available - check API key configuration');
             }
 
             return result;
         }
+        
+        // Helper to safely parse JSON from AI responses
+        parseJSONResponse(text) {
+            if (!text) return null;
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                // Try to extract JSON from text
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    try {
+                        return JSON.parse(jsonMatch[0]);
+                    } catch (e2) {}
+                }
+                return null;
+            }
+        }
 
-        async callGeminiAnalysis(prompt) {
-            if (!window.cavAIStudio?.apiKey) return null;
+        async callGeminiAnalysis(prompt, apiKey = null) {
+            const key = apiKey || window.cavAIStudio?.apiKey;
+            if (!key) return null;
 
             try {
                 const response = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${window.cavAIStudio.apiKey}`,
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -528,19 +582,19 @@ Respond in JSON format:
             }
         }
 
-        async callOpenAIAnalysis(prompt) {
-            const apiKey = window.cavSettings?.getAPIKey?.('openai');
-            if (!apiKey) return null;
+        async callOpenAIAnalysis(prompt, apiKey = null) {
+            const key = apiKey || window.cavSettings?.getAPIKey?.('openai');
+            if (!key) return null;
 
             try {
                 const response = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
+                        'Authorization': `Bearer ${key}`
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4o-mini',
+                        model: 'gpt-4o',  // Use GPT-4o for best analysis
                         messages: [{ role: 'user', content: prompt }],
                         temperature: 0.2,
                         response_format: { type: 'json_object' }
@@ -548,6 +602,10 @@ Respond in JSON format:
                 });
 
                 const data = await response.json();
+                if (data.error) {
+                    console.error('[AI Library] OpenAI error:', data.error.message);
+                    return null;
+                }
                 return data?.choices?.[0]?.message?.content;
             } catch (e) {
                 console.error('[AI Library] OpenAI call failed:', e);
@@ -555,44 +613,46 @@ Respond in JSON format:
             }
         }
 
-        async callClaudeAnalysis(prompt) {
-            const apiKey = window.cavSettings?.getAPIKey?.('claude');
-            if (!apiKey) return null;
+        async callClaudeAnalysis(prompt, apiKey = null) {
+            const key = apiKey || window.cavSettings?.getAPIKey?.('claude');
+            if (!key) return null;
 
             try {
                 const response = await fetch('https://api.anthropic.com/v1/messages', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
+                        'x-api-key': key,
                         'anthropic-version': '2023-06-01'
                     },
                     body: JSON.stringify({
-                        model: 'claude-3-haiku-20240307',
+                        model: 'claude-sonnet-4-5-20250929',  // Use Claude 4.5 Sonnet
                         max_tokens: 1024,
                         messages: [{ role: 'user', content: prompt }]
                     })
                 });
 
                 const data = await response.json();
+                if (data.error) {
+                    console.error('[AI Library] Claude error:', data.error.message);
+                    return null;
+                }
                 const content = data?.content?.[0]?.text || '';
-                // Extract JSON from response
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
-                return jsonMatch ? jsonMatch[0] : null;
+                return content;
             } catch (e) {
                 console.error('[AI Library] Claude call failed:', e);
                 return null;
             }
         }
 
-        async validateCompanyWithSearch(companyName) {
+        async validateCompanyWithSearch(companyName, apiKey = null) {
             // Use SearchAPI if available
-            const searchApiKey = window.cavSettings?.getAPIKey?.('searchapi');
-            if (!searchApiKey) return null;
+            const searchKey = apiKey || window.cavSettings?.getAPIKey?.('searchapi');
+            if (!searchKey) return null;
 
             try {
                 const response = await fetch(
-                    `https://www.searchapi.io/api/v1/search?engine=google&q=${encodeURIComponent(companyName + ' company')}&api_key=${searchApiKey}`
+                    `https://www.searchapi.io/api/v1/search?engine=google&q=${encodeURIComponent(companyName + ' company')}&api_key=${searchKey}`
                 );
                 
                 const data = await response.json();
