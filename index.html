@@ -2871,16 +2871,24 @@
                 </div>`;
             document.body.appendChild(loadingModal);
 
-            // Use requestAnimationFrame for smoother rendering
-            requestAnimationFrame(() => {
-                renderAdminDashboardContent(session);
+            // Use requestAnimationFrame for smoother rendering, await the async function
+            requestAnimationFrame(async () => {
+                await renderAdminDashboardContent(session);
             });
         }
 
-        function renderAdminDashboardContent(session) {
+        async function renderAdminDashboardContent(session) {
             const activities = getActivityLog();
             const managedUsers = getManagedUsers();
             const settings = getSettings();
+            
+            // Check if current user is super admin (first admin email in list OR has super_admin role)
+            const adminEmails = (window.AUTH_CONFIG?.ADMIN_EMAILS || []).map(e => e.toLowerCase());
+            const userEmail = session.email?.toLowerCase() || '';
+            const isSuperAdmin = adminEmails.includes(userEmail) || session.role === 'super_admin';
+            const sessionDomain = session.email?.split('@')[1]?.toLowerCase();
+            
+            console.log('[Admin] Dashboard loading for:', userEmail, 'SuperAdmin:', isSuperAdmin);
 
             // Aggregate user data from activities
             const userStats = {};
@@ -2914,8 +2922,65 @@
                 userStats[email].role = managedUsers[email].role;
                 userStats[email].status = managedUsers[email].status || 'active';
             });
-
-            const userList = Object.values(userStats).sort((a, b) => 
+            
+            // For Super Admin: Also fetch users from MySQL database
+            if (isSuperAdmin && window.syncEngine?.sessionToken) {
+                try {
+                    console.log('[Admin] Super Admin detected - fetching all users from database...');
+                    const apiBase = window.syncEngine.apiBase || '/api';
+                    const response = await fetch(`${apiBase}/admin/users`, {
+                        headers: {
+                            'Authorization': `Bearer ${window.syncEngine.sessionToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const dbUsers = data.data || data.users || [];
+                        console.log('[Admin] Fetched', dbUsers.length, 'users from database');
+                        
+                        // Merge database users into userStats
+                        dbUsers.forEach(dbUser => {
+                            const email = dbUser.email?.toLowerCase();
+                            if (!email) return;
+                            
+                            if (!userStats[email]) {
+                                userStats[email] = {
+                                    email: email,
+                                    name: dbUser.name || email.split('@')[0],
+                                    userType: dbUser.domain ? 'corporate' : 'personal',
+                                    loginCount: 0,
+                                    lastLogin: dbUser.last_login
+                                };
+                            }
+                            // Update with database info (more authoritative)
+                            userStats[email].role = dbUser.role || userStats[email].role || 'editor';
+                            userStats[email].dbId = dbUser.id;
+                            userStats[email].domain = dbUser.domain;
+                            userStats[email].createdAt = dbUser.created_at;
+                            if (dbUser.last_login) {
+                                userStats[email].lastLogin = dbUser.last_login;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn('[Admin] Could not fetch users from database:', e.message);
+                }
+            }
+            
+            // Apply domain isolation for non-super admins
+            let userList = Object.values(userStats);
+            if (!isSuperAdmin && sessionDomain) {
+                // Regular admins can only see users from their domain
+                userList = userList.filter(u => {
+                    const userDomain = u.email?.split('@')[1]?.toLowerCase();
+                    return userDomain === sessionDomain;
+                });
+                console.log('[Admin] Domain admin - filtered to', userList.length, 'users from', sessionDomain);
+            }
+            
+            userList = userList.sort((a, b) => 
                 new Date(b.lastLogin || 0) - new Date(a.lastLogin || 0)
             );
 
@@ -3516,7 +3581,10 @@
         function showAddUserModal(session) {
             const settings = getSettings();
             const sessionDomain = session.email.split('@')[1];
-            const isSuperAdmin = settings.adminEmails.includes(session.email);
+            // Check if super admin (in admin emails list or has super_admin role)
+            const adminEmails = (window.AUTH_CONFIG?.ADMIN_EMAILS || settings.adminEmails || []).map(e => e.toLowerCase());
+            const userEmail = session.email?.toLowerCase() || '';
+            const isSuperAdmin = adminEmails.includes(userEmail) || session.role === 'super_admin';
             const isDomainAdmin = session.role === 'admin' && !isSuperAdmin;
             
             // Get allowed domains for this admin
@@ -7339,11 +7407,42 @@ Provide actionable, specific strategic advice. Use data points where available. 
                 }
             }
             
-            // Fallback to legacy session if secure session not available
-            if (!session && !window.CAVSecurity) {
+            // Fallback to legacy session if secure session not available or failed
+            if (!session) {
+                // Try legacy getSession first
                 session = getSession();
                 if (session) {
                     console.log('[CAV Auth] Using legacy session fallback');
+                }
+                
+                // If still no session but we have a sync engine token, try to restore from that
+                if (!session && window.syncEngine?.sessionToken) {
+                    console.log('[CAV Auth] Attempting session restore from sync token...');
+                    try {
+                        const response = await fetch(`${window.syncEngine.apiBase}/auth/me`, {
+                            headers: {
+                                'Authorization': `Bearer ${window.syncEngine.sessionToken}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.user) {
+                                session = {
+                                    email: data.user.email,
+                                    name: data.user.name,
+                                    picture: data.user.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.user.name)}&background=ec4899&color=fff`,
+                                    role: data.user.role || 'editor',
+                                    userType: data.user.domain ? 'corporate' : 'personal',
+                                    googleId: data.user.google_id,
+                                    id: 'restored_' + Date.now()
+                                };
+                                console.log('[CAV Auth] Session restored from sync engine:', session.email);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[CAV Auth] Could not restore from sync token:', e);
+                    }
                 }
             }
             
