@@ -11,7 +11,7 @@ import cloudinary.api
 from cloudinary import CloudinaryVideo
 import sys
 
-# Your Cloudinary credentials
+# Your Cloudinary credentials example below
 //CLOUD_NAME = "drqvv2lrs"
 //API_KEY = "462480066637115"
 //API_SECRET = "qpO2cPl2ryutCxCZeE09EVBC1WE"
