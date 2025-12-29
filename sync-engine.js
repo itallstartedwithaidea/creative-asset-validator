@@ -587,6 +587,42 @@ class SyncEngine {
     async getProject(uuid) { return this.getFromLocal('projects', uuid); }
     async getAllProjects() { return this.getAllFromLocal('projects'); }
     async deleteProject(uuid) { return this.delete('projects', uuid); }
+    
+    // CRM: Contacts
+    async saveContact(data) { return this.save('contacts', data); }
+    async getContact(uuid) { return this.getFromLocal('contacts', uuid); }
+    async getAllContacts() { return this.getAllFromLocal('contacts'); }
+    async deleteContact(uuid) { return this.delete('contacts', uuid); }
+    
+    // CRM: Deals
+    async saveDeal(data) { return this.save('deals', data); }
+    async getDeal(uuid) { return this.getFromLocal('deals', uuid); }
+    async getAllDeals() { return this.getAllFromLocal('deals'); }
+    async deleteDeal(uuid) { return this.delete('deals', uuid); }
+    
+    // CRM: Activities
+    async saveActivity(data) { return this.save('activities', data); }
+    async getActivity(uuid) { return this.getFromLocal('activities', uuid); }
+    async getAllActivities() { return this.getAllFromLocal('activities'); }
+    async deleteActivity(uuid) { return this.delete('activities', uuid); }
+    
+    // CRM: Tags
+    async saveTag(data) { return this.save('tags', data); }
+    async getTag(uuid) { return this.getFromLocal('tags', uuid); }
+    async getAllTags() { return this.getAllFromLocal('tags'); }
+    async deleteTag(uuid) { return this.delete('tags', uuid); }
+    
+    // CRM: Competitors
+    async saveCompetitor(data) { return this.save('competitors', data); }
+    async getCompetitor(uuid) { return this.getFromLocal('competitors', uuid); }
+    async getAllCompetitors() { return this.getAllFromLocal('competitors'); }
+    async deleteCompetitor(uuid) { return this.delete('competitors', uuid); }
+    
+    // CRM: Custom Fields
+    async saveCustomField(data) { return this.save('custom_fields', data); }
+    async getCustomField(uuid) { return this.getFromLocal('custom_fields', uuid); }
+    async getAllCustomFields() { return this.getAllFromLocal('custom_fields'); }
+    async deleteCustomField(uuid) { return this.delete('custom_fields', uuid); }
 }
 
 // Export for module systems

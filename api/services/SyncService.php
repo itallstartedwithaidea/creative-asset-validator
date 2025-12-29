@@ -12,13 +12,20 @@ class SyncService {
     private Database $db;
     private array $config;
     
-    // Entity types that can be synced
+    // Entity types that can be synced (includes all CRM entities)
     private const SYNC_ENTITIES = [
         'assets' => 'assets',
         'companies' => 'companies',
         'projects' => 'projects',
         'brand_kits' => 'brand_kits',
-        'swipe_files' => 'swipe_files'
+        'swipe_files' => 'swipe_files',
+        // CRM entities
+        'contacts' => 'contacts',
+        'deals' => 'deals',
+        'activities' => 'crm_activities',
+        'tags' => 'crm_tags',
+        'competitors' => 'competitors',
+        'custom_fields' => 'crm_custom_fields'
     ];
     
     public function __construct(Database $db, array $config) {
@@ -143,7 +150,9 @@ class SyncService {
         // Parse JSON fields
         $jsonFields = ['validation_issues', 'validation_results', 'tags', 'ai_analysis', 'metadata',
                        'brand_colors', 'brand_fonts', 'shared_with', 'target_platforms', 'generated_sizes',
-                       'design_patterns', 'color_palette'];
+                       'design_patterns', 'color_palette',
+                       // CRM JSON fields
+                       'custom_fields', 'strengths', 'weaknesses', 'options', 'details'];
         
         foreach ($jsonFields as $field) {
             if (isset($row[$field]) && is_string($row[$field])) {
@@ -310,7 +319,15 @@ class SyncService {
             'brand_kits' => ['logo_primary_url', 'logo_secondary_url', 'logo_icon_url', 
                             'logo_dark_url', 'logo_light_url', 'generated_sizes', 'company_id'],
             'swipe_files' => ['title', 'source_url', 'image_url', 'thumbnail_url', 'category',
-                             'tags', 'ai_analysis', 'design_patterns', 'color_palette', 'company_id']
+                             'tags', 'ai_analysis', 'design_patterns', 'color_palette', 'company_id'],
+            // CRM entities
+            'contacts' => ['email', 'phone', 'title', 'notes', 'custom_fields', 'tags', 'company_id'],
+            'deals' => ['value', 'currency', 'stage', 'probability', 'expected_close_date', 'notes',
+                       'custom_fields', 'tags', 'company_id', 'contact_id'],
+            'crm_activities' => ['activity_type', 'details', 'company_id', 'contact_id', 'deal_id'],
+            'crm_tags' => ['color', 'category'],
+            'competitors' => ['website', 'strengths', 'weaknesses', 'notes', 'company_id'],
+            'crm_custom_fields' => ['entity_type', 'field_name', 'field_type', 'options', 'is_required', 'display_order']
         ];
         
         return array_merge($common, $specific[$table] ?? []);
@@ -319,7 +336,9 @@ class SyncService {
     private function encodeJsonFields(array $data): array {
         $jsonFields = ['validation_issues', 'validation_results', 'tags', 'ai_analysis', 'metadata',
                        'brand_colors', 'brand_fonts', 'shared_with', 'target_platforms', 'generated_sizes',
-                       'design_patterns', 'color_palette'];
+                       'design_patterns', 'color_palette',
+                       // CRM JSON fields
+                       'custom_fields', 'strengths', 'weaknesses', 'options', 'details'];
         
         foreach ($jsonFields as $field) {
             if (isset($data[$field]) && is_array($data[$field])) {
