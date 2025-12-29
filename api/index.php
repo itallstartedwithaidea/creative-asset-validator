@@ -152,6 +152,39 @@ $router->post('/auth/google', function(Request $req) use ($auth) {
     ];
 });
 
+// Session-based authentication (for client-side Google Sign-In)
+$router->post('/auth/session', function(Request $req) use ($auth) {
+    $data = $req->validate([
+        'google_id' => 'required|string',
+        'email' => 'required|string',
+        'name' => 'required|string',
+        'device_fingerprint' => 'string'
+    ]);
+    
+    // Create/update user from session data
+    $googleData = [
+        'google_id' => $data['google_id'],
+        'email' => $data['email'],
+        'name' => $data['name'],
+        'picture' => $req->input('picture'),
+        'domain' => explode('@', $data['email'])[1] ?? null
+    ];
+    
+    // Find or create user
+    $user = $auth->findOrCreateUser($googleData);
+    
+    // Create session
+    $sessionToken = $auth->createSession($user['id'], $data['device_fingerprint'] ?? null);
+    
+    Logger::info('Session authenticated', ['user_id' => $user['id'], 'email' => $user['email']]);
+    
+    return [
+        'success' => true,
+        'session_token' => $sessionToken,
+        'user' => $user
+    ];
+});
+
 $router->post('/auth/logout', function(Request $req) use ($auth) {
     $auth->destroySession($req->bearerToken());
     return Response::success('Logged out');

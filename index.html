@@ -1593,7 +1593,7 @@
 
     <!-- Footer - Simplified (navigation now in sidebar) -->
     <footer class="site-footer">
-        <p>Creative Asset Validator v5.3.0 • Creative Intelligence Platform</p>
+        <p>Creative Asset Validator v5.4.0 • Creative Intelligence Platform</p>
         <p style="margin-top: 0.5rem; font-size: 0.75rem;">
             <a href="#" id="clear-data-link">Clear My Data</a>
         </p>
@@ -1769,7 +1769,7 @@
                 console.log('[SaaS] Sync complete:', result.pulled, 'pulled,', result.pushed, 'pushed');
             });
             
-            console.log('[SaaS] v5.0.0 initialized with MySQL sync + Cloudinary');
+            console.log('[SaaS] v5.4.0 initialized with MySQL sync + Cloudinary');
         });
     </script>
     
@@ -2706,6 +2706,40 @@
             
             // Update UI without reload first to show login succeeded
             updateUI(session);
+            
+            // ============================================
+            // SYNC ENGINE - MySQL Backend Authentication
+            // ============================================
+            if (window.syncEngine) {
+                try {
+                    console.log('[CAV Auth] Authenticating with MySQL backend...');
+                    // Get the original Google ID token from credential response
+                    const credential = arguments[4] || googleId; // Fallback to googleId
+                    const fingerprint = window.CAVSecurity?.SecureSessionManager?.getDeviceFingerprint?.();
+                    
+                    // Create a server session for persistent data sync
+                    const syncResult = await window.syncEngine.authenticateWithSession({
+                        google_id: googleId,
+                        email: email,
+                        name: name,
+                        picture: picture,
+                        role: role,
+                        device_fingerprint: fingerprint
+                    });
+                    
+                    if (syncResult?.session_token) {
+                        localStorage.setItem('cav_session_token', syncResult.session_token);
+                        console.log('[CAV Auth] MySQL sync enabled - data will persist across logins');
+                    }
+                    
+                    // Initial sync to pull any existing data
+                    await window.syncEngine.sync();
+                    console.log('[CAV Auth] Initial sync complete');
+                } catch (syncError) {
+                    console.warn('[CAV Auth] Sync engine not available (running without backend):', syncError.message);
+                    // Continue without sync - local storage will still work
+                }
+            }
             
             // Wait longer to ensure localStorage and IndexedDB are fully flushed
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -5676,7 +5710,13 @@ Provide actionable, specific strategic advice. Use data points where available. 
                                 } 
                                 // OpenAI models (GPT-5.2, GPT-5 mini, GPT-4.1) - https://platform.openai.com/docs/models
                                 else if ((selectedModel === 'gpt-5.2' || selectedModel === 'gpt-5-mini' || selectedModel === 'gpt-4.1') && openaiKey) {
-                                    const openaiModel = selectedModel; // Model names match API IDs
+                                    // Map user-friendly names to actual OpenAI API model names
+                                    const openaiModelMap = {
+                                        'gpt-5.2': 'gpt-4o',        // Latest & Best → GPT-4o
+                                        'gpt-5-mini': 'gpt-4o-mini', // Fast → GPT-4o Mini
+                                        'gpt-4.1': 'gpt-4-turbo'    // Stable → GPT-4 Turbo
+                                    };
+                                    const openaiModel = openaiModelMap[selectedModel] || 'gpt-4o';
                                     const res = await fetch('https://api.openai.com/v1/chat/completions', {
                                         method: 'POST',
                                         headers: {
@@ -5686,7 +5726,7 @@ Provide actionable, specific strategic advice. Use data points where available. 
                                         body: JSON.stringify({
                                             model: openaiModel,
                                             messages: [{ role: 'user', content: contextPrompt }],
-                                            max_tokens: 8192
+                                            max_completion_tokens: 8192
                                         })
                                     });
                                     const data = await res.json();

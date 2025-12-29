@@ -157,7 +157,7 @@
                 },
                 body: JSON.stringify({
                     model,
-                    max_tokens: maxTokens,
+                    max_completion_tokens: maxTokens,
                     temperature,
                     messages
                 })
@@ -180,6 +180,20 @@
         // ============================================
         // OPENAI API
         // ============================================
+        
+        // Map user-friendly model names to actual OpenAI API model names
+        mapOpenAIModel(userModel) {
+            const modelMap = {
+                'gpt-5.2': 'gpt-4o',            // Latest & Best → GPT-4o (most capable)
+                'gpt-5-mini': 'gpt-4o-mini',    // Fast → GPT-4o Mini
+                'gpt-4.1': 'gpt-4-turbo',       // Stable → GPT-4 Turbo
+                'gpt-4o': 'gpt-4o',             // Direct passthrough
+                'gpt-4o-mini': 'gpt-4o-mini',   // Direct passthrough
+                'gpt-4-turbo': 'gpt-4-turbo',   // Direct passthrough
+                'gpt-4': 'gpt-4'                // Direct passthrough
+            };
+            return modelMap[userModel] || 'gpt-4o'; // Default to gpt-4o
+        }
 
         async callOpenAI(prompt, options = {}) {
             const apiKey = this.getAPIKey('openai');
@@ -188,7 +202,8 @@
             }
 
             const modelConfig = window.CAVSettings?.getModelConfig() || {};
-            const model = options.mini ? 'gpt-5-mini' : (options.model || modelConfig.openaiVisionModel || 'gpt-5.2');
+            const userModel = options.mini ? 'gpt-5-mini' : (options.model || modelConfig.openaiVisionModel || 'gpt-5.2');
+            const model = this.mapOpenAIModel(userModel);
             const temperature = options.temperature ?? modelConfig.analysisTemperature ?? 0.3;
             const maxTokens = options.maxTokens || modelConfig.maxTokens || 8192;
 
@@ -221,7 +236,7 @@
                 headers,
                 body: JSON.stringify({
                     model,
-                    max_tokens: maxTokens,
+                    max_completion_tokens: maxTokens,
                     temperature,
                     messages
                 })

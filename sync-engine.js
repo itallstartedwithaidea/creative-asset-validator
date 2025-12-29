@@ -105,6 +105,39 @@ class SyncEngine {
         }
     }
     
+    // Authenticate with session data directly (for Google Sign-In flow)
+    async authenticateWithSession(sessionData) {
+        try {
+            const response = await this.request('POST', '/auth/session', {
+                google_id: sessionData.google_id,
+                email: sessionData.email,
+                name: sessionData.name,
+                picture: sessionData.picture,
+                role: sessionData.role,
+                device_fingerprint: sessionData.device_fingerprint || this.deviceId
+            });
+            
+            if (response.session_token) {
+                this.sessionToken = response.session_token;
+                localStorage.setItem('cav_session_token', response.session_token);
+                this.status.connected = true;
+                
+                // Start syncing
+                this.startAutoSync();
+                
+                this.emit('authenticated', response.user);
+                console.log('[SyncEngine] Session authenticated successfully');
+                return response;
+            }
+            
+            throw new Error('No session token received');
+        } catch (error) {
+            console.error('[SyncEngine] Session authentication failed:', error);
+            this.status.error = error.message;
+            throw error;
+        }
+    }
+    
     async logout() {
         try {
             await this.request('POST', '/auth/logout');
