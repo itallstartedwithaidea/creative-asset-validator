@@ -3217,17 +3217,44 @@ If you don't know, use empty strings. Be concise.`
         const cloudinaryClient = window.cloudinaryClient;
         const hasCloudinary = cloudinaryClient?.hasCredentials?.() || false;
         
-        // Video platform presets
+        // SVG icons for platforms
+        const PLATFORM_ICONS = {
+            instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>',
+            tiktok: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>',
+            youtube: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.54 3.5 12 3.5 12 3.5s-7.54 0-9.38.55A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.84.55 9.38.55 9.38.55s7.54 0 9.38-.55a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81zM9.54 15.5V8.5L15.82 12l-6.28 3.5z"/></svg>',
+            facebook: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
+            twitter: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>',
+            linkedin: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>',
+            pinterest: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12.017 24c6.624 0 11.99-5.367 11.99-11.988C24.007 5.367 18.641.001 12.017.001z"/></svg>',
+            square: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>'
+        };
+        
+        // Video platform presets with SVG icons
         const videoPresets = [
-            { name: 'Instagram Story', width: 1080, height: 1920, ratio: '9:16', icon: '📱' },
-            { name: 'Instagram Reel', width: 1080, height: 1920, ratio: '9:16', icon: '📹' },
-            { name: 'TikTok', width: 1080, height: 1920, ratio: '9:16', icon: '🎵' },
-            { name: 'YouTube Shorts', width: 1080, height: 1920, ratio: '9:16', icon: '📺' },
-            { name: 'Facebook/IG Feed', width: 1080, height: 1080, ratio: '1:1', icon: '⬛' },
-            { name: 'YouTube', width: 1920, height: 1080, ratio: '16:9', icon: '▶️' },
-            { name: 'Twitter/X', width: 1280, height: 720, ratio: '16:9', icon: '🐦' },
-            { name: 'LinkedIn', width: 1920, height: 1080, ratio: '16:9', icon: '💼' },
-            { name: 'Pinterest', width: 1000, height: 1500, ratio: '2:3', icon: '📌' },
+            { name: 'Instagram Story', width: 1080, height: 1920, ratio: '9:16', icon: PLATFORM_ICONS.instagram, color: '#E4405F' },
+            { name: 'Instagram Reel', width: 1080, height: 1920, ratio: '9:16', icon: PLATFORM_ICONS.instagram, color: '#E4405F' },
+            { name: 'TikTok', width: 1080, height: 1920, ratio: '9:16', icon: PLATFORM_ICONS.tiktok, color: '#00F2EA' },
+            { name: 'YouTube Shorts', width: 1080, height: 1920, ratio: '9:16', icon: PLATFORM_ICONS.youtube, color: '#FF0000' },
+            { name: 'Facebook/IG Feed', width: 1080, height: 1080, ratio: '1:1', icon: PLATFORM_ICONS.square, color: '#8b5cf6' },
+            { name: 'YouTube', width: 1920, height: 1080, ratio: '16:9', icon: PLATFORM_ICONS.youtube, color: '#FF0000' },
+            { name: 'Twitter/X', width: 1280, height: 720, ratio: '16:9', icon: PLATFORM_ICONS.twitter, color: '#1DA1F2' },
+            { name: 'LinkedIn', width: 1920, height: 1080, ratio: '16:9', icon: PLATFORM_ICONS.linkedin, color: '#0A66C2' },
+            { name: 'Pinterest', width: 1000, height: 1500, ratio: '2:3', icon: PLATFORM_ICONS.pinterest, color: '#E60023' },
+        ];
+        
+        // Crop mode options from Cloudinary
+        const cropModes = cloudinaryClient?.getVideoCropModes?.() || [
+            { value: 'fill', label: 'Fill', description: 'Resize to fill dimensions, may crop' },
+            { value: 'fit', label: 'Fit', description: 'Fit within dimensions, maintain aspect ratio' },
+            { value: 'pad', label: 'Pad', description: 'Fit with padding background' },
+            { value: 'scale', label: 'Scale', description: 'Scale to exact dimensions (may distort)' }
+        ];
+        
+        // Gravity options
+        const gravityOptions = [
+            { value: 'auto', label: 'Auto (AI)', description: 'AI-powered smart cropping' },
+            { value: 'auto:faces', label: 'All Faces', description: 'Focus on all faces' },
+            { value: 'center', label: 'Center', description: 'Keep center' }
         ];
         
         const videoSrc = asset.file_url || asset.cloudinary_url || asset.dataUrl || '';
@@ -3235,67 +3262,96 @@ If you don't know, use empty strings. Be concise.`
         const modal = document.createElement('div');
         modal.className = 'ai-modal-overlay';
         modal.innerHTML = `
-            <div class="ai-modal" style="max-width: 700px;">
+            <div class="ai-modal" style="max-width: 780px;">
                 <div class="ai-modal-header">
-                    <button class="ai-back-btn" onclick="this.closest('.ai-modal-overlay').remove()">← Back</button>
-                    <h3>📐 Resize Video</h3>
-                    <button class="ai-close-btn" onclick="this.closest('.ai-modal-overlay').remove()">✕</button>
+                    <button class="ai-back-btn" onclick="this.closest('.ai-modal-overlay').remove()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                        Back
+                    </button>
+                    <h3 style="display: flex; align-items: center; gap: 8px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2" ry="2"/></svg>
+                        Resize Video
+                    </h3>
+                    <button class="ai-close-btn" onclick="this.closest('.ai-modal-overlay').remove()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                 </div>
                 
-                <div class="ai-modal-body">
-                    <div class="ai-preview-card">
-                        <video src="${videoSrc}" controls class="ai-preview-video" style="max-height: 200px;"></video>
-                        <div class="ai-preview-info">
-                            <p class="ai-preview-name">${asset.filename}</p>
-                            <p class="ai-preview-specs">${asset.width}×${asset.height} • ${asset.duration || 'N/A'}s</p>
+                <div class="ai-modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    <div class="ai-preview-card" style="display: flex; gap: 16px; padding: 16px; background: rgba(0,0,0,0.3); border-radius: 12px; margin-bottom: 20px;">
+                        <video src="${videoSrc}" controls class="ai-preview-video" style="max-height: 140px; max-width: 200px; border-radius: 8px;"></video>
+                        <div class="ai-preview-info" style="flex: 1;">
+                            <p class="ai-preview-name" style="font-weight: 600; color: #fff; margin-bottom: 4px;">${asset.filename}</p>
+                            <p class="ai-preview-specs" style="font-size: 13px; color: #94a3b8;">${asset.width}×${asset.height} • ${asset.duration || 'N/A'}s</p>
                         </div>
                     </div>
                     
                     ${!hasCloudinary ? `
-                        <div class="ai-warning-box" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                            <h4 style="color: #f59e0b; margin: 0 0 8px;">⚠️ Cloudinary Required</h4>
-                            <p style="color: #94a3b8; margin: 0 0 12px;">Video resizing requires a Cloudinary account. Get one free at cloudinary.com</p>
-                            <button class="ai-btn-secondary" onclick="window.location.href='#settings'" style="display: inline-block;">
-                                Configure Cloudinary →
-                            </button>
+                        <div class="ai-warning-box" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 16px; margin-bottom: 20px; display: flex; align-items: start; gap: 12px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            <div>
+                                <h4 style="color: #f59e0b; margin: 0 0 6px; font-size: 14px;">Cloudinary Required</h4>
+                                <p style="color: #94a3b8; margin: 0 0 10px; font-size: 13px;">Video resizing requires a Cloudinary account. Get one free at cloudinary.com</p>
+                                <button class="ai-btn-secondary" onclick="window.location.href='#settings'" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                                    Configure in Settings
+                                </button>
+                            </div>
                         </div>
                     ` : ''}
                     
                     <div class="ai-option">
-                        <label style="margin-bottom: 12px; display: block; font-weight: 600;">Select Target Size</label>
+                        <label style="margin-bottom: 12px; display: block; font-weight: 600; color: #fff;">Select Target Size</label>
                         <div class="ai-video-presets" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
                             ${videoPresets.map((p, i) => `
                                 <button class="ai-preset-btn ${i === 0 ? 'selected' : ''}" 
                                         data-width="${p.width}" 
                                         data-height="${p.height}" 
                                         data-name="${p.name}"
-                                        style="padding: 12px; background: ${i === 0 ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)'}; border: 1px solid ${i === 0 ? '#a855f7' : 'rgba(255,255,255,0.1)'}; border-radius: 8px; cursor: pointer; text-align: center;">
-                                    <span style="font-size: 24px; display: block;">${p.icon}</span>
-                                    <span style="font-size: 12px; color: white; display: block; margin-top: 4px;">${p.name}</span>
+                                        style="padding: 14px 10px; background: ${i === 0 ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255,255,255,0.04)'}; border: 1px solid ${i === 0 ? 'rgba(168, 85, 247, 0.5)' : 'rgba(255,255,255,0.08)'}; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s;">
+                                    <span style="display: flex; justify-content: center; align-items: center; width: 28px; height: 28px; margin: 0 auto 6px; color: ${p.color};">${p.icon}</span>
+                                    <span style="font-size: 12px; color: white; display: block; font-weight: 500;">${p.name}</span>
                                     <span style="font-size: 10px; color: #64748b;">${p.width}×${p.height}</span>
                                 </button>
                             `).join('')}
                         </div>
                     </div>
                     
-                    <div class="ai-option" style="margin-top: 16px;">
-                        <label>Or enter custom size:</label>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <input type="number" id="custom-width" placeholder="Width" value="${asset.width}" style="width: 100px; padding: 8px; background: #0f0f14; border: 1px solid #334155; border-radius: 6px; color: white;">
-                            <span style="color: #64748b;">×</span>
-                            <input type="number" id="custom-height" placeholder="Height" value="${asset.height}" style="width: 100px; padding: 8px; background: #0f0f14; border: 1px solid #334155; border-radius: 6px; color: white;">
+                    <div class="ai-option" style="margin-top: 20px;">
+                        <label style="margin-bottom: 8px; display: block; font-weight: 500; color: #c4b5fd; font-size: 13px;">Or enter custom size:</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="custom-width" placeholder="Width" value="${asset.width}" style="width: 110px; padding: 10px 12px; background: rgba(0,0,0,0.4); border: 1px solid rgba(139,92,246,0.2); border-radius: 8px; color: white; font-size: 14px;">
+                            <span style="color: #64748b; font-size: 18px;">×</span>
+                            <input type="number" id="custom-height" placeholder="Height" value="${asset.height}" style="width: 110px; padding: 10px 12px; background: rgba(0,0,0,0.4); border: 1px solid rgba(139,92,246,0.2); border-radius: 8px; color: white; font-size: 14px;">
                         </div>
                     </div>
                     
-                    <div class="ai-info-box" style="margin-top: 16px;">
-                        <p>☁️ Video will be resized using Cloudinary's powerful video transformation API with smart cropping and quality optimization.</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px;">
+                        <div class="ai-option">
+                            <label style="margin-bottom: 8px; display: block; font-weight: 500; color: #c4b5fd; font-size: 13px;">Crop Mode</label>
+                            <select id="crop-mode" style="width: 100%; padding: 10px 12px; background: rgba(0,0,0,0.4); border: 1px solid rgba(139,92,246,0.2); border-radius: 8px; color: white; font-size: 14px; cursor: pointer;">
+                                ${cropModes.map((m, i) => `<option value="${m.value}" ${i === 0 ? 'selected' : ''}>${m.label} - ${m.description}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="ai-option">
+                            <label style="margin-bottom: 8px; display: block; font-weight: 500; color: #c4b5fd; font-size: 13px;">Focus Area</label>
+                            <select id="gravity-mode" style="width: 100%; padding: 10px 12px; background: rgba(0,0,0,0.4); border: 1px solid rgba(139,92,246,0.2); border-radius: 8px; color: white; font-size: 14px; cursor: pointer;">
+                                ${gravityOptions.map((g, i) => `<option value="${g.value}" ${i === 0 ? 'selected' : ''}>${g.label}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-info-box" style="margin-top: 20px; padding: 14px 16px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 10px; display: flex; align-items: start; gap: 10px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+                        <p style="margin: 0; color: #c4b5fd; font-size: 13px; line-height: 1.5;">Video will be resized using Cloudinary's AI-powered transformation engine with smart cropping and quality optimization.</p>
                     </div>
                 </div>
                 
-                <div class="ai-modal-footer">
-                    <button class="ai-btn-secondary" onclick="this.closest('.ai-modal-overlay').remove()">Cancel</button>
-                    <button class="ai-btn-primary" id="resize-video-btn" ${!hasCloudinary ? 'disabled style="opacity: 0.5;"' : ''}>
-                        📐 Resize Video
+                <div class="ai-modal-footer" style="display: flex; gap: 12px; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.06);">
+                    <button class="ai-btn-secondary" onclick="this.closest('.ai-modal-overlay').remove()" style="padding: 10px 18px; border-radius: 8px;">Cancel</button>
+                    <button class="ai-btn-primary" id="resize-video-btn" ${!hasCloudinary ? 'disabled style="opacity: 0.5;"' : ''} style="padding: 10px 20px; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2" ry="2"/></svg>
+                        Resize Video
                     </button>
                 </div>
             </div>
@@ -3349,10 +3405,14 @@ If you don't know, use empty strings. Be concise.`
             }
             
             const btn = modal.querySelector('#resize-video-btn');
-            btn.innerHTML = '<span class="ai-spinner"></span> Resizing...';
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="ai-spinner-svg" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg> Resizing...';
             btn.disabled = true;
 
             try {
+                // Get crop mode and gravity from selects
+                const cropMode = modal.querySelector('#crop-mode')?.value || 'fill';
+                const gravityMode = modal.querySelector('#gravity-mode')?.value || 'auto';
+                
                 // If video isn't on Cloudinary yet, we need to upload it first
                 let cloudinaryPublicId = asset.cloudinary_id || asset.public_id;
                 
@@ -3373,14 +3433,21 @@ If you don't know, use empty strings. Be concise.`
                     throw new Error('Video must be uploaded to Cloudinary first. Please ensure your video has a cloudinary_url.');
                 }
                 
-                // Generate the transformed URL
-                const result = await cloudinaryClient.transform(cloudinaryPublicId, {
-                    width: selectedWidth,
-                    height: selectedHeight,
-                    crop: 'fill',
-                    gravity: 'auto',
-                    resource_type: 'video'
-                });
+                // Generate the transformed URL using enhanced video resize
+                const result = cloudinaryClient.resizeVideo ? 
+                    await cloudinaryClient.resizeVideo(asset, {
+                        width: selectedWidth,
+                        height: selectedHeight,
+                        crop: cropMode,
+                        gravity: gravityMode
+                    }) : 
+                    await cloudinaryClient.transform(cloudinaryPublicId, {
+                        width: selectedWidth,
+                        height: selectedHeight,
+                        crop: cropMode,
+                        gravity: gravityMode,
+                        resource_type: 'video'
+                    });
                 
                 // Create derivative asset
                 const derivative = {
@@ -3390,6 +3457,9 @@ If you don't know, use empty strings. Be concise.`
                     width: selectedWidth,
                     height: selectedHeight,
                     cloudinary_url: result.url,
+                    video_url: result.url,  // Required for library preview
+                    url: result.url,  // Fallback for preview systems
+                    is_external_video: true,  // Mark as external Cloudinary URL
                     cloudinary_id: cloudinaryPublicId,
                     thumbnail_url: result.url.replace('/upload/', '/upload/so_0,w_400,h_400,c_fill/').replace(/\.[^.]+$/, '.jpg'),
                     targetChannel: selectedName,

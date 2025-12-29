@@ -1,7 +1,24 @@
 /**
  * Creative Asset Validator - Cloudinary Client
  * Video/Image upload, transform, resize with quota management
- * Version 5.0.0
+ * Version 5.3.0 - Enhanced Video Resizing
+ * 
+ * Video Resizing Capabilities (from Cloudinary docs):
+ * - c_fill: Fill specified dimensions, may crop
+ * - c_fill_pad: Fill with padding to avoid cropping
+ * - c_crop: Extract region without scaling
+ * - c_scale: Scale to dimensions (may distort)
+ * - c_fit: Fit within bounding box, maintain aspect ratio
+ * - c_limit: Same as fit, but only scale down
+ * - c_pad: Fit with padding background
+ * - c_lpad: Limit + padding
+ * 
+ * Gravity options for video:
+ * - g_auto: AI content-aware cropping
+ * - g_auto:faces: Focus on faces
+ * - g_auto:face: Focus on single largest face
+ * - g_auto:{object}: Focus on specific object (e.g., ball, dog)
+ * - Compass: north, south, east, west, center, etc.
  */
 
 class CloudinaryClient {
@@ -314,6 +331,148 @@ class CloudinaryClient {
         }
         
         return this.resize(asset, spec);
+    }
+    
+    /**
+     * Enhanced video resizing with advanced Cloudinary options
+     * Supports all crop modes and gravity options from Cloudinary docs
+     * 
+     * @param {Object} asset - The asset to resize
+     * @param {Object} options - Resize options
+     * @param {number} options.width - Target width
+     * @param {number} options.height - Target height
+     * @param {string} options.aspect_ratio - Aspect ratio (e.g., "16:9", "1:1", "9:16")
+     * @param {string} options.crop - Crop mode: fill, fill_pad, crop, scale, fit, limit, pad, lpad
+     * @param {string} options.gravity - Gravity: auto, auto:faces, auto:face, auto:{object}, compass directions
+     * @param {string} options.background - Background for padding (color or "blurred:400:15")
+     * @param {number} options.start_offset - Start time for video trimming (seconds)
+     * @param {number} options.end_offset - End time for video trimming (seconds)
+     * @param {number} options.duration - Duration limit in seconds
+     * @param {string} options.effect - Effects (e.g., "accelerate", "reverse", "boomerang")
+     * @returns {Object} - Transformation result with URL
+     */
+    async resizeVideo(asset, options = {}) {
+        console.log('[CloudinaryClient] Enhanced video resize:', asset.name, options);
+        
+        if (!this.hasCredentials()) {
+            this.showCloudinaryRequiredModal();
+            throw new Error('Please add your Cloudinary credentials in Settings to resize videos');
+        }
+        
+        if (!asset.cloudinary_id && !asset.cloudinary_url) {
+            throw new Error('Video must be uploaded to Cloudinary first');
+        }
+        
+        const publicId = asset.cloudinary_id || this.extractPublicId(asset.cloudinary_url);
+        const creds = this.getCredentials();
+        
+        // Build transformation chain
+        const transformations = [];
+        
+        // Time-based transforms (must come first)
+        if (options.start_offset) transformations.push(`so_${options.start_offset}`);
+        if (options.end_offset) transformations.push(`eo_${options.end_offset}`);
+        if (options.duration) transformations.push(`du_${options.duration}`);
+        
+        // Effects
+        if (options.effect) transformations.push(`e_${options.effect}`);
+        
+        // Resize transforms
+        if (options.aspect_ratio) transformations.push(`ar_${options.aspect_ratio}`);
+        if (options.width) transformations.push(`w_${options.width}`);
+        if (options.height) transformations.push(`h_${options.height}`);
+        
+        // Crop mode (default to fill for best results)
+        const crop = options.crop || 'fill';
+        transformations.push(`c_${crop}`);
+        
+        // Gravity for cropping
+        if (options.gravity) {
+            transformations.push(`g_${options.gravity}`);
+        } else if (crop === 'fill' || crop === 'fill_pad' || crop === 'crop') {
+            // Default to auto gravity for cropping modes
+            transformations.push('g_auto');
+        }
+        
+        // Background for padding modes
+        if (options.background && (crop === 'pad' || crop === 'lpad' || crop === 'fill_pad')) {
+            transformations.push(`b_${options.background}`);
+        }
+        
+        // Quality
+        transformations.push('q_auto');
+        
+        // Format if specified
+        if (options.format) transformations.push(`f_${options.format}`);
+        
+        const transformStr = transformations.join(',');
+        const transformedUrl = `https://res.cloudinary.com/${creds.cloudName}/video/upload/${transformStr}/${publicId}`;
+        
+        console.log('[CloudinaryClient] Video transform URL:', transformedUrl);
+        
+        return {
+            success: true,
+            url: transformedUrl,
+            public_id: publicId,
+            width: options.width,
+            height: options.height,
+            aspect_ratio: options.aspect_ratio,
+            crop: crop,
+            gravity: options.gravity,
+            transformations: transformStr,
+            format: options.format || 'mp4'
+        };
+    }
+    
+    /**
+     * Get available video crop modes with descriptions
+     */
+    getVideoCropModes() {
+        return [
+            { value: 'fill', label: 'Fill', description: 'Resize to fill dimensions, may crop' },
+            { value: 'fill_pad', label: 'Fill Pad', description: 'Fill with smart padding to avoid bad crops' },
+            { value: 'scale', label: 'Scale', description: 'Scale to exact dimensions (may distort)' },
+            { value: 'fit', label: 'Fit', description: 'Fit within dimensions, maintain aspect ratio' },
+            { value: 'limit', label: 'Limit', description: 'Same as fit, but only scale down' },
+            { value: 'pad', label: 'Pad', description: 'Fit with padding background' },
+            { value: 'lpad', label: 'Limit Pad', description: 'Limit + padding' },
+            { value: 'crop', label: 'Crop', description: 'Extract region without scaling' }
+        ];
+    }
+    
+    /**
+     * Get available gravity options for video
+     */
+    getVideoGravityOptions() {
+        return [
+            { value: 'auto', label: 'Auto (AI)', description: 'AI-powered content-aware cropping' },
+            { value: 'auto:faces', label: 'All Faces', description: 'Focus on all detected faces' },
+            { value: 'auto:face', label: 'Main Face', description: 'Focus on the largest face' },
+            { value: 'center', label: 'Center', description: 'Keep center of video' },
+            { value: 'north', label: 'Top', description: 'Keep top part' },
+            { value: 'south', label: 'Bottom', description: 'Keep bottom part' },
+            { value: 'east', label: 'Right', description: 'Keep right side' },
+            { value: 'west', label: 'Left', description: 'Keep left side' },
+            { value: 'north_east', label: 'Top-Right', description: 'Keep top-right corner' },
+            { value: 'north_west', label: 'Top-Left', description: 'Keep top-left corner' },
+            { value: 'south_east', label: 'Bottom-Right', description: 'Keep bottom-right corner' },
+            { value: 'south_west', label: 'Bottom-Left', description: 'Keep bottom-left corner' }
+        ];
+    }
+    
+    /**
+     * Get common aspect ratios for video
+     */
+    getVideoAspectRatios() {
+        return [
+            { value: '16:9', label: '16:9 (Landscape)', description: 'YouTube, TV' },
+            { value: '9:16', label: '9:16 (Portrait)', description: 'TikTok, Reels, Shorts' },
+            { value: '1:1', label: '1:1 (Square)', description: 'Instagram Feed' },
+            { value: '4:5', label: '4:5 (Vertical)', description: 'Instagram Portrait' },
+            { value: '4:3', label: '4:3 (Standard)', description: 'Traditional TV' },
+            { value: '21:9', label: '21:9 (Cinematic)', description: 'Widescreen Cinema' },
+            { value: '2.35:1', label: '2.35:1 (Anamorphic)', description: 'Film' }
+        ];
     }
     
     getTransformUrl(publicId, width, height, options = {}) {
