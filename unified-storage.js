@@ -81,14 +81,28 @@
         }
 
         initUserContext() {
+            // Initial setup - will be refreshed on each operation
+            this.refreshUserEmail();
+        }
+        
+        // Always get fresh user email from current session
+        refreshUserEmail() {
             try {
-                const session = window.CAVSecurity?.SecureSessionManager?.getSession() ||
-                               window.cavUserSession ||
+                const session = window.cavUserSession ||
+                               window.CAVSecurity?.SecureSessionManager?.getSession() ||
+                               JSON.parse(localStorage.getItem('cav_session') || 'null') ||
                                JSON.parse(localStorage.getItem('cav_user_session') || 'null');
                 this.userEmail = session?.email || 'anonymous';
+                return this.userEmail;
             } catch (e) {
                 this.userEmail = 'anonymous';
+                return 'anonymous';
             }
+        }
+        
+        // Get current user email - always fresh
+        getCurrentUserEmail() {
+            return this.refreshUserEmail();
         }
 
         async initDB() {
@@ -178,8 +192,8 @@
                 data.id = `${storeName}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             }
 
-            // Add metadata
-            data.user_email = this.userEmail;
+            // Add metadata - always get fresh user email
+            data.user_email = this.getCurrentUserEmail();
             data.updated_at = new Date().toISOString();
             data.created_at = data.created_at || data.updated_at;
             data.needs_sync = syncToCloud;
@@ -226,7 +240,8 @@
             }
 
             // Filter by user
-            items = items.filter(item => item.user_email === this.userEmail);
+            const currentEmail = this.getCurrentUserEmail();
+            items = items.filter(item => item.user_email === currentEmail);
 
             // Filter deleted
             if (!options.includeDeleted) {
@@ -585,7 +600,7 @@
                 const { data, error } = await supabase
                     .from(tableName)
                     .select('*')
-                    .eq('user_email', this.userEmail)
+                    .eq('user_email', this.getCurrentUserEmail())
                     .is('deleted_at', null)
                     .order('created_at', { ascending: false })
                     .limit(100);
@@ -718,10 +733,11 @@
 
         // Activity Log
         async logActivity(activity) {
+            const currentEmail = this.getCurrentUserEmail();
             const logEntry = {
                 id: `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Local ID only
-                user_email: this.userEmail,
-                owner_email: this.userEmail,
+                user_email: currentEmail,
+                owner_email: currentEmail,
                 type: activity.type || 'unknown',
                 action: activity.action || activity.type || 'unknown',
                 provider: activity.provider || null,
@@ -760,16 +776,17 @@
 
             // Generate a text-based uuid for upsert conflict resolution
             // Note: user_api_keys.id is UUID type (auto-generated), uuid is TEXT type for our key
-            const keyUuid = `apikey_${provider}_${this.userEmail.replace(/[^a-z0-9]/gi, '_')}`;
+            const currentEmail = this.getCurrentUserEmail();
+            const keyUuid = `apikey_${provider}_${currentEmail.replace(/[^a-z0-9]/gi, '_')}`;
             const keyData = {
                 // Don't set 'id' - let Supabase auto-generate the UUID
                 uuid: keyUuid, // TEXT column - used for upsert conflict resolution
                 provider,
                 key,
                 encrypted_key: key, // Also set encrypted_key for compatibility
-                user_email: this.userEmail,
-                owner_email: this.userEmail,
-                domain: this.userEmail.split('@')[1] || 'local',
+                user_email: currentEmail,
+                owner_email: currentEmail,
+                domain: currentEmail.split('@')[1] || 'local',
                 share_with_domain: shareWithDomain,
                 share_globally: shareGlobally,
                 is_admin_key: isAdmin,
@@ -828,7 +845,8 @@
          * @returns {Object} { key, source }
          */
         async getAPIKey(provider) {
-            const userDomain = this.userEmail.split('@')[1] || 'local';
+            const currentEmail = this.getCurrentUserEmail();
+            const userDomain = currentEmail.split('@')[1] || 'local';
 
             // 1. Check user's own key first
             const localKeys = JSON.parse(localStorage.getItem('cav_api_keys_unified') || '{}');
@@ -888,7 +906,8 @@
          * Other admins on same domain can override with their keys
          */
         async shareKeyWithDomain(provider, key, options = {}) {
-            const domain = this.userEmail.split('@')[1];
+            const currentEmail = this.getCurrentUserEmail();
+            const domain = currentEmail.split('@')[1];
             if (!domain || domain === 'gmail.com' || domain === 'local') {
                 return { success: false, error: 'Cannot share with public domain' };
             }
@@ -900,7 +919,7 @@
             if (!sharedConfig[orgId]) sharedConfig[orgId] = {};
             sharedConfig[orgId][provider] = {
                 key,
-                shared_by: this.userEmail,
+                shared_by: currentEmail,
                 shared_at: new Date().toISOString()
             };
             localStorage.setItem('cav_domain_shared_keys', JSON.stringify(sharedConfig));
@@ -922,7 +941,7 @@
          * Get all shared keys for current user's domain
          */
         async getDomainSharedKeys() {
-            const domain = this.userEmail.split('@')[1];
+            const domain = this.getCurrentUserEmail().split('@')[1];
             if (!domain) return {};
 
             const orgId = domain.replace(/\./g, '_');
@@ -1056,7 +1075,7 @@
 
             const diagnostics = {
                 version: VERSION,
-                userEmail: this.userEmail,
+                userEmail: this.getCurrentUserEmail(),
                 indexedDBReady: !!this.db,
                 supabaseConfigured: window.CAVSupabase?.isConfigured?.() || false,
                 lastSync: localStorage.getItem(STORAGE_KEYS.LAST_SYNC),
