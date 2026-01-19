@@ -85,15 +85,67 @@
             this.refreshUserEmail();
         }
         
-        // Always get fresh user email from current session
+        // Always get fresh user email from current session - ROBUST multi-source check
         refreshUserEmail() {
             try {
-                const session = window.cavUserSession ||
-                               window.CAVSecurity?.SecureSessionManager?.getSession() ||
-                               JSON.parse(localStorage.getItem('cav_session') || 'null') ||
-                               JSON.parse(localStorage.getItem('cav_user_session') || 'null');
-                this.userEmail = session?.email || 'anonymous';
-                return this.userEmail;
+                // 1. Check window.cavUserSession (set after Google Sign-In)
+                if (window.cavUserSession?.email) {
+                    this.userEmail = window.cavUserSession.email;
+                    return this.userEmail;
+                }
+                
+                // 2. Check CAVSecurity SecureSessionManager
+                const secureSession = window.CAVSecurity?.SecureSessionManager?.getSession?.();
+                if (secureSession?.email) {
+                    this.userEmail = secureSession.email;
+                    return this.userEmail;
+                }
+                
+                // 3. Check localStorage cav_session
+                try {
+                    const cavSession = JSON.parse(localStorage.getItem('cav_session') || 'null');
+                    if (cavSession?.email) {
+                        this.userEmail = cavSession.email;
+                        return this.userEmail;
+                    }
+                } catch (e) {}
+                
+                // 4. Check localStorage cav_user_session
+                try {
+                    const userSession = JSON.parse(localStorage.getItem('cav_user_session') || 'null');
+                    if (userSession?.email) {
+                        this.userEmail = userSession.email;
+                        return this.userEmail;
+                    }
+                } catch (e) {}
+                
+                // 5. Check localStorage cav_auth_session
+                try {
+                    const authSession = JSON.parse(localStorage.getItem('cav_auth_session') || 'null');
+                    if (authSession?.email) {
+                        this.userEmail = authSession.email;
+                        return this.userEmail;
+                    }
+                } catch (e) {}
+                
+                // 6. Check localStorage cav_secure_session_v3 (used by index.html)
+                try {
+                    const secureV3 = JSON.parse(localStorage.getItem('cav_secure_session_v3') || 'null');
+                    if (secureV3?.email) {
+                        this.userEmail = secureV3.email;
+                        return this.userEmail;
+                    }
+                } catch (e) {}
+                
+                // 7. Check localStorage cav_last_user_email (fallback)
+                const lastEmail = localStorage.getItem('cav_last_user_email');
+                if (lastEmail && lastEmail !== 'anonymous') {
+                    this.userEmail = lastEmail;
+                    return this.userEmail;
+                }
+                
+                this.userEmail = 'anonymous';
+                return 'anonymous';
             } catch (e) {
                 this.userEmail = 'anonymous';
                 return 'anonymous';
