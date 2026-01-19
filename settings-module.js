@@ -323,11 +323,19 @@
         
         // Immediately set userEmail if session is available
         initUserEmail() {
-            const session = window.cavUserSession || window.CAVSecurity?.SecureSessionManager?.getSession?.();
-            if (session?.email) {
-                this.userEmail = session.email;
+            this.userEmail = this.getCurrentUserEmail();
+            if (this.userEmail) {
                 console.log('🔑 Settings: User email initialized immediately:', this.userEmail);
             }
+        }
+        
+        // Always get fresh user email from current session
+        getCurrentUserEmail() {
+            const session = window.cavUserSession || 
+                           window.CAVSecurity?.SecureSessionManager?.getSession?.() ||
+                           JSON.parse(localStorage.getItem('cav_session') || 'null');
+            this.userEmail = session?.email || null;
+            return this.userEmail;
         }
         
         // Check if current user is super admin (for Integration API Keys section)
@@ -983,12 +991,13 @@
                 }
                 
                 // Also save full settings to user_settings table
-                const settingsUuid = `settings_${this.userEmail.replace(/[^a-z0-9]/gi, '_')}`;
+                const currentEmail = this.getCurrentUserEmail();
+                const settingsUuid = `settings_${currentEmail.replace(/[^a-z0-9]/gi, '_')}`;
                 const { error: settingsError } = await supabase
                     .from('user_settings')
                     .upsert({
                         uuid: settingsUuid,
-                        user_email: this.userEmail,
+                        user_email: currentEmail,
                         settings_type: 'app_settings',
                         data: {
                             features: this.settings.features,

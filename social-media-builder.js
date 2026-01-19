@@ -1586,7 +1586,7 @@ Do NOT use excessive punctuation, all caps, or banned claims.`;
                 if (window.UnifiedStorage) {
                     await window.UnifiedStorage.saveSocialMediaBuild({
                         ...campaign,
-                        user_email: window.UnifiedStorage?.userEmail || 'anonymous'
+                        user_email: window.UnifiedStorage?.getCurrentUserEmail?.() || window.cavUserSession?.email || 'anonymous'
                     });
                 }
                 
