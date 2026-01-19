@@ -164,6 +164,223 @@ CREATE TABLE IF NOT EXISTS `projects` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+-- CRM: CONTACTS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `contacts` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `uuid` VARCHAR(36) UNIQUE NOT NULL,
+    `owner_id` INT UNSIGNED NOT NULL,
+    `company_id` INT UNSIGNED DEFAULT NULL,
+    
+    -- Contact info
+    `name` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(255) DEFAULT NULL,
+    `phone` VARCHAR(50) DEFAULT NULL,
+    `title` VARCHAR(100) DEFAULT NULL,
+    `notes` TEXT DEFAULT NULL,
+    
+    -- Custom fields (JSON)
+    `custom_fields` JSON DEFAULT NULL,
+    `tags` JSON DEFAULT NULL,
+    
+    -- Sharing
+    `share_level` ENUM('private', 'team', 'public') DEFAULT 'private',
+    `shared_with` JSON DEFAULT NULL,
+    
+    -- Sync tracking
+    `sync_version` INT UNSIGNED DEFAULT 1,
+    `needs_sync` TINYINT(1) DEFAULT 0,
+    `deleted_at` TIMESTAMP NULL,
+    
+    -- Timestamps
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`company_id`) REFERENCES `companies`(`id`) ON DELETE SET NULL,
+    INDEX `idx_owner` (`owner_id`),
+    INDEX `idx_company` (`company_id`),
+    INDEX `idx_sync` (`needs_sync`, `sync_version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- CRM: DEALS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `deals` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `uuid` VARCHAR(36) UNIQUE NOT NULL,
+    `owner_id` INT UNSIGNED NOT NULL,
+    `company_id` INT UNSIGNED DEFAULT NULL,
+    `contact_id` INT UNSIGNED DEFAULT NULL,
+    
+    -- Deal info
+    `name` VARCHAR(255) NOT NULL,
+    `value` DECIMAL(15,2) DEFAULT 0,
+    `currency` VARCHAR(3) DEFAULT 'USD',
+    `stage` VARCHAR(50) DEFAULT 'lead',
+    `probability` INT UNSIGNED DEFAULT 0,
+    `expected_close_date` DATE DEFAULT NULL,
+    `notes` TEXT DEFAULT NULL,
+    
+    -- Custom fields
+    `custom_fields` JSON DEFAULT NULL,
+    `tags` JSON DEFAULT NULL,
+    
+    -- Sharing
+    `share_level` ENUM('private', 'team', 'public') DEFAULT 'private',
+    `shared_with` JSON DEFAULT NULL,
+    
+    -- Sync tracking
+    `sync_version` INT UNSIGNED DEFAULT 1,
+    `needs_sync` TINYINT(1) DEFAULT 0,
+    `deleted_at` TIMESTAMP NULL,
+    
+    -- Timestamps
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`company_id`) REFERENCES `companies`(`id`) ON DELETE SET NULL,
+    FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON DELETE SET NULL,
+    INDEX `idx_owner` (`owner_id`),
+    INDEX `idx_stage` (`stage`),
+    INDEX `idx_sync` (`needs_sync`, `sync_version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- CRM: ACTIVITIES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `crm_activities` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `uuid` VARCHAR(36) UNIQUE NOT NULL,
+    `owner_id` INT UNSIGNED NOT NULL,
+    `company_id` INT UNSIGNED DEFAULT NULL,
+    `contact_id` INT UNSIGNED DEFAULT NULL,
+    `deal_id` INT UNSIGNED DEFAULT NULL,
+    
+    -- Activity info
+    `activity_type` VARCHAR(50) NOT NULL,
+    `description` TEXT DEFAULT NULL,
+    `details` JSON DEFAULT NULL,
+    
+    -- Sync tracking
+    `sync_version` INT UNSIGNED DEFAULT 1,
+    `needs_sync` TINYINT(1) DEFAULT 0,
+    `deleted_at` TIMESTAMP NULL,
+    
+    -- Timestamps
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`company_id`) REFERENCES `companies`(`id`) ON DELETE SET NULL,
+    FOREIGN KEY (`contact_id`) REFERENCES `contacts`(`id`) ON DELETE SET NULL,
+    FOREIGN KEY (`deal_id`) REFERENCES `deals`(`id`) ON DELETE SET NULL,
+    INDEX `idx_owner` (`owner_id`),
+    INDEX `idx_type` (`activity_type`),
+    INDEX `idx_sync` (`needs_sync`, `sync_version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- CRM: TAGS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `crm_tags` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `uuid` VARCHAR(36) UNIQUE NOT NULL,
+    `owner_id` INT UNSIGNED NOT NULL,
+    
+    -- Tag info
+    `name` VARCHAR(100) NOT NULL,
+    `color` VARCHAR(20) DEFAULT '#3b82f6',
+    `category` VARCHAR(50) DEFAULT 'general',
+    
+    -- Sync tracking
+    `sync_version` INT UNSIGNED DEFAULT 1,
+    `needs_sync` TINYINT(1) DEFAULT 0,
+    `deleted_at` TIMESTAMP NULL,
+    
+    -- Timestamps
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    INDEX `idx_owner` (`owner_id`),
+    UNIQUE KEY `unique_user_tag` (`owner_id`, `name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- CRM: COMPETITORS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `competitors` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `uuid` VARCHAR(36) UNIQUE NOT NULL,
+    `owner_id` INT UNSIGNED NOT NULL,
+    `company_id` INT UNSIGNED DEFAULT NULL,
+    
+    -- Competitor info
+    `name` VARCHAR(255) NOT NULL,
+    `website` VARCHAR(500) DEFAULT NULL,
+    `description` TEXT DEFAULT NULL,
+    `strengths` JSON DEFAULT NULL,
+    `weaknesses` JSON DEFAULT NULL,
+    `notes` TEXT DEFAULT NULL,
+    
+    -- Sharing
+    `share_level` ENUM('private', 'team', 'public') DEFAULT 'private',
+    `shared_with` JSON DEFAULT NULL,
+    
+    -- Sync tracking
+    `sync_version` INT UNSIGNED DEFAULT 1,
+    `needs_sync` TINYINT(1) DEFAULT 0,
+    `deleted_at` TIMESTAMP NULL,
+    
+    -- Timestamps
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`company_id`) REFERENCES `companies`(`id`) ON DELETE SET NULL,
+    INDEX `idx_owner` (`owner_id`),
+    INDEX `idx_sync` (`needs_sync`, `sync_version`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- CRM: CUSTOM FIELDS DEFINITIONS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `crm_custom_fields` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `uuid` VARCHAR(36) UNIQUE NOT NULL,
+    `owner_id` INT UNSIGNED NOT NULL,
+    
+    -- Field definition
+    `entity_type` ENUM('contact', 'company', 'deal', 'project') NOT NULL,
+    `field_name` VARCHAR(100) NOT NULL,
+    `field_type` ENUM('text', 'number', 'date', 'select', 'multiselect', 'url', 'email') DEFAULT 'text',
+    `options` JSON DEFAULT NULL, -- For select/multiselect
+    `is_required` TINYINT(1) DEFAULT 0,
+    `display_order` INT DEFAULT 0,
+    
+    -- Sync tracking
+    `sync_version` INT UNSIGNED DEFAULT 1,
+    `needs_sync` TINYINT(1) DEFAULT 0,
+    `deleted_at` TIMESTAMP NULL,
+    
+    -- Timestamps
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+    INDEX `idx_owner` (`owner_id`),
+    UNIQUE KEY `unique_user_entity_field` (`owner_id`, `entity_type`, `field_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- ASSETS
 -- ============================================================
 

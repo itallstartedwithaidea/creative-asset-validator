@@ -68,18 +68,37 @@
             this.listeners = [];
         }
 
+        // Sanitize API key to remove invisible characters (fixes ISO-8859-1 errors)
+        sanitizeAPIKey(key) {
+            if (!key || typeof key !== 'string') return '';
+            
+            // Remove all non-ASCII printable characters and common invisible chars
+            // This fixes "String contains non ISO-8859-1 code point" errors
+            return key
+                .replace(/[\u200B-\u200D\uFEFF]/g, '') // Zero-width characters
+                .replace(/[\u00A0]/g, ' ')             // Non-breaking spaces
+                .replace(/[^\x20-\x7E]/g, '')          // Keep only printable ASCII
+                .trim();
+        }
+
         // Get API key from settings
         getAPIKey(provider) {
+            let rawKey = '';
+            
             // 1. Try Settings Manager global instance
             if (window.cavSettings?.getAPIKey) {
-                const key = window.cavSettings.getAPIKey(provider);
-                if (key && key.length >= 10) return key;
+                rawKey = window.cavSettings.getAPIKey(provider);
+                if (rawKey && rawKey.length >= 10) {
+                    return this.sanitizeAPIKey(rawKey);
+                }
             }
             
             // 2. Try CAVSettings (legacy)
             if (window.CAVSettings?.getAPIKey) {
-                const key = window.CAVSettings.getAPIKey(provider);
-                if (key && key.length >= 10) return key;
+                rawKey = window.CAVSettings.getAPIKey(provider);
+                if (rawKey && rawKey.length >= 10) {
+                    return this.sanitizeAPIKey(rawKey);
+                }
             }
             
             // 3. For Gemini, check v3.0 Settings structure and legacy storage
@@ -88,13 +107,16 @@
                     const v3Settings = localStorage.getItem('cav_v3_settings');
                     if (v3Settings) {
                         const settings = JSON.parse(v3Settings);
-                        const key = settings?.apiKeys?.gemini?.key;
-                        if (key && key.length >= 30) return key;
+                        rawKey = settings?.apiKeys?.gemini?.key;
+                        if (rawKey && rawKey.length >= 30) {
+                            return this.sanitizeAPIKey(rawKey);
+                        }
                     }
                 } catch (e) {}
                 
-                return localStorage.getItem('cav_gemini_api_key') || 
-                       localStorage.getItem('cav_ai_api_key') || '';
+                rawKey = localStorage.getItem('cav_gemini_api_key') || 
+                         localStorage.getItem('cav_ai_api_key') || '';
+                return this.sanitizeAPIKey(rawKey);
             }
             
             return '';
