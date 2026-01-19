@@ -687,6 +687,7 @@
                         uuid: credentialId,
                         user_email: userEmail,
                         owner_email: userEmail,
+                        integration_type: 'cloudinary',
                         service: 'cloudinary',
                         provider: 'cloudinary',
                         credentials: credentials,

@@ -439,19 +439,33 @@
                         // Prepare data for Supabase
                         const supabaseData = this.prepareForSupabase(item.data);
                         
-                        // Determine the correct onConflict column for each table
-                        let onConflictColumn = 'id';
-                        if (item.storeName === 'user_api_keys') {
-                            // user_api_keys uses uuid column for upsert
-                            onConflictColumn = 'uuid';
-                        } else if (supabaseData.uuid) {
-                            // Tables with uuid column
-                            onConflictColumn = 'uuid';
-                        }
+                        // INSERT-only tables (no upsert - let Supabase generate UUID id)
+                        const insertOnlyTables = ['activity_log'];
+                        
+                        let error;
+                        if (insertOnlyTables.includes(tableName)) {
+                            // For activity_log: INSERT only, remove 'id' so Supabase auto-generates UUID
+                            delete supabaseData.id;
+                            const result = await supabase
+                                .from(tableName)
+                                .insert(supabaseData);
+                            error = result.error;
+                        } else {
+                            // Determine the correct onConflict column for each table
+                            let onConflictColumn = 'id';
+                            if (item.storeName === 'user_api_keys') {
+                                // user_api_keys uses uuid column for upsert
+                                onConflictColumn = 'uuid';
+                            } else if (supabaseData.uuid) {
+                                // Tables with uuid column
+                                onConflictColumn = 'uuid';
+                            }
 
-                        const { error } = await supabase
-                            .from(tableName)
-                            .upsert(supabaseData, { onConflict: onConflictColumn, ignoreDuplicates: false });
+                            const result = await supabase
+                                .from(tableName)
+                                .upsert(supabaseData, { onConflict: onConflictColumn, ignoreDuplicates: false });
+                            error = result.error;
+                        }
 
                         if (error) {
                             console.warn(`[UnifiedStorage] Sync error for ${tableName}:`, error.message);
