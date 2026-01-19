@@ -302,11 +302,11 @@
         cspMeta.httpEquiv = 'Content-Security-Policy';
         cspMeta.content = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://cdn.jsdelivr.net https://generativelanguage.googleapis.com",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://cdn.jsdelivr.net https://esm.run https://esm.sh https://generativelanguage.googleapis.com",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https: http:",
-            "connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://www.searchapi.io wss://*.supabase.co",
+            "connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://www.searchapi.io https://cdn.jsdelivr.net https://esm.run https://esm.sh https://res.cloudinary.com https://api.cloudinary.com wss://*.supabase.co",
             "frame-src 'self' https://accounts.google.com",
             "media-src 'self' data: blob: https:"
         ].join('; ');
@@ -323,11 +323,8 @@
             window.top.location = window.self.location;
         }
         
-        // Add X-Frame-Options via meta (better via HTTP header)
-        const xfoMeta = document.createElement('meta');
-        xfoMeta.httpEquiv = 'X-Frame-Options';
-        xfoMeta.content = 'SAMEORIGIN';
-        document.head.appendChild(xfoMeta);
+        // X-Frame-Options must be set via HTTP header, not meta tag
+        // Use _headers file for Cloudflare Pages instead
     }
     
     // ============================================
