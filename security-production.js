@@ -120,58 +120,47 @@
     }
     
     // ============================================
-    // DEVTOOLS DETECTION
+    // DEVTOOLS DETECTION (Desktop only)
     // ============================================
     
     if (SECURITY_CONFIG.PRODUCTION_MODE && SECURITY_CONFIG.BLOCK_DEVTOOLS) {
-        let devToolsOpen = false;
+        // Skip DevTools detection on mobile/tablet - causes false positives
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                         window.innerWidth < 1024;
         
-        // Method 1: Size detection
-        const detectBySize = function() {
-            const widthThreshold = window.outerWidth - window.innerWidth > 160;
-            const heightThreshold = window.outerHeight - window.innerHeight > 160;
+        if (!isMobile) {
+            let devToolsOpen = false;
             
-            if (widthThreshold || heightThreshold) {
-                if (!devToolsOpen) {
-                    devToolsOpen = true;
-                    handleDevToolsOpen();
+            // Size detection (desktop only)
+            const detectBySize = function() {
+                // More conservative thresholds
+                const widthThreshold = window.outerWidth - window.innerWidth > 200;
+                const heightThreshold = window.outerHeight - window.innerHeight > 200;
+                
+                if (widthThreshold || heightThreshold) {
+                    if (!devToolsOpen) {
+                        devToolsOpen = true;
+                        handleDevToolsOpen();
+                    }
+                } else {
+                    devToolsOpen = false;
+                    // Remove blur when DevTools closes
+                    if (document.body.style.filter === 'blur(10px)') {
+                        document.body.style.filter = '';
+                        document.body.style.pointerEvents = '';
+                    }
                 }
-            } else {
-                devToolsOpen = false;
-            }
-        };
-        
-        // Method 2: Performance detection
-        const detectByPerformance = function() {
-            const start = performance.now();
-            debugger;
-            const end = performance.now();
-            if (end - start > 100) {
-                handleDevToolsOpen();
-            }
-        };
-        
-        // Method 3: Console.log object detection
-        const detectByObject = function() {
-            const obj = { get check() { devToolsOpen = true; } };
-            console.log(obj);
-            console.clear();
-        };
-        
-        function handleDevToolsOpen() {
-            // Option 1: Show warning
-            // alert('Developer tools detected. Please close to continue.');
+            };
             
-            // Option 2: Blur/hide content
-            document.body.style.filter = 'blur(10px)';
-            document.body.style.pointerEvents = 'none';
+            function handleDevToolsOpen() {
+                // Blur content when DevTools detected
+                document.body.style.filter = 'blur(10px)';
+                document.body.style.pointerEvents = 'none';
+            }
             
-            // Option 3: Redirect
-            // window.location.href = '/';
+            // Check periodically (desktop only)
+            setInterval(detectBySize, 1000);
         }
-        
-        // Check periodically
-        setInterval(detectBySize, 1000);
     }
     
     // ============================================
