@@ -27,8 +27,8 @@
         ALLOWED_ORIGINS: [
             'https://itallstartedwithaidea.com',
             'https://www.itallstartedwithaidea.com',
-            // Add your Cloudflare Pages URL here after deployment:
-            // 'https://your-project.pages.dev',
+            'https://creative-asset-validator.pages.dev',
+            'https://creative.itallstartedwithaidea.com',  // Custom domain
             'http://localhost:8080',  // Keep for local testing
             'http://127.0.0.1:8080'
         ],
