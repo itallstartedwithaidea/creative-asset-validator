@@ -1887,7 +1887,9 @@
     <script src="security-core.js?v=5.11.0"></script>
     
     <!-- Auth Configuration -->
-    <script src="auth-config.js?v=5.11.0"></script>
+    <!-- Try production config first (deployed), then local config (development) -->
+    <script src="auth-config.production.js?v=5.11.0" onerror=""></script>
+    <script src="auth-config.js?v=5.11.0" onerror=""></script>
     
     <!-- SaaS Backend Integration (MySQL Sync + Cloudinary) v5.11.0 -->
     <script src="sync-engine.js?v=5.11.0"></script>
