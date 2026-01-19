@@ -148,10 +148,63 @@
     }
     
     // Get current user email - works with both auth methods
+    // ROBUST: Checks multiple sources to ensure we always get the current user
     function getCurrentUserEmail() {
-        const googleSession = window.cavUserSession || 
-                              window.CAVSecurity?.SecureSessionManager?.getSession();
-        return googleSession?.email || null;
+        try {
+            // 1. Check window.cavUserSession (set after Google Sign-In)
+            if (window.cavUserSession?.email) {
+                return window.cavUserSession.email;
+            }
+            
+            // 2. Check CAVSecurity SecureSessionManager
+            const secureSession = window.CAVSecurity?.SecureSessionManager?.getSession?.();
+            if (secureSession?.email) {
+                return secureSession.email;
+            }
+            
+            // 3. Check localStorage cav_session (encrypted session)
+            try {
+                const cavSession = JSON.parse(localStorage.getItem('cav_session') || 'null');
+                if (cavSession?.email) {
+                    return cavSession.email;
+                }
+            } catch (e) {}
+            
+            // 4. Check localStorage cav_user_session (plain session)
+            try {
+                const userSession = JSON.parse(localStorage.getItem('cav_user_session') || 'null');
+                if (userSession?.email) {
+                    return userSession.email;
+                }
+            } catch (e) {}
+            
+            // 5. Check localStorage cav_auth_session (auth session)
+            try {
+                const authSession = JSON.parse(localStorage.getItem('cav_auth_session') || 'null');
+                if (authSession?.email) {
+                    return authSession.email;
+                }
+            } catch (e) {}
+            
+            // 6. Check localStorage cav_secure_session_v3 (secure session)
+            try {
+                const secureSession = JSON.parse(localStorage.getItem('cav_secure_session_v3') || 'null');
+                if (secureSession?.email) {
+                    return secureSession.email;
+                }
+            } catch (e) {}
+            
+            // 7. Check localStorage cav_last_user_email (fallback)
+            const lastEmail = localStorage.getItem('cav_last_user_email');
+            if (lastEmail && lastEmail !== 'anonymous') {
+                return lastEmail;
+            }
+            
+            return null;
+        } catch (e) {
+            console.warn('[Supabase] Error getting user email:', e);
+            return null;
+        }
     }
 
     // ============================================
@@ -965,10 +1018,8 @@
         if (!supabase) return { success: false, error: 'Not initialized' };
         
         try {
-            // Get user email for Google Sign-In
-            const userEmail = window.cavUserSession?.email || 
-                              window.CAVSecurity?.SecureSessionManager?.getSession()?.email || 
-                              'anonymous';
+            // Get user email for Google Sign-In (uses robust multi-source check)
+            const userEmail = getCurrentUserEmail() || 'anonymous';
             
             // Tables that should INSERT only (no upsert - no uuid column)
             const insertOnlyTables = [
