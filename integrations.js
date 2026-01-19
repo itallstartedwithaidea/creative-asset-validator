@@ -1005,7 +1005,7 @@
                     await this.showGoogleDriveFolderBrowser(connection, resolve, reject);
                 } catch (error) {
                     console.error('[Integration] Folder picker error:', error);
-                    this.showToast('❌ Error loading folders: ' + error.message, 'error');
+                    this.showToast('Error loading folders: ' + error.message, 'error');
                     reject(error);
                 }
             });
@@ -1020,7 +1020,7 @@
             loadingModal.className = 'cav-folder-picker-modal';
             loadingModal.innerHTML = `
                 <div class="cav-folder-picker-content" style="text-align: center; padding: 2rem;">
-                    <div class="cav-folder-loading">⏳ Loading Google Drive folders...</div>
+                    <div class="cav-folder-loading"><svg class="cav-icon" style="width:16px;height:16px;margin-right:8px;animation:spin 1s linear infinite;"><use href="#icon-refresh"/></svg> Loading Google Drive folders...</div>
                 </div>
             `;
             document.body.appendChild(loadingModal);
@@ -1042,33 +1042,33 @@
             modal.innerHTML = `
                 <div class="cav-folder-picker-content">
                     <div class="cav-folder-picker-header">
-                        <h3>📂 Select a Google Drive Folder</h3>
+                        <h3><svg class="cav-icon" style="width:18px;height:18px;margin-right:8px;vertical-align:middle;"><use href="#icon-folder"/></svg> Select a Google Drive Folder</h3>
                         <button class="cav-folder-picker-close">&times;</button>
                     </div>
                     <div class="cav-folder-picker-breadcrumb" id="folder-breadcrumb">
-                        <span class="cav-breadcrumb-item" data-id="root" data-name="My Drive">📁 My Drive</span>
+                        <span class="cav-breadcrumb-item" data-id="root" data-name="My Drive"><svg class="cav-icon" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"><use href="#icon-folder"/></svg> My Drive</span>
                     </div>
                     <div class="cav-folder-picker-list" id="folder-list">
                         ${isExpired ? `
                             <div class="cav-folder-empty">
-                                <p>⚠️ Google Drive session has expired.</p>
-                                <button class="cav-btn cav-btn-primary cav-reconnect-btn" style="margin-top: 1rem;">🔄 Reconnect Google Drive</button>
+                                <p><svg class="cav-icon" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;color:var(--cav-warning);"><use href="#icon-alert-triangle"/></svg> Google Drive session has expired.</p>
+                                <button class="cav-btn cav-btn-primary cav-reconnect-btn" style="margin-top: 1rem;"><svg class="cav-icon" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"><use href="#icon-refresh"/></svg> Reconnect Google Drive</button>
                             </div>
                         ` : folders.length === 0 ? `
                             <div class="cav-folder-empty">
-                                <p>📭 No folders found in your Drive root.</p>
+                                <p><svg class="cav-icon" style="width:16px;height:16px;margin-right:6px;vertical-align:middle;"><use href="#icon-folder"/></svg> No folders found in your Drive root.</p>
                                 <p style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">This could mean:</p>
                                 <ul style="font-size: 0.85rem; opacity: 0.8; text-align: left; margin: 0.5rem auto; max-width: 280px;">
                                     <li>Your Drive root has no folders (only files)</li>
                                     <li>Folders may be in "Shared with me"</li>
-                                    <li>Try clicking "📁 My Drive" to use the root folder</li>
+                                    <li>Try clicking "My Drive" to use the root folder</li>
                                 </ul>
-                                <button class="cav-btn cav-btn-secondary cav-show-all-items-btn" style="margin-top: 0.5rem;">📋 Show All Items</button>
+                                <button class="cav-btn cav-btn-secondary cav-show-all-items-btn" style="margin-top: 0.5rem;"><svg class="cav-icon" style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"><use href="#icon-document"/></svg> Show All Items</button>
                             </div>
                         ` : ''}
                         ${folders.map(f => `
                             <div class="cav-folder-item" data-id="${f.id}" data-name="${f.name}">
-                                <span class="cav-folder-icon">📁</span>
+                                <span class="cav-folder-icon"><svg style="width:16px;height:16px;vertical-align:middle;"><use href="#icon-folder"/></svg></span>
                                 <span class="cav-folder-name">${f.name}</span>
                                 <span class="cav-folder-arrow">→</span>
                             </div>
@@ -1076,7 +1076,7 @@
                     </div>
                     <div class="cav-folder-picker-footer">
                         <button class="cav-btn-cancel">Cancel</button>
-                        <button class="cav-btn-select-current" title="Select current folder (My Drive root)">📂 Use Current Folder</button>
+                        <button class="cav-btn-select-current" title="Select current folder (My Drive root)"><svg style="width:14px;height:14px;margin-right:4px;vertical-align:middle;"><use href="#icon-folder"/></svg> Use Current Folder</button>
                         <button class="cav-btn-select" disabled>Select Folder</button>
                     </div>
                 </div>
@@ -1094,14 +1094,14 @@
                     this.disconnect('google_drive');
                     try {
                         await this.initiateOAuth('google_drive');
-                        this.showToast('✅ Reconnected to Google Drive!', 'success');
+                        this.showToast('Reconnected to Google Drive!', 'success');
                         // Try opening the folder picker again
                         const newConnection = this.connections['google_drive'];
                         if (newConnection) {
                             await this.showGoogleDriveFolderBrowser(newConnection, resolve, reject);
                         }
                     } catch (err) {
-                        this.showToast('❌ Failed to reconnect: ' + err.message, 'error');
+                        this.showToast('Failed to reconnect: ' + err.message, 'error');
                         reject(err);
                     }
                 });
@@ -1117,7 +1117,7 @@
 
             const updateFolderList = async (folderId, folderName) => {
                 const listEl = modal.querySelector('#folder-list');
-                listEl.innerHTML = '<div class="cav-folder-loading">⏳ Loading...</div>';
+                listEl.innerHTML = '<div class="cav-folder-loading"><svg class="cav-icon" style="width:14px;height:14px;margin-right:6px;animation:spin 1s linear infinite;"><use href="#icon-refresh"/></svg> Loading...</div>';
                 
                 currentFolderId = folderId;
                 currentFolderName = folderName;
@@ -1125,10 +1125,10 @@
                 const subfolders = await this.listGoogleDriveFolders(connection, folderId);
                 
                 listEl.innerHTML = subfolders.length === 0 
-                    ? '<div class="cav-folder-empty">📭 No subfolders. You can select this folder.</div>'
+                    ? '<div class="cav-folder-empty"><svg class="cav-icon" style="width:14px;height:14px;margin-right:6px;vertical-align:middle;"><use href="#icon-folder"/></svg> No subfolders. You can select this folder.</div>'
                     : subfolders.map(f => `
                         <div class="cav-folder-item" data-id="${f.id}" data-name="${f.name}">
-                            <span class="cav-folder-icon">📁</span>
+                            <span class="cav-folder-icon"><svg style="width:16px;height:16px;vertical-align:middle;"><use href="#icon-folder"/></svg></span>
                             <span class="cav-folder-name">${f.name}</span>
                             <span class="cav-folder-arrow">→</span>
                         </div>
@@ -1142,7 +1142,7 @@
                 const bcEl = modal.querySelector('#folder-breadcrumb');
                 bcEl.innerHTML = breadcrumbs.map((bc, i) => `
                     <span class="cav-breadcrumb-item ${i === breadcrumbs.length - 1 ? 'current' : ''}" data-id="${bc.id}" data-name="${bc.name}">
-                        ${i === 0 ? '📁' : '›'} ${bc.name}
+                        ${i === 0 ? '<svg style="width:12px;height:12px;margin-right:4px;vertical-align:middle;"><use href="#icon-folder"/></svg>' : '&rsaquo;'} ${bc.name}
                     </span>
                 `).join('');
                 
@@ -1237,7 +1237,7 @@
             if (showAllItemsBtn) {
                 showAllItemsBtn.addEventListener('click', async () => {
                     const listEl = modal.querySelector('#folder-list');
-                    listEl.innerHTML = '<div class="cav-folder-loading">⏳ Loading all items...</div>';
+                    listEl.innerHTML = '<div class="cav-folder-loading"><svg class="cav-icon" style="width:14px;height:14px;margin-right:6px;animation:spin 1s linear infinite;"><use href="#icon-refresh"/></svg> Loading all items...</div>';
                     
                     try {
                         // Fetch all items (not just folders)
@@ -1279,7 +1279,7 @@
                             if (folders.length > 0) {
                                 html += folders.map(f => `
                                     <div class="cav-folder-item" data-id="${f.id}" data-name="${f.name}">
-                                        <span class="cav-folder-icon">📁</span>
+                                        <span class="cav-folder-icon"><svg style="width:16px;height:16px;vertical-align:middle;"><use href="#icon-folder"/></svg></span>
                                         <span class="cav-folder-name">${f.name}</span>
                                         <span class="cav-folder-arrow">→</span>
                                     </div>
@@ -1287,16 +1287,16 @@
                             }
                             
                             if (files.length > 0) {
-                                html += `<div style="padding: 0.5rem; color: #888; font-size: 0.85rem; border-top: 1px solid #333; margin-top: 0.5rem;">📄 Files (${files.length}):</div>`;
+                                html += `<div style="padding: 0.5rem; color: #888; font-size: 0.85rem; border-top: 1px solid #333; margin-top: 0.5rem;"><svg style="width:12px;height:12px;margin-right:4px;vertical-align:middle;"><use href="#icon-document"/></svg> Files (${files.length}):</div>`;
                                 html += files.slice(0, 10).map(f => {
-                                    const icon = f.mimeType.includes('image') ? '🖼️' : 
-                                                f.mimeType.includes('video') ? '🎬' : 
-                                                f.mimeType.includes('pdf') ? '📕' : 
-                                                f.mimeType.includes('sheet') || f.mimeType.includes('excel') ? '📊' : 
-                                                f.mimeType.includes('doc') || f.mimeType.includes('word') ? '📝' : '📄';
+                                    const iconName = f.mimeType.includes('image') ? 'image' : 
+                                                f.mimeType.includes('video') ? 'video' : 
+                                                f.mimeType.includes('pdf') ? 'document' : 
+                                                f.mimeType.includes('sheet') || f.mimeType.includes('excel') ? 'chart' : 
+                                                f.mimeType.includes('doc') || f.mimeType.includes('word') ? 'document' : 'document';
                                     return `
                                         <div class="cav-file-item" style="padding: 0.5rem 0.75rem; display: flex; align-items: center; gap: 0.5rem; color: #aaa;">
-                                            <span>${icon}</span>
+                                            <span><svg style="width:14px;height:14px;vertical-align:middle;"><use href="#icon-${iconName}"/></svg></span>
                                             <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${f.name}</span>
                                         </div>
                                     `;
@@ -1316,7 +1316,7 @@
                         console.error('[GoogleDrive] Error loading all items:', err);
                         listEl.innerHTML = `
                             <div class="cav-folder-empty">
-                                <p>❌ Error loading items: ${err.message}</p>
+                                <p><svg style="width:14px;height:14px;margin-right:6px;vertical-align:middle;color:var(--cav-danger);"><use href="#icon-x"/></svg> Error loading items: ${err.message}</p>
                             </div>
                         `;
                     }
@@ -1401,7 +1401,7 @@
             modal.innerHTML = `
                 <div class="cav-folder-picker-content">
                     <div class="cav-folder-picker-header">
-                        <h3>📂 Select a Folder</h3>
+                        <h3><svg class="cav-icon" style="width:18px;height:18px;margin-right:8px;vertical-align:middle;"><use href="#icon-folder"/></svg> Select a Folder</h3>
                         <button class="cav-folder-picker-close">&times;</button>
                     </div>
                     <div class="cav-folder-picker-breadcrumb">
@@ -1410,7 +1410,7 @@
                     <div class="cav-folder-picker-list" id="folder-list">
                         ${folders.map(f => `
                             <div class="cav-folder-item" data-id="${f.id}" data-name="${f.name}" data-path="${f.path}">
-                                <span class="cav-folder-icon">📁</span>
+                                <span class="cav-folder-icon"><svg style="width:16px;height:16px;vertical-align:middle;"><use href="#icon-folder"/></svg></span>
                                 <span class="cav-folder-name">${f.name}</span>
                             </div>
                         `).join('')}
@@ -1487,7 +1487,7 @@
                 // Check for valid access token
                 if (!connection || !connection.accessToken) {
                     console.error('[GoogleDrive] No access token available');
-                    this.showToast('❌ Not authenticated. Please reconnect Google Drive.', 'error');
+                    this.showToast('Not authenticated. Please reconnect Google Drive.', 'error');
                     return [];
                 }
 
@@ -1518,16 +1518,16 @@
                     
                     // Handle specific error codes
                     if (response.status === 401) {
-                        this.showToast('⚠️ Google Drive session expired. Please reconnect.', 'warning');
+                        this.showToast('Google Drive session expired. Please reconnect.', 'warning');
                         // Mark connection as expired
                         if (this.connections['google_drive']) {
                             this.connections['google_drive'].status = 'expired';
                             this.saveData(INTEGRATION_STORAGE.CONNECTIONS, this.connections);
                         }
                     } else if (response.status === 403) {
-                        this.showToast('❌ Access denied. Please check Drive permissions.', 'error');
+                        this.showToast('Access denied. Please check Drive permissions.', 'error');
                     } else {
-                        this.showToast(`❌ Drive API error: ${response.status}`, 'error');
+                        this.showToast(`Drive API error: ${response.status}`, 'error');
                     }
                     return [];
                 }
@@ -1538,7 +1538,7 @@
                 // Check for error in response body
                 if (data.error) {
                     console.error('[GoogleDrive] API returned error:', data.error);
-                    this.showToast(`❌ Drive error: ${data.error.message || 'Unknown error'}`, 'error');
+                    this.showToast(`Drive error: ${data.error.message || 'Unknown error'}`, 'error');
                     return [];
                 }
                 
@@ -1588,7 +1588,7 @@
                 
             } catch (err) {
                 console.error('[GoogleDrive] Error listing folders:', err);
-                this.showToast(`❌ Error loading folders: ${err.message}`, 'error');
+                this.showToast(`Error loading folders: ${err.message}`, 'error');
                 return [];
             }
         }
@@ -1782,7 +1782,7 @@
             const folderId = connection.settings.selectedFolder?.id || 'root';
             
             // Show scanning toast
-            this.showToast(`📁 Scanning ${connection.settings.selectedFolder?.name || 'Drive'}...`, 'info');
+            this.showToast(`Scanning ${connection.settings.selectedFolder?.name || 'Drive'}...`, 'info');
             
             try {
                 // Get ALL files in the folder (not just media)
@@ -1825,7 +1825,7 @@
                         
                         // Handle token expiration (401)
                         if (response.status === 401) {
-                            this.showToast('🔄 Session expired. Please reconnect Google Drive.', 'warning');
+                            this.showToast('Session expired. Please reconnect Google Drive.', 'warning');
                             // Mark as disconnected so user can reconnect
                             delete this.connections['google_drive'];
                             this.saveData(INTEGRATION_STORAGE.CONNECTIONS, this.connections);
@@ -1834,7 +1834,7 @@
                         
                         // Handle permission errors (403)
                         if (response.status === 403) {
-                            this.showToast('🔒 Permission denied. Please reconnect with proper permissions.', 'error');
+                            this.showToast('Permission denied. Please reconnect with proper permissions.', 'error');
                             throw new Error('Permission denied. Please reconnect Google Drive with full access.');
                         }
                         
@@ -1877,22 +1877,22 @@
                     return 'file';
                 };
                 
-                // Helper function to get file icon
+                // Helper function to get file icon name (SVG icon reference)
                 const getFileIcon = (type) => {
                     const icons = {
-                        'image': '🖼️',
-                        'video': '🎬',
-                        'audio': '🎵',
-                        'pdf': '📕',
-                        'design': '🎨',
-                        'spreadsheet': '📊',
-                        'document': '📄',
-                        'presentation': '📽️',
-                        'archive': '📦',
-                        'google-doc': '📝',
-                        'file': '📁'
+                        'image': 'image',
+                        'video': 'video',
+                        'audio': 'video',
+                        'pdf': 'document',
+                        'design': 'image',
+                        'spreadsheet': 'chart',
+                        'document': 'document',
+                        'presentation': 'document',
+                        'archive': 'folder',
+                        'google-doc': 'document',
+                        'file': 'document'
                     };
-                    return icons[type] || '📁';
+                    return icons[type] || 'document';
                 };
 
                 results.totalFiles = allFiles.length;
@@ -1932,9 +1932,9 @@
                 
                 // If no files found, provide helpful message
                 if (results.totalFiles === 0) {
-                    this.showToast(`📂 No files found in ${connection.settings.selectedFolder?.name || 'Root'}. The folder may be empty or you may need to select a different folder.`, 'info');
+                    this.showToast(`No files found in ${connection.settings.selectedFolder?.name || 'Root'}. The folder may be empty or you may need to select a different folder.`, 'info');
                 } else {
-                    this.showToast(`✅ Found ${results.totalFiles} files (${results.imagesFound} images, ${results.videosFound} videos)`, 'success');
+                    this.showToast(`Found ${results.totalFiles} files (${results.imagesFound} images, ${results.videosFound} videos)`, 'success');
                 }
                 
             } catch (error) {
@@ -1942,7 +1942,7 @@
                 results.assets = [];
                 results.totalFiles = 0;
                 results.error = error.message;
-                this.showToast(`❌ Google Drive error: ${error.message}`, 'error');
+                this.showToast(`Google Drive error: ${error.message}`, 'error');
             }
         }
 
@@ -1972,11 +1972,11 @@
                 results.selectionType = 'sheets';
                 results.availableSpreadsheets = await this.listGoogleSpreadsheets(connection);
                 results.message = 'Select a spreadsheet or enter a Google Sheets URL';
-                this.showToast('📋 Please select a spreadsheet to scan', 'info');
+                this.showToast('Please select a spreadsheet to scan', 'info');
                 return;
             }
             
-            this.showToast(`📊 Scanning spreadsheet...`, 'info');
+            this.showToast(`Scanning spreadsheet...`, 'info');
             
             try {
                 // Get spreadsheet data
@@ -1989,7 +1989,7 @@
                 
                 if (!response.ok) {
                     if (response.status === 401) {
-                        this.showToast('🔄 Session expired. Please reconnect Google Sheets.', 'warning');
+                        this.showToast('Session expired. Please reconnect Google Sheets.', 'warning');
                         throw new Error('Access token expired. Please reconnect.');
                     }
                     if (response.status === 403) {
@@ -2137,15 +2137,15 @@
                 results.assets = allAssets;
                 
                 if (results.totalFiles === 0) {
-                    this.showToast(`📋 No images or links found in "${spreadsheet.properties?.title}"`, 'info');
+                    this.showToast(`No images or links found in "${spreadsheet.properties?.title}"`, 'info');
                 } else {
-                    this.showToast(`✅ Found ${results.totalFiles} items in "${spreadsheet.properties?.title}"`, 'success');
+                    this.showToast(`Found ${results.totalFiles} items in "${spreadsheet.properties?.title}"`, 'success');
                 }
                 
             } catch (error) {
                 console.error('Google Sheets scan error:', error);
                 results.error = error.message;
-                this.showToast(`❌ Error: ${error.message}`, 'error');
+                this.showToast(`Error: ${error.message}`, 'error');
             }
         }
 
@@ -2192,7 +2192,7 @@
                             modal.remove();
                             resolve({ id: match[1], name: 'URL Import', url: url });
                         } else {
-                            this.showToast('❌ Invalid Google Sheets URL', 'error');
+                            this.showToast('Invalid Google Sheets URL', 'error');
                         }
                     }
                 });
@@ -2689,7 +2689,7 @@
                 results.assets = [];
                 results.totalFiles = 0;
                 results.error = error.message;
-                this.showToast(`❌ OneDrive error: ${error.message}`, 'error');
+                this.showToast(`OneDrive error: ${error.message}`, 'error');
             }
         }
 
@@ -2742,7 +2742,7 @@
             const searchQuery = queryParts.join(' ');
             console.log('🔍 Gmail query:', searchQuery);
             
-            this.showToast(`✉️ Scanning Gmail${filters.domain ? ` (${filters.domain})` : ''}...`, 'info');
+            this.showToast(`Scanning Gmail${filters.domain ? ` (${filters.domain})` : ''}...`, 'info');
             
             try {
                 // First, get available labels for reference
@@ -2763,7 +2763,7 @@
                 
                 if (!listResponse.ok) {
                     if (listResponse.status === 401) {
-                        this.showToast('🔄 Session expired. Please reconnect Gmail.', 'warning');
+                        this.showToast('Session expired. Please reconnect Gmail.', 'warning');
                         throw new Error('Access token expired. Please reconnect Gmail.');
                     }
                     throw new Error(`Gmail API error: ${listResponse.status}`);
@@ -2899,7 +2899,7 @@
                 if (attachments.length === 0) {
                     this.showToast(`📧 No attachments found matching your filters`, 'info');
                 } else {
-                    this.showToast(`✅ Found ${attachments.length} attachments from ${maxMessages} emails`, 'success');
+                    this.showToast(`Found ${attachments.length} attachments from ${maxMessages} emails`, 'success');
                 }
                 
             } catch (error) {
@@ -2907,7 +2907,7 @@
                 results.assets = [];
                 results.totalFiles = 0;
                 results.error = error.message;
-                this.showToast(`❌ Gmail error: ${error.message}`, 'error');
+                this.showToast(`Gmail error: ${error.message}`, 'error');
             }
         }
 
@@ -3107,7 +3107,7 @@
                 results.assets = [];
                 results.totalFiles = 0;
                 results.error = error.message;
-                this.showToast(`❌ Outlook error: ${error.message}`, 'error');
+                this.showToast(`Outlook error: ${error.message}`, 'error');
             }
         }
 
@@ -3185,7 +3185,7 @@
                 results.assets = [];
                 results.totalFiles = 0;
                 results.error = error.message;
-                this.showToast(`❌ Dropbox error: ${error.message}`, 'error');
+                this.showToast(`Dropbox error: ${error.message}`, 'error');
         }
         }
 
@@ -3250,7 +3250,7 @@
                 results.assets = [];
                 results.totalFiles = 0;
                 results.error = error.message;
-                this.showToast(`❌ Wrike error: ${error.message}`, 'error');
+                this.showToast(`Wrike error: ${error.message}`, 'error');
         }
         }
 
@@ -3341,7 +3341,7 @@
                 results.assets = [];
                 results.totalFiles = 0;
                 results.error = error.message;
-                this.showToast(`❌ Monday.com error: ${error.message}`, 'error');
+                this.showToast(`Monday.com error: ${error.message}`, 'error');
             }
         }
 
@@ -3433,7 +3433,7 @@
                 results.assets = [];
                 results.totalFiles = 0;
                 results.error = error.message;
-                this.showToast(`❌ Basecamp error: ${error.message}`, 'error');
+                this.showToast(`Basecamp error: ${error.message}`, 'error');
             }
         }
 
@@ -4365,12 +4365,12 @@ This folder contains all assets imported from external integrations (Google Driv
                 
                 try {
                     await hub.connect(id);
-                    hub.showToast(`✅ Connected to ${INTEGRATIONS[id].name}`, 'success');
+                    hub.showToast(`Connected to ${INTEGRATIONS[id].name}`, 'success');
                     // Refresh panel
                     const newPanel = createIntegrationsPanel(hub);
                     panel.replaceWith(newPanel);
                 } catch (err) {
-                    hub.showToast(`❌ ${err.message}`, 'error');
+                    hub.showToast(`${err.message}`, 'error');
                     btn.disabled = false;
                     btn.textContent = '🔐 Connect';
                 }
@@ -4397,12 +4397,12 @@ This folder contains all assets imported from external integrations (Google Driv
                 try {
                     const folder = await hub.openFolderPicker(id);
                     if (folder) {
-                        hub.showToast(`📂 Selected: ${folder.name}`, 'success');
+                        hub.showToast(`Selected: ${folder.name}`, 'success');
                         const newPanel = createIntegrationsPanel(hub);
                         panel.replaceWith(newPanel);
                     }
                 } catch (err) {
-                    hub.showToast(`❌ ${err.message}`, 'error');
+                    hub.showToast(`${err.message}`, 'error');
                 }
             });
         });
@@ -4414,17 +4414,17 @@ This folder contains all assets imported from external integrations (Google Driv
                 try {
                     const connection = hub.connections[id];
                     if (!connection) {
-                        hub.showToast('❌ Please connect first', 'error');
+                        hub.showToast('Please connect first', 'error');
                         return;
                     }
                     const sheet = await hub.openSheetsPicker(connection);
                     if (sheet) {
-                        hub.showToast(`📊 Selected: ${sheet.name}`, 'success');
+                        hub.showToast(`Selected: ${sheet.name}`, 'success');
                         const newPanel = createIntegrationsPanel(hub);
                         panel.replaceWith(newPanel);
                     }
                 } catch (err) {
-                    hub.showToast(`❌ ${err.message}`, 'error');
+                    hub.showToast(`${err.message}`, 'error');
                 }
             });
         });
@@ -4436,7 +4436,7 @@ This folder contains all assets imported from external integrations (Google Driv
                 try {
                     const connection = hub.connections[id];
                     if (!connection) {
-                        hub.showToast('❌ Please connect first', 'error');
+                        hub.showToast('Please connect first', 'error');
                         return;
                     }
                     const filters = await hub.openGmailFilters(connection);
@@ -4446,7 +4446,7 @@ This folder contains all assets imported from external integrations (Google Driv
                         panel.replaceWith(newPanel);
                     }
                 } catch (err) {
-                    hub.showToast(`❌ ${err.message}`, 'error');
+                    hub.showToast(`${err.message}`, 'error');
                 }
             });
         });
@@ -4461,9 +4461,9 @@ This folder contains all assets imported from external integrations (Google Driv
                 try {
                     const results = await hub.scanService(id);
                     showScanResults(panel, results, hub);
-                    hub.showToast(`✅ Found ${results.totalFiles} assets`, 'success');
+                    hub.showToast(`Found ${results.totalFiles} assets`, 'success');
                 } catch (err) {
-                    hub.showToast(`❌ ${err.message}`, 'error');
+                    hub.showToast(`${err.message}`, 'error');
                 } finally {
                     btn.disabled = false;
                     btn.innerHTML = '🔍 Scan';
@@ -4475,7 +4475,7 @@ This folder contains all assets imported from external integrations (Google Driv
         panel.querySelectorAll('.int-btn-copy').forEach(btn => {
             btn.addEventListener('click', () => {
                 navigator.clipboard.writeText(btn.dataset.url);
-                hub.showToast('📋 Webhook URL copied!', 'success');
+                hub.showToast('Webhook URL copied!', 'success');
             });
         });
 
@@ -4489,7 +4489,7 @@ This folder contains all assets imported from external integrations (Google Driv
                 slackWebhookUrl: panel.querySelector('#int-slack-webhook')?.value,
                 crmLogging: panel.querySelector('#int-crm-logging')?.checked,
             });
-            hub.showToast('✅ Settings saved', 'success');
+            hub.showToast('Settings saved', 'success');
         });
     }
 
@@ -4581,7 +4581,7 @@ This folder contains all assets imported from external integrations (Google Driv
                     hub.showToast(`📥 Imported: ${asset.name}`, 'success');
                     btn.innerHTML = '✅';
                 } catch (err) {
-                    hub.showToast(`❌ Import failed: ${err.message}`, 'error');
+                    hub.showToast(`Import failed: ${err.message}`, 'error');
                     btn.disabled = false;
                     btn.innerHTML = '📥 Import';
                 }

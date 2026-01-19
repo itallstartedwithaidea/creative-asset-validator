@@ -1,7 +1,11 @@
 /**
  * AI Studio Interface - Official Google Gemini API
  * =================================================
- * Version 2.5.3
+ * Version 2.6.0 - January 17, 2026
+ * - Added shared API key support from admin settings
+ * - Added multi-image generation (up to 8 images)
+ * - Added Google Ads PMax preset sizes
+ * - Improved UI for multiple image display
  * 
  * Based on official Google Gemini API documentation (Dec 2025):
  * - https://ai.google.dev/gemini-api/docs/imagen
@@ -14,7 +18,7 @@
  * - Nano Banana Pro (gemini-3-pro-image-preview) - Advanced 4K images with thinking
  * - Veo 3.1 (veo-3.1-generate-preview) - Video with native audio
  * - Veo 3.1 Fast (veo-3.1-fast-generate-preview) - Fast video generation
- * - Gemini 2.0 Flash (gemini-2.0-flash-exp) - Analysis and extraction
+ * - Gemini 3 Flash (gemini-3-flash-preview) - Analysis and extraction
  * 
  * Features:
  * - Prompt input with system instructions
@@ -37,6 +41,25 @@
         SETTINGS: 'cav_ai_studio_settings',
         HISTORY: 'cav_ai_generation_history',
     };
+    
+    // Google Ads Performance Max (PMax) Image Specifications
+    // Source: https://support.google.com/google-ads/answer/10724817
+    const PMAX_SPECS = {
+        'pmax-landscape': { width: 1200, height: 628, aspectRatio: '1.91:1', name: 'Landscape', minWidth: 600, minHeight: 314 },
+        'pmax-square': { width: 1200, height: 1200, aspectRatio: '1:1', name: 'Square', minWidth: 300, minHeight: 300 },
+        'pmax-portrait': { width: 960, height: 1200, aspectRatio: '4:5', name: 'Portrait', minWidth: 480, minHeight: 600 },
+        'pmax-logo-square': { width: 1200, height: 1200, aspectRatio: '1:1', name: 'Logo Square', minWidth: 128, minHeight: 128 },
+        'pmax-logo-landscape': { width: 1200, height: 300, aspectRatio: '4:1', name: 'Logo Landscape', minWidth: 512, minHeight: 128 },
+    };
+    
+    // Helper function to get PMax aspect ratio for API
+    function getPMaxAspectRatio(pmaxType) {
+        if (pmaxType === 'pmax-all') {
+            return null; // Will generate multiple
+        }
+        const spec = PMAX_SPECS[pmaxType];
+        return spec ? spec.aspectRatio : null;
+    }
 
     // ============================================
     // AI MODELS CONFIGURATION - Official Google API (Dec 2025)
@@ -125,16 +148,16 @@
             aspectRatios: ['16:9', '9:16'],
             frameRate: 24,
         },
-        // Gemini 2.0 Flash - Analysis and extraction
-        'gemini-2.0-flash-exp': {
-            name: 'Gemini 2.0 Flash',
-            subtitle: 'gemini-2.0-flash-exp',
-            description: 'Fast multimodal model for analysis, extraction, and content understanding.',
-            capabilities: ['video_to_still', 'image_analysis', 'content_extraction', 'text_analysis', 'document_understanding'],
+        // Gemini 3 Flash - Analysis, extraction, and image generation
+        'gemini-3-flash-preview': {
+            name: 'Gemini 3 Flash',
+            subtitle: 'gemini-3-flash-preview',
+            description: 'Fast multimodal model for analysis, extraction, content understanding, and image generation.',
+            capabilities: ['video_to_still', 'image_analysis', 'content_extraction', 'text_analysis', 'document_understanding', 'image_generation'],
             icon: '⚡',
             color: '#3b82f6',
             endpoints: {
-                analyze: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
+                analyze: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent',
             },
         },
     };
@@ -146,6 +169,7 @@
         selectedModel: 'gemini-3-pro-image-preview', // Nano Banana Pro
         temperature: 1.0,
         aspectRatio: 'auto',
+        numImages: 1,
         resolution: '1K',
         outputLength: 32768,
         topP: 0.95,
@@ -159,11 +183,58 @@
     // ============================================
     class AIStudio {
         constructor() {
-            this.apiKey = localStorage.getItem(AI_STORAGE.API_KEY) || '';
+            this.apiKey = this.loadApiKey();
+            this.apiKeySource = 'none';
             this.settings = this.loadSettings();
             this.history = this.loadHistory();
             this.isGenerating = false;
             this.currentAsset = null;
+        }
+        
+        // Load API key - check shared first, then user's own
+        loadApiKey() {
+            // First check for shared Gemini key from platform settings
+            try {
+                if (window.CAVSettings?.manager?.accessControl) {
+                    const sharedKeyResult = window.CAVSettings.manager.accessControl.getAPIKey('gemini', window.CAVSettings.manager);
+                    if (sharedKeyResult?.key && sharedKeyResult.key.length > 10) {
+                        console.log('[AI Studio] ✅ Using shared Gemini API key from admin');
+                        this.apiKeySource = 'shared';
+                        return sharedKeyResult.key;
+                    }
+                }
+                
+                // Also check settings manager directly for Gemini key
+                if (window.CAVSettings?.manager?.getAPIKey) {
+                    const geminiKey = window.CAVSettings.manager.getAPIKey('gemini');
+                    if (geminiKey && geminiKey.length > 10) {
+                        console.log('[AI Studio] ✅ Using Gemini API key from settings');
+                        this.apiKeySource = 'settings';
+                        return geminiKey;
+                    }
+                }
+            } catch (e) {
+                console.warn('[AI Studio] Error loading shared key:', e);
+            }
+            
+            // Fall back to user's own AI Studio key
+            const userKey = localStorage.getItem(AI_STORAGE.API_KEY) || '';
+            if (userKey && userKey.length > 10) {
+                console.log('[AI Studio] Using user\'s own AI Studio API key');
+                this.apiKeySource = 'own';
+            }
+            return userKey;
+        }
+        
+        // Refresh API key (useful after login or settings change)
+        refreshApiKey() {
+            this.apiKey = this.loadApiKey();
+            return this.apiKey;
+        }
+        
+        // Check if using shared key
+        isUsingSharedKey() {
+            return this.apiKeySource === 'shared' || this.apiKeySource === 'settings';
         }
 
         loadSettings() {
@@ -224,14 +295,23 @@
 
         setApiKey(key) {
             this.apiKey = key;
+            this.apiKeySource = 'own';
             localStorage.setItem(AI_STORAGE.API_KEY, key);
         }
 
         getApiKey() {
+            // Refresh to get latest shared key if available
+            if (!this.apiKey || this.apiKey.length < 10) {
+                this.refreshApiKey();
+            }
             return this.apiKey;
         }
 
         hasApiKey() {
+            // Refresh to check for shared keys
+            if (!this.apiKey || this.apiKey.length < 10) {
+                this.refreshApiKey();
+            }
             return !!this.apiKey && this.apiKey.length > 10;
         }
 
@@ -285,13 +365,32 @@
                 
                 // Add aspect ratio if supported and configured
                 if (model.supportsAspectRatio && this.settings.aspectRatio && this.settings.aspectRatio !== 'auto') {
-                    requestBody.generationConfig.imageConfig = {
-                        aspectRatio: this.settings.aspectRatio,
-                    };
+                    let apiAspectRatio = this.settings.aspectRatio;
                     
-                    // Add resolution if supported
-                    if (model.supportsResolution && this.settings.resolution) {
-                        requestBody.generationConfig.imageConfig.imageSize = this.settings.resolution;
+                    // Handle PMax presets - convert to API-compatible aspect ratios
+                    if (this.settings.aspectRatio.startsWith('pmax-') && this.settings.aspectRatio !== 'pmax-all') {
+                        const pmaxSpec = PMAX_SPECS[this.settings.aspectRatio];
+                        if (pmaxSpec) {
+                            // Map PMax aspect ratios to closest API-supported ratios
+                            const ratioMap = {
+                                '1.91:1': '16:9',  // Close enough for landscape
+                                '1:1': '1:1',
+                                '4:5': '4:5',
+                                '4:1': '4:3',  // For logo, use wider
+                            };
+                            apiAspectRatio = ratioMap[pmaxSpec.aspectRatio] || '1:1';
+                        }
+                    }
+                    
+                    if (apiAspectRatio !== 'pmax-all') {
+                        requestBody.generationConfig.imageConfig = {
+                            aspectRatio: apiAspectRatio,
+                        };
+                        
+                        // Add resolution if supported
+                        if (model.supportsResolution && this.settings.resolution) {
+                            requestBody.generationConfig.imageConfig.imageSize = this.settings.resolution;
+                        }
                     }
                 }
 
@@ -370,6 +469,150 @@
             } finally {
                 this.isGenerating = false;
             }
+        }
+
+        // ----------------------------------------
+        // MULTI-IMAGE GENERATION (up to 8 images)
+        // ----------------------------------------
+        async generateMultipleImages(prompt, options = {}) {
+            const numImages = this.settings.numImages || 1;
+            const aspectRatio = this.settings.aspectRatio;
+            
+            console.log(`🎨 Generating ${numImages} image(s)...`);
+            
+            // Special handling for PMax All - generates 3 sizes
+            if (aspectRatio === 'pmax-all') {
+                return this.generatePMaxSet(prompt, options);
+            }
+            
+            // Generate multiple images sequentially to avoid rate limits
+            const results = {
+                success: true,
+                images: [],
+                texts: [],
+                pmaxSizes: null,
+                model: this.settings.selectedModel,
+            };
+            
+            for (let i = 0; i < numImages; i++) {
+                try {
+                    console.log(`   Generating image ${i + 1}/${numImages}...`);
+                    const result = await this.generateImage(prompt, options);
+                    if (result.images?.length > 0) {
+                        results.images.push(...result.images.map((img, idx) => ({
+                            ...img,
+                            index: results.images.length + idx,
+                            variation: i + 1,
+                        })));
+                    }
+                    if (result.text) {
+                        results.texts.push(result.text);
+                    }
+                    
+                    // Small delay between requests to avoid rate limits
+                    if (i < numImages - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                } catch (error) {
+                    console.error(`   Failed to generate image ${i + 1}:`, error);
+                    // Continue with remaining images
+                }
+            }
+            
+            console.log(`✅ Generated ${results.images.length} images total`);
+            return results;
+        }
+
+        // ----------------------------------------
+        // GOOGLE ADS PMAX SET GENERATION
+        // Generates landscape (1.91:1), square (1:1), and portrait (4:5)
+        // ----------------------------------------
+        async generatePMaxSet(prompt, options = {}) {
+            console.log('📢 Generating Google Ads PMax image set...');
+            
+            const pmaxSizes = [
+                { key: 'pmax-landscape', name: 'Landscape', aspectRatio: '16:9', dimensions: '1200×628' },
+                { key: 'pmax-square', name: 'Square', aspectRatio: '1:1', dimensions: '1200×1200' },
+                { key: 'pmax-portrait', name: 'Portrait', aspectRatio: '4:5', dimensions: '960×1200' },
+            ];
+            
+            const results = {
+                success: true,
+                images: [],
+                texts: [],
+                pmaxSizes: pmaxSizes,
+                model: this.settings.selectedModel,
+            };
+            
+            // Temporarily override aspect ratio for each generation
+            const originalAspectRatio = this.settings.aspectRatio;
+            
+            for (const size of pmaxSizes) {
+                try {
+                    console.log(`   Generating ${size.name} (${size.dimensions})...`);
+                    this.settings.aspectRatio = size.aspectRatio;
+                    
+                    const result = await this.generateImage(prompt, options);
+                    if (result.images?.length > 0) {
+                        results.images.push({
+                            ...result.images[0],
+                            pmaxType: size.key,
+                            pmaxName: size.name,
+                            pmaxDimensions: size.dimensions,
+                            pmaxAspectRatio: size.aspectRatio,
+                        });
+                    }
+                    if (result.text) {
+                        results.texts.push(`${size.name}: ${result.text}`);
+                    }
+                    
+                    // Small delay between requests
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (error) {
+                    console.error(`   Failed to generate ${size.name}:`, error);
+                }
+            }
+            
+            // Restore original aspect ratio
+            this.settings.aspectRatio = originalAspectRatio;
+            
+            console.log(`✅ PMax set complete: ${results.images.length}/3 images generated`);
+            return results;
+        }
+
+        // ----------------------------------------
+        // CLOUDINARY RESIZE (for exact PMax dimensions)
+        // ----------------------------------------
+        async resizeForPMax(imageBase64, targetSize) {
+            const spec = PMAX_SPECS[targetSize];
+            if (!spec) {
+                console.warn(`Unknown PMax size: ${targetSize}`);
+                return imageBase64;
+            }
+            
+            // Check if Cloudinary is available
+            if (window.cavCloudinaryClient?.hasCredentials()) {
+                try {
+                    console.log(`📐 Resizing to ${spec.width}×${spec.height} via Cloudinary...`);
+                    
+                    // Upload and transform via Cloudinary
+                    const result = await window.cavCloudinaryClient.uploadAndTransform(
+                        imageBase64,
+                        {
+                            width: spec.width,
+                            height: spec.height,
+                            crop: 'fill',
+                            quality: 'auto:best',
+                        }
+                    );
+                    
+                    return result.secure_url || result.url || imageBase64;
+                } catch (e) {
+                    console.warn('Cloudinary resize failed, returning original:', e);
+                }
+            }
+            
+            return imageBase64;
         }
 
         // ----------------------------------------
@@ -658,10 +901,10 @@
             }
 
             this.isGenerating = true;
-            const model = AI_MODELS['gemini-2.0-flash-exp'];
+            const model = AI_MODELS['gemini-3-flash-preview'];
             const endpoint = model.endpoints.analyze;
             
-            console.log('🔍 Analyzing content with Gemini 2.0 Flash...');
+            console.log('🔍 Analyzing content with Gemini 3 Flash...');
             console.log('   Prompt:', prompt);
 
             try {
@@ -709,8 +952,8 @@
                 // Process the response
                 const processedResult = {
                     success: true,
-                    model: 'gemini-2.0-flash-exp',
-                    modelName: 'Gemini 2.0 Flash',
+                    model: 'gemini-3-flash-preview',
+                    modelName: 'Gemini 3 Flash',
                     text: null,
                     images: [],
                     raw: result
@@ -728,8 +971,8 @@
                 // Log to history
                 this.addToHistory({
                     type: 'content_analysis',
-                    model: 'gemini-2.0-flash-exp',
-                    modelName: 'Gemini 2.0 Flash',
+                    model: 'gemini-3-flash-preview',
+                    modelName: 'Gemini 3 Flash',
                     prompt,
                     settings: { ...this.settings },
                     result: processedResult,
@@ -834,102 +1077,120 @@
                 
                 <!-- Main Content -->
                 <div class="ai-studio-main">
-                    <!-- Left Panel - Prompt Area -->
-                    <div class="ai-studio-prompt-area">
+                    <!-- Left Panel - Content Area -->
+                    <div class="ai-studio-content-area">
+                        <!-- Status Banner -->
                         ${!studio.hasApiKey() ? `
-                            <div class="ai-studio-api-notice">
+                            <div class="ai-studio-status-banner ai-status-warning">
                                 <span>⚠️</span>
                                 <span>Enter your API key in settings to enable AI features</span>
+                                <button class="ai-status-close" onclick="this.parentElement.style.display='none'">✕</button>
+                            </div>
+                        ` : studio.isUsingSharedKey() ? `
+                            <div class="ai-studio-status-banner ai-status-success">
+                                <span>✅</span>
+                                <span>Using shared API key from your admin. All requests will be charged to their account.</span>
+                                <button class="ai-status-close" onclick="this.parentElement.style.display='none'">✕</button>
                             </div>
                         ` : `
-                            <div class="ai-studio-api-notice ai-studio-api-connected">
+                            <div class="ai-studio-status-banner ai-status-success">
                                 <span>✓</span>
-                                <span>Using Paid API key. All requests in this session will be charged.</span>
+                                <span>Using your API key. All requests will be charged to your account.</span>
+                                <button class="ai-status-close" onclick="this.parentElement.style.display='none'">✕</button>
                             </div>
                         `}
                         
-                        <!-- User Prompt Section -->
-                        <div class="ai-studio-section">
-                            <div class="ai-studio-section-label">User</div>
-                            <div class="ai-studio-prompt-input-container">
-                                ${asset ? `
-                                    <div class="ai-studio-asset-preview">
-                                        <img src="${asset.thumbnail_url || asset.thumbnail || asset.dataUrl || ''}" alt="${asset.filename || 'Asset'}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                        <div class="ai-studio-asset-fallback" style="display:none; width:80px; height:60px; background:#3a3a4e; border-radius:4px; align-items:center; justify-content:center; font-size:1.5rem;">🖼️</div>
-                                        <div class="ai-studio-asset-info">
-                                            <strong>${asset.filename || 'Selected Asset'}</strong>
-                                            <span>${asset.width || '?'}×${asset.height || '?'} • ${asset.file_type || asset.type || 'image'}</span>
-                                        </div>
-                                        <button class="ai-studio-remove-asset" id="ai-remove-asset">✕</button>
+                        <!-- Output Area (main content) -->
+                        <div class="ai-studio-output-area">
+                            ${asset ? `
+                                <div class="ai-studio-asset-attached">
+                                    <img src="${asset.thumbnail_url || asset.thumbnail || asset.dataUrl || ''}" alt="${asset.filename || 'Asset'}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="ai-studio-asset-fallback" style="display:none;">🖼️</div>
+                                    <div class="ai-studio-asset-info">
+                                        <strong>${asset.filename || 'Selected Asset'}</strong>
+                                        <span>${asset.width || '?'}×${asset.height || '?'} • ${asset.file_type || asset.type || 'image'}</span>
                                     </div>
-                                ` : ''}
-                                <textarea 
-                                    id="ai-prompt-input" 
-                                    class="ai-studio-prompt-input"
-                                    placeholder="Describe what you want to create or how to modify the image..."
-                                    rows="4"
-                                ></textarea>
+                                    <button class="ai-studio-remove-asset" id="ai-remove-asset">✕</button>
+                                </div>
+                            ` : ''}
+                            
+                            <!-- Output Display -->
+                            <div class="ai-studio-output" id="ai-output">
+                                <div class="ai-studio-output-placeholder">
+                                    <div class="ai-output-icon">🎨</div>
+                                    <p>Generated content will appear here</p>
+                                    <p class="ai-output-hint">Enter a prompt below and click "Run" to generate</p>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <!-- Model Response Section -->
-                        <div class="ai-studio-section">
-                            <div class="ai-studio-section-label">Model</div>
-                            <div class="ai-studio-thoughts" id="ai-thoughts">
-                                <div class="ai-studio-thoughts-header">
+                            
+                            <!-- Thoughts Section (collapsible) -->
+                            <div class="ai-studio-thoughts-section" id="ai-thoughts">
+                                <button class="ai-thoughts-toggle" id="ai-expand-thoughts">
                                     <span class="ai-thoughts-icon">✨</span>
                                     <span>Thoughts</span>
-                                    <button class="ai-thoughts-expand" id="ai-expand-thoughts">
-                                        Expand to view model thoughts
-                                        <span class="ai-expand-icon">▼</span>
-                                    </button>
-                                </div>
+                                    <span class="ai-thoughts-hint">Expand to view model thoughts</span>
+                                    <span class="ai-expand-icon">▼</span>
+                                </button>
                                 <div class="ai-studio-thoughts-content" id="ai-thoughts-content" style="display: none;">
                                     <p>Model thoughts will appear here during generation...</p>
                                 </div>
                             </div>
-                            
-                            <!-- Output Preview -->
-                            <div class="ai-studio-output" id="ai-output">
-                                <div class="ai-studio-output-placeholder">
-                                    <div class="ai-output-icon">🎨</div>
-                                    <p>AI Analysis will appear here</p>
-                                    <p class="ai-output-hint">Enter a prompt and click "Analyze" for AI-powered recommendations</p>
-                                    <p class="ai-output-hint" style="margin-top: 0.5rem; font-size: 0.75rem;">For image adaptation, use 🔧 AI Fix or 🎬 Animate on asset cards</p>
+                        </div>
+                        
+                        <!-- Bottom Actions & Disclaimer -->
+                        <div class="ai-studio-bottom-section">
+                            <div class="ai-studio-feedback">
+                                <button class="ai-feedback-btn" id="ai-like-btn" title="Good response">👍</button>
+                                <button class="ai-feedback-btn" id="ai-dislike-btn" title="Bad response">👎</button>
+                            </div>
+                            <div class="ai-studio-disclaimer">
+                                <span>ℹ️ Google AI models may make mistakes, so double-check outputs.</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Prompt Input Bar - Google AI Studio style -->
+                        <div class="ai-studio-prompt-bar">
+                            <!-- Single attachment button with dropdown menu -->
+                            <div class="ai-attach-dropdown">
+                                <button class="ai-attach-btn" id="ai-attach-btn" title="Add image or file">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                </button>
+                                <div class="ai-attach-menu" id="ai-attach-menu" style="display: none;">
+                                    <button class="ai-attach-option" id="ai-upload-file">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                        Upload from computer
+                                    </button>
+                                    <button class="ai-attach-option" id="ai-attach-file">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                        Select from Library
+                                    </button>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- Action Buttons -->
-                        <div class="ai-studio-actions">
-                            <button class="ai-studio-action-btn" id="ai-like-btn">👍</button>
-                            <button class="ai-studio-action-btn" id="ai-dislike-btn">👎</button>
-                        </div>
-                        
-                        <div class="ai-studio-disclaimer">
-                            <span>ℹ️</span>
-                            <span>Google AI models may make mistakes, so double-check outputs.</span>
-                        </div>
-                        
-                        <!-- Prompt Input Bar -->
-                        <div class="ai-studio-prompt-bar">
-                            <div class="ai-prompt-bar-input">
-                                <button class="ai-prompt-attach" id="ai-attach-file" title="Select from Library">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                            
+                            <!-- Tools badge (like Google) -->
+                            <button class="ai-tools-badge" id="ai-tools-toggle">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                Tools
+                            </button>
+                            
+                            <!-- Grounding badge (shows when enabled) -->
+                            ${studio.settings.groundingEnabled ? `
+                                <button class="ai-grounding-badge" id="ai-grounding-toggle">
+                                    <img src="https://www.google.com/favicon.ico" alt="" width="14" height="14">
+                                    Grounding with Google Search
+                                    <span class="ai-badge-close">✕</span>
                                 </button>
-                                <button class="ai-prompt-url" id="ai-url-input-btn" title="Generate from Landing Page URL">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                                </button>
-                                <input type="text" id="ai-quick-prompt" placeholder="Start typing a prompt or paste a URL..." class="ai-quick-prompt-input">
+                            ` : ''}
+                            
+                            <!-- Prompt input -->
+                            <div class="ai-prompt-input-wrapper">
+                                <textarea id="ai-prompt-input" class="ai-prompt-textarea" placeholder="Start typing a prompt..." rows="1"></textarea>
                             </div>
-                            <div class="ai-prompt-bar-actions">
-                                <button class="ai-prompt-upload" id="ai-upload-file" title="Upload from Computer">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                </button>
-                                <button class="ai-prompt-run ${!studio.hasApiKey() ? 'disabled' : ''}" id="ai-run-btn">
-                                    Generate ⌘↵
-                                </button>
-                            </div>
+                            
+                            <!-- Run button -->
+                            <button class="ai-run-btn ${!studio.hasApiKey() ? 'disabled' : ''}" id="ai-run-btn">
+                                Run ⌘↵
+                            </button>
                         </div>
                     </div>
                     
@@ -964,12 +1225,23 @@
                         <!-- API Key -->
                         <div class="ai-settings-group">
                             <label class="ai-settings-label">API Key</label>
+                            ${studio.isUsingSharedKey() ? `
+                                <div class="ai-shared-key-notice" style="padding: 12px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; margin-bottom: 8px;">
+                                    <p style="margin: 0; color: #22c55e; font-size: 13px;">✅ Using shared API key from your admin</p>
+                                    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 11px;">You can optionally enter your own key below to use instead.</p>
+                                </div>
+                            ` : !studio.hasApiKey() ? `
+                                <div class="ai-no-key-notice" style="padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; margin-bottom: 8px;">
+                                    <p style="margin: 0; color: #ef4444; font-size: 13px;">⚠️ No API key configured</p>
+                                    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 11px;">Enter your Google AI Studio API key below or ask your admin to share access.</p>
+                                </div>
+                            ` : ''}
                             <input 
                                 type="password" 
                                 id="ai-api-key-input" 
                                 class="ai-settings-input"
-                                placeholder="Enter your Google AI Studio API key"
-                                value="${studio.apiKey ? '••••••••••••' + studio.apiKey.slice(-4) : ''}"
+                                placeholder="${studio.isUsingSharedKey() ? 'Optional: Enter your own API key...' : 'Enter your Google AI Studio API key'}"
+                                value="${studio.apiKey && !studio.isUsingSharedKey() ? '••••••••••••' + studio.apiKey.slice(-4) : ''}"
                             >
                             <button class="ai-settings-btn-small" id="ai-save-api-key">Save Key</button>
                         </div>
@@ -1003,13 +1275,34 @@
                         <div class="ai-settings-group">
                             <label class="ai-settings-label">Aspect ratio</label>
                             <select id="ai-aspect-ratio" class="ai-settings-select">
-                                <option value="auto" ${studio.settings.aspectRatio === 'auto' ? 'selected' : ''}>Auto</option>
-                                <option value="16:9" ${studio.settings.aspectRatio === '16:9' ? 'selected' : ''}>16:9 (Landscape)</option>
-                                <option value="9:16" ${studio.settings.aspectRatio === '9:16' ? 'selected' : ''}>9:16 (Portrait)</option>
-                                <option value="1:1" ${studio.settings.aspectRatio === '1:1' ? 'selected' : ''}>1:1 (Square)</option>
-                                <option value="4:5" ${studio.settings.aspectRatio === '4:5' ? 'selected' : ''}>4:5 (Instagram)</option>
-                                <option value="4:3" ${studio.settings.aspectRatio === '4:3' ? 'selected' : ''}>4:3 (Standard)</option>
+                                <optgroup label="Standard">
+                                    <option value="auto" ${studio.settings.aspectRatio === 'auto' ? 'selected' : ''}>Auto</option>
+                                    <option value="16:9" ${studio.settings.aspectRatio === '16:9' ? 'selected' : ''}>16:9 (Landscape)</option>
+                                    <option value="9:16" ${studio.settings.aspectRatio === '9:16' ? 'selected' : ''}>9:16 (Portrait)</option>
+                                    <option value="1:1" ${studio.settings.aspectRatio === '1:1' ? 'selected' : ''}>1:1 (Square)</option>
+                                    <option value="4:5" ${studio.settings.aspectRatio === '4:5' ? 'selected' : ''}>4:5 (Instagram)</option>
+                                    <option value="4:3" ${studio.settings.aspectRatio === '4:3' ? 'selected' : ''}>4:3 (Standard)</option>
+                                </optgroup>
+                                <optgroup label="📢 Google Ads PMax">
+                                    <option value="pmax-landscape" ${studio.settings.aspectRatio === 'pmax-landscape' ? 'selected' : ''}>PMax Landscape (1200×628)</option>
+                                    <option value="pmax-square" ${studio.settings.aspectRatio === 'pmax-square' ? 'selected' : ''}>PMax Square (1200×1200)</option>
+                                    <option value="pmax-portrait" ${studio.settings.aspectRatio === 'pmax-portrait' ? 'selected' : ''}>PMax Portrait (960×1200)</option>
+                                    <option value="pmax-all" ${studio.settings.aspectRatio === 'pmax-all' ? 'selected' : ''}>🎯 PMax All Sizes (3 images)</option>
+                                </optgroup>
                             </select>
+                        </div>
+                        
+                        <!-- Number of Images -->
+                        <div class="ai-settings-group">
+                            <label class="ai-settings-label">Number of images</label>
+                            <select id="ai-num-images" class="ai-settings-select">
+                                <option value="1" ${(studio.settings.numImages || 1) === 1 ? 'selected' : ''}>1 image</option>
+                                <option value="2" ${studio.settings.numImages === 2 ? 'selected' : ''}>2 images</option>
+                                <option value="4" ${studio.settings.numImages === 4 ? 'selected' : ''}>4 images</option>
+                                <option value="6" ${studio.settings.numImages === 6 ? 'selected' : ''}>6 images</option>
+                                <option value="8" ${studio.settings.numImages === 8 ? 'selected' : ''}>8 images (batch)</option>
+                            </select>
+                            <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Generate multiple variations at once</p>
                         </div>
                         
                         <!-- Resolution -->
@@ -1094,19 +1387,19 @@
             height: 100%;
             display: flex;
             flex-direction: column;
-            background: #1a1a2e;
-            color: #e0e0e0;
-            font-family: 'Google Sans', 'Inter', -apple-system, sans-serif;
+            background: var(--cav-bg-body, #121212);
+            color: var(--cav-text-primary, #f5f5f5);
+            font-family: var(--cav-font-sans, 'Inter', -apple-system, sans-serif);
         }
         
-        /* Header */
+        /* Header - Updated to match main app */
         .ai-studio-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 0.75rem 1.5rem;
-            background: #0f0f1a;
-            border-bottom: 1px solid #2a2a3e;
+            background: var(--cav-bg-dark, #0d0d0d);
+            border-bottom: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
         }
         
         .ai-studio-title {
@@ -1176,8 +1469,51 @@
             overflow: hidden;
         }
         
-        /* Prompt Area (Left) */
-        .ai-studio-prompt-area {
+        /* Content Area (Left) - Google AI Studio style */
+        .ai-studio-content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Status Banner - Google style */
+        .ai-studio-status-banner {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.875rem 1.25rem;
+            font-size: 0.875rem;
+            border-bottom: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+        }
+        
+        .ai-status-warning {
+            background: var(--cav-warning-bg, rgba(245, 158, 11, 0.1));
+            color: var(--cav-warning, #f59e0b);
+        }
+        
+        .ai-status-success {
+            background: var(--cav-success-bg, rgba(34, 197, 94, 0.08));
+            color: var(--cav-success, #22c55e);
+        }
+        
+        .ai-status-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: inherit;
+            opacity: 0.6;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 4px;
+        }
+        
+        .ai-status-close:hover {
+            opacity: 1;
+        }
+        
+        /* Output Area */
+        .ai-studio-output-area {
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -1185,21 +1521,63 @@
             overflow-y: auto;
         }
         
-        .ai-studio-api-notice {
+        .ai-studio-asset-attached {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1rem;
-            background: #3a2e1a;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            color: #f5b642;
-            margin-bottom: 1.5rem;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--cav-bg-card, #1e1e1e);
+            border: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+            border-radius: var(--cav-radius, 14px);
+            margin-bottom: 1rem;
         }
         
-        .ai-studio-api-notice.ai-studio-api-connected {
-            background: #1a3a2e;
-            color: #42f5a1;
+        .ai-studio-asset-attached img {
+            width: 80px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        .ai-studio-asset-attached .ai-studio-asset-fallback {
+            width: 80px;
+            height: 60px;
+            background: var(--cav-bg-elevated, #2a2a2a);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .ai-studio-asset-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .ai-studio-asset-info strong {
+            color: var(--cav-text-primary, #f5f5f5);
+            font-size: 0.9rem;
+        }
+        
+        .ai-studio-asset-info span {
+            color: var(--cav-text-secondary, #a3a3a3);
+            font-size: 0.8rem;
+        }
+        
+        .ai-studio-remove-asset {
+            background: none;
+            border: none;
+            color: var(--cav-text-muted, #737373);
+            cursor: pointer;
+            padding: 8px;
+            font-size: 1rem;
+        }
+        
+        .ai-studio-remove-asset:hover {
+            color: var(--cav-error, #ef4444);
         }
         
         /* Sections */
@@ -1316,38 +1694,124 @@
             font-size: 0.9rem;
         }
         
-        /* Output Area */
+        /* Output Display */
         .ai-studio-output {
-            background: #2a2a3e;
-            border-radius: 8px;
-            min-height: 200px;
-            margin-top: 1rem;
+            flex: 1;
+            background: var(--cav-bg-card, #1e1e1e);
+            border: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+            border-radius: var(--cav-radius, 14px);
+            min-height: 300px;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: auto;
         }
         
         .ai-studio-output-placeholder {
             text-align: center;
-            color: #666;
+            color: var(--cav-text-muted, #737373);
+            padding: 2rem;
         }
         
         .ai-output-icon {
             font-size: 3rem;
             margin-bottom: 1rem;
-            opacity: 0.5;
+            opacity: 0.4;
         }
         
         .ai-output-hint {
             font-size: 0.85rem;
-            color: #555;
+            color: var(--cav-text-disabled, #525252);
             margin-top: 0.5rem;
         }
         
         .ai-studio-output img {
             max-width: 100%;
-            max-height: 400px;
-            border-radius: 8px;
+            max-height: 500px;
+            border-radius: var(--cav-radius-sm, 10px);
+        }
+        
+        /* Thoughts Section */
+        .ai-studio-thoughts-section {
+            margin-top: 1rem;
+            border: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+            border-radius: var(--cav-radius, 14px);
+            overflow: hidden;
+        }
+        
+        .ai-thoughts-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1rem;
+            background: var(--cav-bg-card, #1e1e1e);
+            border: none;
+            color: var(--cav-text-primary, #f5f5f5);
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .ai-thoughts-toggle:hover {
+            background: var(--cav-bg-hover, #333333);
+        }
+        
+        .ai-thoughts-icon {
+            font-size: 1rem;
+        }
+        
+        .ai-thoughts-hint {
+            flex: 1;
+            text-align: right;
+            color: var(--cav-text-muted, #737373);
+            font-size: 0.8rem;
+        }
+        
+        .ai-expand-icon {
+            color: var(--cav-text-muted, #737373);
+            font-size: 0.75rem;
+            transition: transform 0.2s;
+        }
+        
+        .ai-studio-thoughts-content {
+            padding: 1rem;
+            background: var(--cav-bg-slate, #181818);
+            color: var(--cav-text-secondary, #a3a3a3);
+            font-size: 0.875rem;
+            border-top: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+        }
+        
+        /* Bottom Section */
+        .ai-studio-bottom-section {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            gap: 1rem;
+        }
+        
+        .ai-studio-feedback {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .ai-feedback-btn {
+            padding: 0.5rem;
+            background: var(--cav-bg-card, #1e1e1e);
+            border: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+            border-radius: var(--cav-radius-sm, 10px);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: var(--cav-transition, all 0.2s);
+        }
+        
+        .ai-feedback-btn:hover {
+            background: var(--cav-bg-hover, #333333);
+            border-color: var(--cav-glass-border-hover, rgba(255, 255, 255, 0.2));
+        }
+        
+        .ai-studio-disclaimer {
+            color: var(--cav-text-muted, #737373);
+            font-size: 0.75rem;
         }
         
         /* AI Generation Result Styles */
@@ -1507,50 +1971,178 @@
             margin-top: 1rem;
         }
         
-        /* Bottom Prompt Bar */
+        /* Bottom Prompt Bar - Google AI Studio style */
         .ai-studio-prompt-bar {
-            margin-top: auto;
-            padding-top: 1rem;
-            border-top: 1px solid #2a2a3e;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .ai-prompt-bar-input {
-            flex: 1;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            background: #2a2a3e;
-            border-radius: 24px;
-            padding: 0.25rem 1rem;
+            padding: 1rem 1.5rem;
+            background: var(--cav-bg-card, #1e1e1e);
+            border-top: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
         }
         
-        .ai-prompt-attach,
-        .ai-prompt-url {
+        /* Attachment dropdown */
+        .ai-attach-dropdown {
+            position: relative;
+        }
+        
+        .ai-attach-btn {
+            padding: 0.625rem;
             background: none;
-            border: none;
+            border: 1px solid transparent;
+            border-radius: var(--cav-radius-sm, 10px);
+            color: var(--cav-text-secondary, #a3a3a3);
             cursor: pointer;
-            padding: 0.5rem;
-            color: #888;
-            transition: color 0.2s, transform 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: var(--cav-transition, all 0.2s);
         }
         
-        .ai-prompt-attach:hover,
-        .ai-prompt-url:hover {
-            color: var(--cav-accent, #a855f7);
-            transform: scale(1.1);
+        .ai-attach-btn:hover {
+            background: var(--cav-bg-elevated, #2a2a2a);
+            border-color: var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+            color: var(--cav-text-primary, #f5f5f5);
         }
         
-        .ai-prompt-url {
-            border-right: 1px solid rgba(255,255,255,0.1);
-            margin-right: 0.25rem;
-            padding-right: 0.75rem;
+        .ai-attach-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            margin-bottom: 8px;
+            background: var(--cav-bg-card, #1e1e1e);
+            border: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+            border-radius: var(--cav-radius, 14px);
+            box-shadow: var(--cav-shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.35));
+            overflow: hidden;
+            min-width: 200px;
+            z-index: 100;
+        }
+        
+        .ai-attach-option {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: none;
+            border: none;
+            color: var(--cav-text-primary, #f5f5f5);
+            font-size: 0.875rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: var(--cav-transition-fast, all 0.15s);
+            text-align: left;
+        }
+        
+        .ai-attach-option:hover {
+            background: var(--cav-bg-hover, #333333);
+        }
+        
+        .ai-attach-option svg {
+            color: var(--cav-text-secondary, #a3a3a3);
+        }
+        
+        /* Tools badge */
+        .ai-tools-badge {
+            padding: 0.5rem 0.875rem;
+            background: var(--cav-bg-elevated, #2a2a2a);
+            border: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+            border-radius: var(--cav-radius-full, 9999px);
+            color: var(--cav-text-primary, #f5f5f5);
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: var(--cav-transition, all 0.2s);
+        }
+        
+        .ai-tools-badge:hover {
+            background: var(--cav-bg-hover, #333333);
+            border-color: var(--cav-glass-border-hover, rgba(255, 255, 255, 0.2));
+        }
+        
+        /* Grounding badge */
+        .ai-grounding-badge {
+            padding: 0.5rem 0.875rem;
+            background: rgba(66, 133, 244, 0.15);
+            border: 1px solid rgba(66, 133, 244, 0.3);
+            border-radius: var(--cav-radius-full, 9999px);
+            color: #4285f4;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: var(--cav-transition, all 0.2s);
+        }
+        
+        .ai-grounding-badge img {
+            border-radius: 2px;
+        }
+        
+        .ai-badge-close {
+            margin-left: 4px;
+            opacity: 0.6;
+            font-size: 0.75rem;
+        }
+        
+        .ai-grounding-badge:hover .ai-badge-close {
+            opacity: 1;
+        }
+        
+        /* Prompt input */
+        .ai-prompt-input-wrapper {
+            flex: 1;
+            background: var(--cav-bg-slate, #181818);
+            border: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+            border-radius: var(--cav-radius-full, 9999px);
+            padding: 0.625rem 1.25rem;
+        }
+        
+        .ai-prompt-textarea {
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--cav-text-primary, #f5f5f5);
+            font-size: 0.9rem;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+        }
+        
+        .ai-prompt-textarea::placeholder {
+            color: var(--cav-text-muted, #737373);
+        }
+        
+        /* Run button */
+        .ai-run-btn {
+            padding: 0.625rem 1.25rem;
+            background: var(--cav-primary-gradient, linear-gradient(135deg, #e1306c 0%, #ff6b9d 100%));
+            border: none;
+            border-radius: var(--cav-radius-full, 9999px);
+            color: #fff;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: var(--cav-transition, all 0.2s);
+            white-space: nowrap;
+        }
+        
+        .ai-run-btn:hover:not(.disabled) {
+            transform: var(--cav-lift-sm, translateY(-2px));
+            box-shadow: var(--cav-shadow-pink, 0 8px 32px rgba(225, 48, 108, 0.3));
+        }
+        
+        .ai-run-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         @keyframes spin {
@@ -1558,6 +2150,7 @@
             to { transform: rotate(360deg); }
         }
         
+        /* Legacy compatibility - remove these if not needed */
         .ai-quick-prompt-input {
             flex: 1;
             background: none;
@@ -1600,34 +2193,10 @@
             transform: scale(1.05);
         }
         
-        .ai-prompt-run {
-            padding: 0.75rem 1.5rem;
-            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-            border: none;
-            border-radius: 8px;
-            color: #fff;
-            font-size: 0.9rem;
-            font-weight: 500;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .ai-prompt-run.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .ai-prompt-run:not(.disabled):hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
-        }
-        
-        /* Settings Panel (Right) */
+        /* Settings Panel (Right) - Updated to match main app */
         .ai-studio-settings-panel {
             width: 320px;
-            background: #0f0f1a;
+            background: var(--cav-bg-dark, #0d0d0d);
             border-left: 1px solid #2a2a3e;
             padding: 1.5rem;
             overflow-y: auto;
@@ -1644,24 +2213,26 @@
             margin-bottom: 0.75rem;
         }
         
-        /* Model Selection */
+        /* Model Selection - Updated to match main app */
         .ai-model-option {
             padding: 1rem;
-            background: #1a1a2e;
-            border: 1px solid #2a2a3e;
-            border-radius: 8px;
+            background: var(--cav-bg-card, #1e1e1e);
+            border: 1px solid var(--cav-glass-border, rgba(255, 255, 255, 0.1));
+            border-radius: var(--cav-radius, 14px);
             margin-bottom: 0.5rem;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: var(--cav-transition, all 0.2s cubic-bezier(0.4, 0, 0.2, 1));
         }
         
         .ai-model-option:hover {
-            border-color: #3a3a4e;
+            border-color: var(--cav-glass-border-hover, rgba(255, 255, 255, 0.2));
+            transform: var(--cav-lift-sm, translateY(-2px));
         }
         
         .ai-model-option.selected {
-            border-color: #8b5cf6;
-            background: #2a1a4e;
+            border-color: var(--cav-primary, #e1306c);
+            background: var(--cav-primary-soft, rgba(225, 48, 108, 0.12));
+            box-shadow: 0 0 20px var(--cav-primary-soft, rgba(225, 48, 108, 0.2));
         }
         
         .ai-model-name {
@@ -1952,6 +2523,18 @@
         // Aspect ratio
         container.querySelector('#ai-aspect-ratio').addEventListener('change', (e) => {
             studio.updateSetting('aspectRatio', e.target.value);
+            // If PMax All is selected, update the number of images hint
+            const numImagesSelect = container.querySelector('#ai-num-images');
+            if (e.target.value === 'pmax-all' && numImagesSelect) {
+                numImagesSelect.parentElement.querySelector('p').textContent = 'PMax All will generate 3 images (landscape, square, portrait)';
+            } else if (numImagesSelect) {
+                numImagesSelect.parentElement.querySelector('p').textContent = 'Generate multiple variations at once';
+            }
+        });
+
+        // Number of images
+        container.querySelector('#ai-num-images')?.addEventListener('change', (e) => {
+            studio.updateSetting('numImages', parseInt(e.target.value, 10));
         });
 
         // Resolution
@@ -2018,13 +2601,15 @@
 
         // Run button
         container.querySelector('#ai-run-btn').addEventListener('click', async () => {
+            // Refresh API key to check for shared keys
+            studio.refreshApiKey();
+            
             if (!studio.hasApiKey()) {
-                alert('Please enter your API key first.');
+                alert('No API key available. Please enter your own API key in settings, or ask your admin to share API access.');
                 return;
             }
 
-            const prompt = container.querySelector('#ai-prompt-input').value.trim() ||
-                          container.querySelector('#ai-quick-prompt').value.trim();
+            const prompt = container.querySelector('#ai-prompt-input').value.trim();
             
             if (!prompt) {
                 alert('Please enter a prompt.');
@@ -2039,7 +2624,7 @@
             const selectedModel = studio.settings.selectedModel || 'gemini-3-pro-image-preview';
             const isVideoModel = selectedModel.includes('veo');
             const isImageModel = selectedModel.includes('image') || selectedModel.includes('flash-image');
-            const isAnalysisModel = selectedModel === 'gemini-2.0-flash-exp';
+            const isAnalysisModel = selectedModel === 'gemini-3-flash-preview';
             
             // Check for previously generated image (for image-to-video)
             const lastGeneratedImage = window.cavAIStudioLastImage || null;
@@ -2091,8 +2676,21 @@
                     result = await studio.analyzeContent(prompt);
                 } else {
                     // Image generation with Nano Banana / Nano Banana Pro
-                    console.log('🖼️ Routing to image generation...');
-                    result = await studio.generateImage(prompt);
+                    const numImages = studio.settings.numImages || 1;
+                    const aspectRatio = studio.settings.aspectRatio;
+                    const isPMaxAll = aspectRatio === 'pmax-all';
+                    const isMultiImage = numImages > 1 || isPMaxAll;
+                    
+                    if (isMultiImage) {
+                        // Multi-image generation (or PMax set)
+                        console.log(`🎨 Routing to multi-image generation (${isPMaxAll ? 'PMax All' : numImages + ' images'})...`);
+                        thoughts.innerHTML = `<p>🎨 Generating ${isPMaxAll ? 'Google Ads PMax set (3 sizes)' : numImages + ' image variations'}...</p>`;
+                        result = await studio.generateMultipleImages(prompt);
+                    } else {
+                        // Single image generation
+                        console.log('🖼️ Routing to image generation...');
+                        result = await studio.generateImage(prompt);
+                    }
                     
                     // Store the generated image for potential video conversion
                     if (result.images && result.images.length > 0) {
@@ -2101,18 +2699,22 @@
                         
                         // Save to AI Library Manager
                         if (window.cavAILibrary) {
-                            result.images.forEach(img => {
+                            result.images.forEach((img, idx) => {
                                 const entry = window.cavAILibrary.addGeneratedImage({
                                     base64: img.dataUrl,
                                     thumbnail: img.dataUrl,
-                                    prompt: prompt,
+                                    prompt: prompt + (img.pmaxName ? ` [${img.pmaxName}]` : ` [${idx + 1}/${result.images.length}]`),
                                     model: result.modelName || 'gemini',
                                     width: img.width,
                                     height: img.height,
                                     format: 'png',
                                     metadata: { 
                                         generatedAt: new Date().toISOString(),
-                                        mode: 'text-to-image'
+                                        mode: isPMaxAll ? 'pmax-set' : (isMultiImage ? 'multi-image' : 'text-to-image'),
+                                        pmaxType: img.pmaxType || null,
+                                        pmaxDimensions: img.pmaxDimensions || null,
+                                        variationIndex: idx + 1,
+                                        totalVariations: result.images.length,
                                     }
                                 });
                                 console.log('📚 Image saved to AI Library:', entry.id);
@@ -2198,29 +2800,49 @@
                 }
                 // Check if we got images in the response
                 else if (result.images && result.images.length > 0) {
+                    const isPMaxSet = result.pmaxSizes && result.pmaxSizes.length > 0;
+                    const isMultiGen = result.images.length > 1;
+                    
                     outputHTML += `
                         <div class="ai-generation-result">
                             <div class="ai-generation-header">
-                                <span class="ai-generation-icon">🎨</span>
-                                <span class="ai-generation-title">Generated with ${result.modelName || 'AI'}</span>
+                                <span class="ai-generation-icon">${isPMaxSet ? '📢' : '🎨'}</span>
+                                <span class="ai-generation-title">
+                                    ${isPMaxSet ? 'Google Ads PMax Set' : `Generated with ${result.modelName || 'AI'}`}
+                                    ${isMultiGen && !isPMaxSet ? ` (${result.images.length} images)` : ''}
+                                </span>
                             </div>
-                            <div class="ai-generated-images">
+                            ${isPMaxSet ? `
+                                <div style="padding: 8px 16px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; margin-bottom: 12px;">
+                                    <p style="margin: 0; color: #10b981; font-size: 13px;">✅ Generated all 3 Google Ads PMax sizes - ready for your campaigns!</p>
+                                </div>
+                            ` : ''}
+                            <div class="ai-generated-images" style="${isMultiGen ? 'display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;' : ''}">
                                 ${result.images.map((img, idx) => `
-                                    <div class="ai-generated-image-container">
-                                        <img src="${img.dataUrl}" alt="Generated image ${idx + 1}" class="ai-generated-image" />
-                                        <div class="ai-image-actions">
-                                            <a href="${img.dataUrl}" download="generated-image-${Date.now()}.png" class="ai-image-download">⬇️ Download</a>
-                                            <button class="ai-image-copy" onclick="navigator.clipboard.writeText('${img.dataUrl.substring(0, 100)}...')">📋 Copy</button>
+                                    <div class="ai-generated-image-container" style="position: relative;">
+                                        ${img.pmaxName ? `
+                                            <div style="position: absolute; top: 8px; left: 8px; z-index: 10; background: rgba(0,0,0,0.8); color: #10b981; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                                                📢 ${img.pmaxName} <span style="color: #94a3b8;">(${img.pmaxDimensions})</span>
+                                            </div>
+                                        ` : isMultiGen ? `
+                                            <div style="position: absolute; top: 8px; left: 8px; z-index: 10; background: rgba(0,0,0,0.8); color: #a78bfa; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">
+                                                #${idx + 1}
+                                            </div>
+                                        ` : ''}
+                                        <img src="${img.dataUrl}" alt="Generated image ${idx + 1}" class="ai-generated-image" style="width: 100%; border-radius: 8px;" />
+                                        <div class="ai-image-actions" style="display: flex; gap: 8px; margin-top: 8px;">
+                                            <a href="${img.dataUrl}" download="${img.pmaxName ? `pmax-${img.pmaxName.toLowerCase()}-${Date.now()}.png` : `generated-${idx + 1}-${Date.now()}.png`}" class="ai-image-download" style="flex: 1; text-align: center; padding: 8px; background: #1a1a2e; border-radius: 6px; text-decoration: none; color: white; font-size: 12px;">⬇️ Download</a>
+                                            <button class="ai-image-copy" onclick="navigator.clipboard.writeText(this.closest('.ai-generated-image-container').querySelector('img').src).then(() => this.textContent = '✓ Copied!')" style="flex: 1; padding: 8px; background: #1a1a2e; border-radius: 6px; border: none; color: white; cursor: pointer; font-size: 12px;">📋 Copy</button>
                                         </div>
                                     </div>
                                 `).join('')}
                             </div>
                             <p style="font-size: 0.8rem; color: #22c55e; margin-top: 0.75rem; text-align: center;">
-                                💡 Want to animate this image? Select <strong>Veo 3.1</strong> and describe the motion!
+                                ${isPMaxSet ? '💡 Upload these to Google Ads for your Performance Max campaigns!' : '💡 Want to animate this image? Select <strong>Veo 3.1</strong> and describe the motion!'}
                             </p>
                         </div>
                     `;
-                    thoughts.innerHTML = `<p>✅ Generated ${result.images.length} image(s) - Ready for video conversion!</p>`;
+                    thoughts.innerHTML = `<p>✅ Generated ${result.images.length} image(s)${isPMaxSet ? ' for Google Ads PMax' : ''} - Ready!</p>`;
                 }
                 
                 // Add any text content
@@ -2333,9 +2955,53 @@
         }
 
         // ========================================
+        // ATTACHMENT DROPDOWN
+        // ========================================
+        const attachBtn = container.querySelector('#ai-attach-btn');
+        const attachMenu = container.querySelector('#ai-attach-menu');
+        
+        if (attachBtn && attachMenu) {
+            attachBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isVisible = attachMenu.style.display !== 'none';
+                attachMenu.style.display = isVisible ? 'none' : 'block';
+            });
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!attachBtn.contains(e.target) && !attachMenu.contains(e.target)) {
+                    attachMenu.style.display = 'none';
+                }
+            });
+        }
+        
+        // Tools badge click - scroll to settings
+        container.querySelector('#ai-tools-toggle')?.addEventListener('click', () => {
+            const settingsPanel = container.querySelector('.ai-studio-settings-panel');
+            const toolsSection = container.querySelector('#ai-tools-content');
+            if (settingsPanel && toolsSection) {
+                settingsPanel.scrollTo({ top: toolsSection.offsetTop - 100, behavior: 'smooth' });
+                // Expand the tools section if collapsed
+                if (toolsSection.style.display === 'none') {
+                    toolsSection.style.display = 'block';
+                }
+            }
+        });
+        
+        // Grounding badge click - toggle grounding
+        container.querySelector('#ai-grounding-toggle')?.addEventListener('click', () => {
+            studio.updateSetting('groundingEnabled', false);
+            container.querySelector('#ai-grounding-toggle')?.remove();
+            const groundingCheckbox = container.querySelector('#ai-grounding');
+            if (groundingCheckbox) groundingCheckbox.checked = false;
+        });
+
+        // ========================================
         // ATTACH FILE - SELECT FROM LIBRARY
         // ========================================
         container.querySelector('#ai-attach-file')?.addEventListener('click', () => {
+            // Close the dropdown menu
+            if (attachMenu) attachMenu.style.display = 'none';
             // Get assets from library
             let assets = window.cavValidatorApp?.assets || [];
             
@@ -2455,6 +3121,9 @@
             uploadBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                
+                // Close the dropdown menu
+                if (attachMenu) attachMenu.style.display = 'none';
                 
                 // Create and configure file input
                 const fileInput = document.createElement('input');

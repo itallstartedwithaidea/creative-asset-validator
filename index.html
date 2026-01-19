@@ -6,6 +6,9 @@
     <title>Creative Asset Validator</title>
     <meta name="description" content="Professional creative asset validation tool with Google SSO authentication">
     
+    <!-- PRODUCTION SECURITY MODULE - Must be FIRST script -->
+    <script src="security-production.js"></script>
+    
     <!-- Performance: DNS Prefetch & Preconnect -->
     <link rel="dns-prefetch" href="https://accounts.google.com">
     <link rel="dns-prefetch" href="https://fonts.googleapis.com">
@@ -16,9 +19,9 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
     
     <!-- Performance: Preload Critical Resources -->
-    <link rel="preload" href="validator.css?v=5.3.0" as="style">
-    <link rel="preload" href="security-core.js?v=5.3.0" as="script">
-    <link rel="preload" href="validator-app.js?v=5.3.0" as="script">
+    <link rel="preload" href="validator.css?v=5.11.1" as="style">
+    <link rel="preload" href="security-core.js?v=5.11.0" as="script">
+    <link rel="preload" href="validator-app.js?v=5.11.0" as="script">
     
     <!-- Google Fonts - Optimized Loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,8 +29,76 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
     
+    <!-- Global Error Handler - Catch JS errors -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            console.error('[GLOBAL ERROR]', msg, 'at', url, 'line', line);
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('[UNHANDLED PROMISE]', event.reason);
+        });
+    </script>
+    
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <!-- EARLY Google Sign-In Setup + Auto-login from login-test.html -->
+    <script>
+        // Check if we're coming from login-test.html with stored credentials
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            console.log('[AUTO-LOGIN] Checking for auto_login parameter...');
+            
+            if (urlParams.get('auto_login') === 'true') {
+                console.log('[AUTO-LOGIN] auto_login=true detected!');
+                const credential = sessionStorage.getItem('google_credential');
+                const email = sessionStorage.getItem('google_email');
+                
+                console.log('[AUTO-LOGIN] SessionStorage check:', {
+                    hasCredential: !!credential,
+                    hasEmail: !!email,
+                    email: email
+                });
+                
+                if (credential && email) {
+                    console.log('[AUTO-LOGIN] ✅ Found stored credentials for:', email);
+                    window._autoLoginCredentials = {
+                        credential: credential,
+                        email: email,
+                        name: sessionStorage.getItem('google_name') || email.split('@')[0],
+                        picture: sessionStorage.getItem('google_picture') || '',
+                        sub: sessionStorage.getItem('google_sub') || 'auto_' + Date.now()
+                    };
+                    // Clear the URL parameter
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else {
+                    console.log('[AUTO-LOGIN] ❌ No credentials in sessionStorage');
+                }
+            }
+        })();
+        
+        // Define callback globally IMMEDIATELY
+        window.googleAuthCallback = function(response) {
+            console.log('[EARLY AUTH] 🎯 Google callback received!');
+            if (response && response.credential) {
+                console.log('[EARLY AUTH] ✅ Credential received');
+                window._googleCredentialResponse = response;
+                if (typeof window.handleGoogleResponse === 'function') {
+                    window.handleGoogleResponse(response);
+                } else {
+                    const retryInterval = setInterval(() => {
+                        if (typeof window.handleGoogleResponse === 'function') {
+                            clearInterval(retryInterval);
+                            window.handleGoogleResponse(response);
+                        }
+                    }, 100);
+                    setTimeout(() => clearInterval(retryInterval), 5000);
+                }
+            }
+        };
+        console.log('[EARLY AUTH] ✅ googleAuthCallback registered');
+    </script>
     
     <!-- Google GenAI SDK for Veo 3.1 Video Generation -->
     <script type="module">
@@ -45,7 +116,7 @@
     </script>
     
     <!-- Main Styles -->
-    <link rel="stylesheet" href="validator.css?v=5.3.0">
+    <link rel="stylesheet" href="validator.css?v=5.11.1">
     
     <style>
         /* ============================================
@@ -222,13 +293,25 @@
 
         #google-signin-container {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 50px;
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto;
         }
 
         #google-signin-container iframe {
             border-radius: var(--cav-radius-md) !important;
+        }
+        
+        /* Mobile sign-in help text styling */
+        .mobile-signin-help {
+            width: 100%;
+            max-width: 280px;
+            margin: 1rem auto 0;
+            text-align: center;
         }
 
         .g_id_signin {
@@ -1024,6 +1107,25 @@
                 <circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/>
                 <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/>
             </symbol>
+            <!-- Google Ads Icon (stroke style to match other icons) -->
+            <symbol id="icon-google-ads" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Megaphone/ad speaker icon -->
+                <path d="M3 11l18-5v12L3 13v-2z"/>
+                <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+            </symbol>
+            <!-- Social Media Icon -->
+            <symbol id="icon-social-media" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3"/>
+                <circle cx="6" cy="12" r="3"/>
+                <circle cx="18" cy="19" r="3"/>
+                <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/>
+            </symbol>
+            <!-- Keyword Analyzer Icon -->
+            <symbol id="icon-keyword-analyzer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.3-4.3"/>
+                <path d="M11 8v6M8 11h6"/>
+            </symbol>
             <!-- CRM/Users Icon -->
             <symbol id="icon-crm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
@@ -1451,6 +1553,14 @@
 
     <!-- Adobe Express-Style Sidebar Navigation -->
     <aside class="cav-sidebar" id="main-sidebar">
+        <!-- Mobile Close Button -->
+        <button class="cav-sidebar-close" id="sidebar-close" title="Close menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+        
         <div class="cav-sidebar-header">
             <a href="/" class="cav-sidebar-logo">
                 <div class="cav-sidebar-logo-icon">
@@ -1490,6 +1600,18 @@
                 <button class="cav-nav-item" id="nav-brand-kit" title="Brand Kit Generator">
                     <svg class="cav-icon"><use href="#icon-brand-kit"/></svg>
                     <span class="cav-nav-label">Brand Kit</span>
+                </button>
+                <button class="cav-nav-item" id="nav-google-ads" title="Google Ads Builder">
+                    <svg class="cav-icon"><use href="#icon-google-ads"/></svg>
+                    <span class="cav-nav-label">Google Ads</span>
+                </button>
+                <button class="cav-nav-item" id="nav-social-media" title="Social Media Ad Builder">
+                    <svg class="cav-icon"><use href="#icon-social-media"/></svg>
+                    <span class="cav-nav-label">Social Media</span>
+                </button>
+                <button class="cav-nav-item" id="nav-keyword-analyzer" title="Keyword & Landing Page Analyzer">
+                    <svg class="cav-icon"><use href="#icon-keyword-analyzer"/></svg>
+                    <span class="cav-nav-label">Keywords</span>
                 </button>
             </div>
 
@@ -1593,7 +1715,7 @@
 
     <!-- Footer - Simplified (navigation now in sidebar) -->
     <footer class="site-footer">
-        <p>Creative Asset Validator v5.4.0 • Creative Intelligence Platform</p>
+        <p>Creative Asset Validator v5.14.0 • Creative Intelligence Platform • Updated January 17, 2026</p>
         <p style="margin-top: 0.5rem; font-size: 0.75rem;">
             <a href="#" id="clear-data-link">Clear My Data</a>
         </p>
@@ -1663,77 +1785,127 @@
     })();
     </script>
 
-    <!-- Main Application Script v5.0.0 - SaaS Edition with MySQL Sync -->
-    <script src="validator-app.js?v=5.3.0"></script>
+    <!-- AI Models Configuration - Centralized AI model definitions (Gemini 3, GPT-5.2, Veo 3.1, Claude 4.5) -->
+    <script src="ai-models-config.js?v=1.0.1"></script>
+    
+    <!-- AI Model Selector - User can choose which AI model to use -->
+    <script src="ai-model-selector.js?v=1.0.1"></script>
+    
+    <!-- Main Application Script v5.11.5 - SaaS Edition with MySQL Sync + Multi-Model AI Selection -->
+    <script src="validator-app.js?v=5.11.5"></script>
     
     <!-- AI Asset Adapter (Google AI Studio Integration) -->
-    <script src="ai-adapter.js?v=5.3.0"></script>
+    <script src="ai-adapter.js?v=5.11.0"></script>
     
     <!-- Internal CRM Module -->
-    <script src="crm.js?v=5.3.0"></script>
+    <script src="crm.js?v=5.11.0"></script>
     
     <!-- Integration Hub (Google Drive, OneDrive, Gmail, etc.) -->
-    <script src="integrations.js?v=5.3.0"></script>
+    <script src="integrations.js?v=5.11.0"></script>
     
     <!-- Auto-Fix Workflow -->
-    <script src="auto-fix.js?v=5.3.0"></script>
+    <script src="auto-fix.js?v=5.11.0"></script>
     
     <!-- AI Studio Interface (Nano Banana Pro + Veo 3.1 style) -->
-    <script src="ai-studio.js?v=5.3.0"></script>
+    <script src="ai-studio.js?v=5.11.0"></script>
+    
+    <!-- Google Ads Builder - AI-powered ad creation -->
+    <script src="google-ads-builder.js?v=2.2.0"></script>
+    <script src="social-media-builder.js?v=1.0.1"></script>
+    <script src="keyword-analyzer.js?v=2.3.2"></script>
     
     <!-- Brand Kit Generator (Logo Generator / Nano Banana) -->
-    <script src="logo-generator.js?v=5.3.0"></script>
+    <script src="logo-generator.js?v=5.11.0"></script>
     
     <!-- AI Library Manager (Session-based storage, CRM integration) -->
-    <script src="ai-library-manager.js?v=5.3.0"></script>
+    <script src="ai-library-manager.js?v=5.11.0"></script>
     
     <!-- AI Library Integration (adds AI buttons to asset cards) v3.0.0 -->
-    <script src="ai-library-integration.js?v=5.8.0"></script>
+    <script src="ai-library-integration.js?v=5.11.0"></script>
     
     <!-- Advanced Features (Queue, Batch, Pagination, Folders, Reports, Versioning) -->
-    <script src="advanced-features.js?v=5.3.0"></script>
+    <script src="advanced-features.js?v=5.11.0"></script>
     
     <!-- Advanced Toolbar (Quick access to all features) -->
-    <script src="advanced-toolbar.js?v=5.3.0"></script>
+    <script src="advanced-toolbar.js?v=5.11.0"></script>
     
     <!-- ===== v3.0 CREATIVE INTELLIGENCE MODULES ===== -->
     
     <!-- Data Models - Extended v3.0 schemas -->
-    <script src="data-models.js?v=5.3.0"></script>
+    <script src="data-models.js?v=5.11.0"></script>
     
     <!-- Settings Module - API key management + Super Admin Platform Settings -->
-    <script src="settings-module.js?v=5.3.0"></script>
+    <script src="settings-module.js?v=5.11.0"></script>
     
     <!-- AI Orchestrator - Multi-AI task routing with GPT-5.2 & Claude 4.5 -->
-    <script src="ai-orchestrator.js?v=5.3.0"></script>
+    <script src="ai-orchestrator.js?v=5.11.0"></script>
     
     <!-- AI Intelligence Engine - Chained Analysis Pipeline (GPT-5.2→SearchAPI→Claude 4.5) -->
-    <script src="ai-intelligence-engine.js?v=5.3.0"></script>
+    <script src="ai-intelligence-engine.js?v=5.11.0"></script>
     
     <!-- Analyze Module - Hook, CTA, Brand, Audio, Thumb-Stop, Predictions -->
-    <!-- v4.0: Advanced chained analysis, brand guidelines, audience personas -->
-    <script src="analyze-module.js?v=5.3.0"></script>
+    <!-- v4.0: Advanced chained analysis, brand guidelines, audience personas, multi-service AI -->
+    <script src="analyze-module.js?v=4.0.0"></script>
+    
+    <!-- Enhanced AI Analysis - Multi-service integration -->
+    <!-- Google Vision, Cloudinary AI, Multi-model consensus scoring -->
+    <script src="ai-enhanced-analysis.js?v=1.0.0"></script>
     
     <!-- Strategy Module - Placement Matrix, Roadmap, Budget, A/B, Fatigue -->
     <!-- v4.0: Advanced strategy, brand context, competitor comparison -->
-    <script src="strategy-module.js?v=5.3.0"></script>
+    <script src="strategy-module.js?v=5.11.0"></script>
     
     <!-- Learn Module - URL Analyzer, Competitors, Benchmarks, Swipe File -->
-    <!-- v4.0: Competitor creative comparison, industry benchmarks, compliance checking -->
-    <script src="learn-module.js?v=5.3.0"></script>
+    <!-- v5.0: Campaign context inputs, multi-model analysis, industry benchmarks, ad copy integration -->
+    <script src="learn-module.js?v=5.25.0"></script>
+    
+    <!-- Video Extraction Layer v1.0 - Bulletproof content extraction with validation -->
+    <script src="video-extraction-layer.js?v=1.0.0"></script>
+    
+    <!-- Video Frame Extractor v1.0 - Downloads/captures actual video frames for AI analysis -->
+    <script src="video-frame-extractor.js?v=1.0.0"></script>
+    
+    <!-- Supabase Video Processor v1.0 - Server-side video analysis with transcripts -->
+    <script src="supabase-video-processor.js?v=1.0.0"></script>
+    
+    <!-- Supabase Video Client v1.0 - Edge Function integration -->
+    <script src="supabase-video-client.js?v=1.1.0"></script>
+    
+    <!-- Video Intelligence Engine v1.2 - Full memories.ai-style analysis -->
+    <script src="video-intelligence-engine.js?v=1.2.0"></script>
+    
+    <!-- Video Intelligence Client v2.0 - Server-side Supabase integration -->
+    <script src="video-intelligence-client.js?v=2.1.0"></script>
+
+    <!-- Advanced Video Creative Intelligence v2.4 - Real frame extraction and multimodal AI -->
+    <script src="video-analyzer.js?v=2.6.0"></script>
+    <!-- Advanced Video Creative Intelligence System v2.4 - Never Fabricate, Show Evidence, Upload Fallback -->
+    <script src="video-analyzer-v2.js?v=2.7.0"></script>
+    <script src="video-analyzer-ui.js?v=2.7.0"></script>
     
     <!-- Security Core Module (must load first) -->
-    <script src="security-core.js?v=5.3.0"></script>
+    <script src="security-core.js?v=5.11.0"></script>
     
     <!-- Auth Configuration -->
-    <script src="auth-config.js?v=5.3.0"></script>
+    <script src="auth-config.js?v=5.11.0"></script>
     
-    <!-- SaaS Backend Integration (MySQL Sync + Cloudinary) v5.0.0 -->
-    <script src="sync-engine.js?v=5.3.0"></script>
-    <script src="cloudinary-client.js?v=5.3.0"></script>
+    <!-- SaaS Backend Integration (MySQL Sync + Cloudinary) v5.11.0 -->
+    <script src="sync-engine.js?v=5.11.0"></script>
+    <script src="cloudinary-client.js?v=5.11.0"></script>
+    <!-- Supabase Cloud Backend (Real-time sync) v1.0.0 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-backend.js?v=1.0.1"></script>
+    <script src="supabase-full-integration.js?v=1.0.0"></script>
+    <script src="unified-storage.js?v=1.0.0"></script>
+    <!-- Persistence UI - Save/Delete buttons and feedback -->
+    <script src="persistence-ui.js?v=1.0.0"></script>
+    
+    <!-- Real-time Cross-Device Sync v1.0.0 -->
+    <script src="realtime-sync.js?v=1.0.0"></script>
     
     <!-- Initialize SaaS components after auth -->
     <script>
+        
         // Initialize sync engine and cloudinary client when app loads
         document.addEventListener('DOMContentLoaded', () => {
             // Set API base path
@@ -1765,11 +1937,28 @@
                 });
             });
             
-            window.syncEngine.on('sync_complete', (result) => {
+            window.syncEngine.on('sync_complete', async (result) => {
                 console.log('[SaaS] Sync complete:', result.pulled, 'pulled,', result.pushed, 'pushed');
+                
+                // Reload CRM data from IndexedDB after sync
+                if (window.cavCRM && result.pulled > 0) {
+                    console.log('[SaaS] Reloading CRM data from IndexedDB...');
+                    await window.cavCRM.loadFromIndexedDB();
+                    
+                    // Refresh the UI if CRM is currently visible
+                    if (window.location.hash === '#crm' && typeof renderCRMDashboard === 'function') {
+                        renderCRMDashboard();
+                    }
+                }
+                
+                // Reload platform credentials from backend (for API key sharing)
+                if (window.CAVSettings?.manager?.loadPlatformCredentialsFromBackend) {
+                    console.log('[SaaS] Reloading platform credentials for API key sharing...');
+                    await window.CAVSettings.manager.loadPlatformCredentialsFromBackend();
+                }
             });
             
-            console.log('[SaaS] v5.4.0 initialized with MySQL sync + Cloudinary');
+            console.log('[SaaS] v5.14.0 initialized with MySQL sync + Cloudinary + Advanced Video Creative Intelligence v2.3 with Bulletproof Extraction, Evidence-Based Scoring & Upload Fallback (January 17, 2026)');
         });
     </script>
     
@@ -1781,8 +1970,8 @@
         // =============================================
         // VERSION & SECURITY INFO
         // =============================================
-        const AUTH_VERSION = '3.0.0';
-        console.log('[CAV Auth] Version:', AUTH_VERSION, '- Enterprise Security Edition');
+        const AUTH_VERSION = '5.11.0';
+        console.log('[CAV Auth] Version:', AUTH_VERSION, '- Enterprise Security Edition with API Key Sharing (January 16, 2026)');
 
         // =============================================
         // STORAGE KEYS (use security-core keys for encrypted storage)
@@ -1850,13 +2039,76 @@
                 securityReady = true;
 
                 // Restore session from encrypted storage
-                const session = window.CAVSecurity.SecureSessionManager.getSession();
+                let session = window.CAVSecurity.SecureSessionManager.getSession();
+                
+                // FALLBACK: If secure session fails but we have a backend token, restore from server
+                if (!session) {
+                    const storedToken = localStorage.getItem('cav_session_token');
+                    if (storedToken && window.syncEngine) {
+                        console.log('[CAV Auth] Secure session failed, attempting backend restore...');
+                        try {
+                            window.syncEngine.setSessionToken(storedToken);
+                            const apiBase = window.syncEngine.apiBase || '/api';
+                            const response = await fetch(`${apiBase}/auth/me`, {
+                                headers: {
+                                    'Authorization': `Bearer ${storedToken}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                const userData = await response.json();
+                                const user = userData.data || userData.user || userData;
+                                
+                                if (user && user.email) {
+                                    console.log('[CAV Auth] Backend session restored for:', user.email);
+                                    
+                                    // Rebuild session from backend data
+                                    const email = user.email.toLowerCase();
+                                    const domain = email.split('@')[1] || '';
+                                    const settings = getSettings();
+                                    
+                                    const adminEmails = (settings.adminEmails || []).map(e => e.toLowerCase());
+                                    const isAdmin = adminEmails.includes(email);
+                                    const role = isAdmin ? 'admin' : (user.role || settings.defaultRole || 'editor');
+                                    
+                                    const corporateDomains = (settings.corporateDomains || []).map(d => d.toLowerCase());
+                                    let userType = 'corporate';
+                                    if (isAdmin) userType = 'admin';
+                                    else if (corporateDomains.includes(domain)) userType = 'corporate';
+                                    else if (PERSONAL_EMAIL_DOMAINS.includes(domain)) userType = 'personal';
+                                    
+                                    // Create a new secure session from backend data
+                                    const sessionData = {
+                                        email: user.email,
+                                        name: user.name || email.split('@')[0],
+                                        picture: user.picture || '',
+                                        googleId: user.google_id,
+                                        role: role,
+                                        userType: userType
+                                    };
+                                    
+                                    session = await window.CAVSecurity.SecureSessionManager.createSession(sessionData);
+                                    console.log('[CAV Auth] Rebuilt secure session from backend');
+                                }
+                            } else {
+                                // Token invalid, clear it
+                                console.log('[CAV Auth] Backend token invalid, clearing...');
+                                localStorage.removeItem('cav_session_token');
+                                window.syncEngine.setSessionToken(null);
+                            }
+                        } catch (backendError) {
+                            console.warn('[CAV Auth] Backend restore failed:', backendError.message);
+                        }
+                    }
+                }
                 
                 if (session && session.email) {
                     // Validate session hasn't expired
                     if (Date.now() > session.expiresAt) {
                         console.log('[CAV Auth] Session expired, clearing...');
                         window.CAVSecurity.SecureSessionManager.clearSession();
+                        localStorage.removeItem('cav_session_token');
                         return null;
                     }
 
@@ -2116,25 +2368,41 @@
         // ACTIVITY LOGGING
         // =============================================
         function logActivity(action, userData, details = {}) {
+            const activity = {
+                action,
+                email: userData.email,
+                name: userData.name || userData.email?.split('@')[0] || 'Unknown User',
+                userType: userData.userType || 'unknown',
+                role: userData.role || 'user',
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                details
+            };
+            
             try {
+                // Save to localStorage for local access
                 const activities = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITY) || '[]');
-                activities.push({
-                    action,
-                    email: userData.email,
-                    name: userData.name,
-                    userType: userData.userType,
-                    role: userData.role,
-                    timestamp: new Date().toISOString(),
-                    userAgent: navigator.userAgent,
-                    details
-                });
+                activities.push(activity);
                 // Keep last 1000 activities
                 if (activities.length > 1000) {
                     activities.splice(0, activities.length - 1000);
                 }
                 localStorage.setItem(STORAGE_KEYS.ACTIVITY, JSON.stringify(activities));
             } catch (e) {
-                console.warn('Failed to log activity:', e);
+                console.warn('Failed to log activity to localStorage:', e);
+            }
+            
+            // Sync to backend for admin visibility across devices
+            try {
+                if (window.syncEngine && window.syncEngine.isAuthenticated()) {
+                    window.syncEngine.save('activities', {
+                        uuid: `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        ...activity
+                    }).catch(e => console.warn('[Activity] Backend sync failed:', e));
+                    console.log('[Activity] Logged and synced:', action, userData.email);
+                }
+            } catch (e) {
+                console.warn('[Activity] Backend sync failed:', e);
             }
         }
 
@@ -2257,23 +2525,32 @@
         // UI UPDATES
         // =============================================
         function updateUI(session) {
+            console.log('[CAV Auth] 🖼️ updateUI called with session:', session ? `${session.email} (${session.userType})` : 'null');
+            
             const el = getElements();
             if (!el.loginModal) {
-                console.warn('[CAV] Login modal not found yet, retrying...');
+                console.warn('[CAV Auth] ⚠️ Login modal not found yet, retrying in 100ms...');
                 setTimeout(() => updateUI(session), 100);
                 return;
             }
             
+            console.log('[CAV Auth] ✅ Login modal element found');
+            
             if (session) {
+                console.log('[CAV Auth] 🔓 Valid session - hiding login modal...');
                 // Hide login modal with both class AND inline style for reliability
                 el.loginModal.classList.add('hidden');
                 el.loginModal.style.display = 'none';
-                console.log('[CAV] Login modal hidden, classList:', el.loginModal.className);
+                el.loginModal.style.visibility = 'hidden';
+                el.loginModal.style.opacity = '0';
+                el.loginModal.style.pointerEvents = 'none';
+                console.log('[CAV Auth] ✅ Login modal hidden, classList:', el.loginModal.className);
                 
-                // Update topbar user info
-                if (session.picture && el.userAvatar) {
-                    el.userAvatar.src = session.picture;
-                    el.userAvatar.style.display = 'block';
+                // Update topbar user info (check custom avatar first)
+                if (el.userAvatar) {
+                    const customAvatar = localStorage.getItem('cav_custom_avatar');
+                    el.userAvatar.src = customAvatar || session.picture || '';
+                    if (el.userAvatar.src) el.userAvatar.style.display = 'block';
                 }
                 if (el.userName) el.userName.textContent = session.name;
                 
@@ -2301,7 +2578,12 @@
                 const topbarUserInfo = document.getElementById('topbar-user-info');
                 
                 if (sidebarAvatar) {
-                    if (session.picture) {
+                    // Check for custom avatar first (persists across devices)
+                    const customAvatar = localStorage.getItem('cav_custom_avatar');
+                    if (customAvatar) {
+                        sidebarAvatar.src = customAvatar;
+                        sidebarAvatar.style.display = 'block';
+                    } else if (session.picture) {
                         sidebarAvatar.src = session.picture;
                         sidebarAvatar.style.display = 'block';
                     } else {
@@ -2371,8 +2653,64 @@
         let originErrorDetected = false;
         let popupCheckTimeout = null;
         
+        // CRITICAL: Define callback FIRST (before initialization) - matching working test page pattern
+        function handleGoogleResponse(response) {
+            console.log('[CAV Auth] 🎯 Google callback received!', response ? 'with response' : 'NO RESPONSE');
+            console.log('[CAV Auth] 📍 Current origin:', window.location.origin);
+            
+            if (!response) {
+                console.error('[CAV Auth] ❌ No response from Google');
+                alert('Google Sign-In failed: No response received. Please try again.');
+                return;
+            }
+            
+            if (!response.credential) {
+                console.error('[CAV Auth] ❌ No credential in response:', response);
+                alert('Google Sign-In failed: No credential received. Please try again.');
+                return;
+            }
+            
+            console.log('[CAV Auth] ✅ Credential received, decoding JWT...');
+            
+            try {
+                // Decode JWT inline (matching test page pattern)
+                const base64Url = response.credential.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(c => 
+                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+                ).join('')));
+                
+                console.log('[CAV Auth] ✅ JWT decoded successfully for:', payload.email);
+                processLogin(payload.email, payload.name, payload.picture, payload.sub);
+            } catch (e) {
+                console.error('[CAV Auth] ❌ Failed to decode JWT:', e);
+                alert('Google Sign-In failed: Could not decode credentials. Please try again.');
+            }
+        }
+        
+        // CRITICAL: Make callback global IMMEDIATELY (required by Google Sign-In)
+        window.handleGoogleResponse = handleGoogleResponse;
+        console.log('[CAV Auth] ✅ handleGoogleResponse registered globally');
+        
+        // Also register with the exact name Google might expect
+        window.handleCredentialResponse = handleGoogleResponse;
+        console.log('[CAV Auth] ✅ handleCredentialResponse also registered (alias)');
+        
+        // Detect mobile browser
+        function isMobileBrowser() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                   (window.innerWidth <= 768 && 'ontouchstart' in window);
+        }
+        
         function initGoogleSignIn() {
             const config = getConfig();
+            const isMobile = isMobileBrowser();
+            
+            console.log('[CAV Auth] Initializing Google Sign-In', { 
+                isMobile, 
+                userAgent: navigator.userAgent.substring(0, 50),
+                origin: window.location.origin 
+            });
             
             // Check if Google Client ID is configured
             if (config.GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com' || 
@@ -2389,7 +2727,7 @@
                     console.warn('[CAV] Google Sign-In taking too long');
                     showGoogleSignInError();
                 }
-            }, 8000);
+            }, isMobile ? 12000 : 8000); // Longer timeout for mobile
 
             // Initialize real Google Sign-In
             try {
@@ -2400,42 +2738,83 @@
                     return;
                 }
                 
-                // Standard GSI popup mode - works in Chrome, Firefox, Safari
-                // Only requires JavaScript Origins (not Redirect URIs)
-                google.accounts.id.initialize({
+                // Configure based on device type
+                // Mobile browsers often block popups, so we use different settings
+                const gsiConfig = {
                     client_id: config.GOOGLE_CLIENT_ID,
-                    callback: handleGoogleResponse,
+                    callback: window.googleAuthCallback || handleGoogleResponse,
                     auto_select: false,
-                    cancel_on_tap_outside: true,
-                    itp_support: true
-                });
+                    use_fedcm_for_prompt: false,
+                    // Cancel on tap outside for better mobile UX
+                    cancel_on_tap_outside: !isMobile,
+                    // Use redirect mode for problematic mobile browsers (Safari iOS especially)
+                    // This requires setting up a redirect URI in Google Cloud Console
+                    // For now, we keep popup mode but with mobile-optimized settings
+                    itp_support: true // Enable Intelligent Tracking Prevention support for Safari
+                };
                 
-                console.log('[CAV] Google Sign-In initialized (popup mode)');
+                console.log('[CAV Auth] GSI Config:', gsiConfig);
+                
+                google.accounts.id.initialize(gsiConfig);
+                
+                // Only trigger One Tap on desktop - it often causes 400 errors on mobile
+                if (!isMobile) {
+                    google.accounts.id.prompt((notification) => {
+                        console.log('[CAV Auth] One Tap prompt:', {
+                            displayed: !notification.isNotDisplayed(),
+                            skipped: notification.isSkippedMoment()
+                        });
+                        if (notification.isNotDisplayed()) {
+                            console.log('[CAV Auth] One Tap not displayed:', notification.getNotDisplayedReason());
+                        }
+                    });
+                } else {
+                    console.log('[CAV Auth] Skipping One Tap on mobile - using button only');
+                }
+                
+                console.log('[CAV] Google Sign-In initialized with config:', {
+                    client_id: config.GOOGLE_CLIENT_ID.substring(0, 20) + '...',
+                    origin: window.location.origin,
+                    pathname: window.location.pathname,
+                    isMobile: isMobile
+                });
 
                 const container = document.getElementById('google-signin-container');
                 if (container) {
-                    google.accounts.id.renderButton(
-                        container,
-                        { 
-                            theme: 'outline', 
-                            size: 'large',
-                            text: 'signin_with',
-                            shape: 'rectangular',
-                            logo_alignment: 'left',
-                            width: 280
-                        }
-                    );
+                    // Mobile-optimized button settings
+                    const buttonConfig = isMobile ? {
+                        theme: 'filled_blue',
+                        size: 'large',
+                        text: 'signin_with',
+                        shape: 'pill',
+                        logo_alignment: 'center',
+                        width: Math.min(280, window.innerWidth - 60)
+                    } : {
+                        theme: 'outline', 
+                        size: 'large',
+                        text: 'signin_with',
+                        shape: 'rectangular',
+                        logo_alignment: 'left',
+                        width: 280
+                    };
+                    
+                    google.accounts.id.renderButton(container, buttonConfig);
                     
                     // Mark as successful
                     googleSignInAttempted = true;
                     clearTimeout(googleSignInTimeout);
-                    console.log('[CAV] Google Sign-In button rendered successfully');
+                    console.log('[CAV] Google Sign-In button rendered successfully (mobile:', isMobile, ')');
                     
-                    // Show help link after 3 seconds
+                    // On mobile, show troubleshooting link sooner
                     setTimeout(() => {
                         const helpLink = document.getElementById('signin-help-link');
                         if (helpLink) helpLink.style.display = 'block';
-                    }, 3000);
+                    }, isMobile ? 2000 : 3000);
+                    
+                    // Add mobile-specific help message
+                    if (isMobile) {
+                        addMobileSigninHelp(container);
+                    }
                     
                     // Add click listener to detect popup failures
                     setTimeout(() => {
@@ -2448,9 +2827,13 @@
                                     const session = getSession();
                                     if (!session) {
                                         console.warn('[CAV] Sign-in popup may have been blocked or origin not authorized');
-                                        showOriginHelpMessage();
+                                        if (isMobile) {
+                                            showMobileSigninError();
+                                        } else {
+                                            showOriginHelpMessage();
+                                        }
                                     }
-                                }, 3000);
+                                }, isMobile ? 5000 : 3000);
                             }, { once: true });
                         }
                     }, 500);
@@ -2487,6 +2870,61 @@
                 </a>
             `;
             container.appendChild(helpDiv);
+        }
+        
+        // Add mobile-specific help below the sign-in button
+        function addMobileSigninHelp(container) {
+            if (container.querySelector('.mobile-signin-help')) return;
+            
+            const helpDiv = document.createElement('div');
+            helpDiv.className = 'mobile-signin-help';
+            helpDiv.style.cssText = 'margin-top: 1rem; text-align: center; width: 100%; max-width: 280px;';
+            helpDiv.innerHTML = `
+                <p style="color: #9ca3af; font-size: 0.75rem; margin: 0; line-height: 1.4;">
+                    📱 On mobile? If sign-in fails, try:
+                </p>
+                <p style="color: #6b7280; font-size: 0.7rem; margin: 0.5rem 0 0; line-height: 1.4;">
+                    Opening in Chrome or Safari<br>
+                    Disabling ad blockers<br>
+                    Using desktop site
+                </p>
+            `;
+            container.appendChild(helpDiv);
+        }
+        
+        // Show mobile-specific error with troubleshooting
+        function showMobileSigninError() {
+            const container = document.getElementById('google-signin-container');
+            if (!container) return;
+            
+            // Don't replace if already showing error
+            if (container.querySelector('.mobile-signin-error')) return;
+            
+            const currentOrigin = window.location.origin;
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'mobile-signin-error';
+            errorDiv.style.cssText = 'margin-top: 1rem; padding: 1rem; background: rgba(239,68,68,0.15); border-radius: 8px; border: 1px solid rgba(239,68,68,0.3);';
+            errorDiv.innerHTML = `
+                <p style="color: #ef4444; margin: 0 0 0.5rem; font-weight: 600; font-size: 0.85rem;">📱 Mobile Sign-in Issue</p>
+                <p style="color: #fca5a5; margin: 0 0 0.75rem; font-size: 0.75rem; line-height: 1.5;">
+                    The sign-in popup may have been blocked or encountered an error (400 Bad Request).
+                </p>
+                <div style="background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.75rem;">
+                    <p style="color: #fff; font-weight: 600; margin: 0 0 0.5rem; font-size: 0.75rem;">Try these fixes:</p>
+                    <ul style="color: #d1d5db; margin: 0; padding-left: 1rem; font-size: 0.7rem; line-height: 1.5;">
+                        <li>Tap the button again</li>
+                        <li>Allow popups for this site</li>
+                        <li>Use Chrome or Safari browser</li>
+                        <li>Try "Request desktop site" in browser menu</li>
+                        <li>Disable any ad blockers</li>
+                    </ul>
+                </div>
+                <button onclick="location.reload()" style="width: 100%; background: linear-gradient(135deg, #a855f7, #6366f1); color: #fff; border: none; padding: 0.6rem 1rem; border-radius: 6px; font-weight: 500; font-size: 0.8rem; cursor: pointer;">
+                    🔄 Refresh & Try Again
+                </button>
+            `;
+            container.appendChild(errorDiv);
         }
         
         // Show specific error when origin/domain is not authorized
@@ -2574,13 +3012,16 @@
             }
         }
 
-        function handleGoogleResponse(response) {
-            const payload = decodeJWT(response.credential);
-            
-            if (payload) {
-                processLogin(payload.email, payload.name, payload.picture, payload.sub);
-            }
-        }
+        // DEBUG: Global function to check Google Sign-In state
+        window.debugGoogleSignIn = function() {
+            console.log('=== Google Sign-In Debug ===');
+            console.log('Origin:', window.location.origin);
+            console.log('Google API loaded:', typeof google !== 'undefined');
+            console.log('Google accounts loaded:', typeof google?.accounts?.id !== 'undefined');
+            console.log('handleGoogleResponse registered:', typeof window.handleGoogleResponse === 'function');
+            console.log('Config:', window.AUTH_CONFIG || 'NOT LOADED');
+            return 'Check console for results';
+        };
 
         function decodeJWT(token) {
             try {
@@ -2597,6 +3038,9 @@
         }
 
         async function processLogin(email, name, picture, googleId) {
+            console.log('[CAV Auth] 🔐 processLogin called for:', email);
+            console.log('[CAV Auth] User details:', { name, picture: picture ? 'present' : 'none', googleId: googleId ? 'present' : 'none' });
+            
             // Security: Use domain access control from security-core
             if (window.CAVSecurity?.DomainAccessControl) {
                 const accessCheck = window.CAVSecurity.DomainAccessControl.checkAccess(email);
@@ -2878,7 +3322,31 @@
         }
 
         async function renderAdminDashboardContent(session) {
-            const activities = getActivityLog();
+            // Get local activities
+            let activities = getActivityLog();
+            
+            // Fetch backend activities for cross-device visibility
+            try {
+                if (window.syncEngine) {
+                    const backendActivities = await window.syncEngine.getAllFromLocal('activities') || [];
+                    if (backendActivities.length > 0) {
+                        console.log('[Admin] Fetched', backendActivities.length, 'activities from backend sync');
+                        // Merge backend activities (avoid duplicates by checking timestamp+email)
+                        const existingKeys = new Set(activities.map(a => `${a.timestamp}_${a.email}`));
+                        backendActivities.forEach(ba => {
+                            const key = `${ba.timestamp}_${ba.email}`;
+                            if (!existingKeys.has(key)) {
+                                activities.push(ba);
+                            }
+                        });
+                        // Sort by timestamp descending
+                        activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    }
+                }
+            } catch (e) {
+                console.warn('[Admin] Failed to fetch backend activities:', e);
+            }
+            
             const managedUsers = getManagedUsers();
             const settings = getSettings();
             
@@ -2889,6 +3357,7 @@
             const sessionDomain = session.email?.split('@')[1]?.toLowerCase();
             
             console.log('[Admin] Dashboard loading for:', userEmail, 'SuperAdmin:', isSuperAdmin);
+            console.log('[Admin] All configured admin emails:', adminEmails);
 
             // Aggregate user data from activities
             const userStats = {};
@@ -2922,6 +3391,30 @@
                 userStats[email].role = managedUsers[email].role;
                 userStats[email].status = managedUsers[email].status || 'active';
             });
+            
+            // For Super Admin: ALWAYS include all configured admin emails even if not in activity/users
+            if (isSuperAdmin) {
+                adminEmails.forEach(adminEmail => {
+                    const email = adminEmail.toLowerCase();
+                    if (!userStats[email]) {
+                        const domain = email.split('@')[1] || '';
+                        userStats[email] = {
+                            email: email,
+                            name: email.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                            userType: 'admin',
+                            loginCount: 0,
+                            lastLogin: null,
+                            role: 'admin',
+                            status: 'configured'
+                        };
+                        console.log('[Admin] Added configured admin to dashboard:', email);
+                    } else {
+                        // Ensure admin emails have admin role
+                        userStats[email].role = 'admin';
+                        userStats[email].userType = 'admin';
+                    }
+                });
+            }
             
             // For Super Admin: Also fetch users from MySQL database
             if (isSuperAdmin && window.syncEngine?.sessionToken) {
@@ -3055,10 +3548,10 @@
                                             ${userList.slice(0, 10).map(u => `
                                                 <tr>
                                                     <td>
-                                                        <div style="font-weight: 500;">${u.name}</div>
+                                                        <div style="font-weight: 500;">${u.name || u.email?.split('@')[0] || 'Unknown User'}</div>
                                                         <div style="font-size: 0.75rem; color: #c4b5fd;">${u.email}</div>
                                                     </td>
-                                                    <td><span class="badge badge-${u.userType}">${u.userType}</span></td>
+                                                    <td><span class="badge badge-${u.userType || 'unknown'}">${u.userType || 'unknown'}</span></td>
                                                     <td><span class="badge badge-${u.role || getUserRole(u.email)}">${u.role || getUserRole(u.email)}</span></td>
                                                     <td style="color: #c4b5fd;">${u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never'}</td>
                                                 </tr>
@@ -3155,10 +3648,10 @@
                                                 return `
                                                 <tr data-email="${u.email}">
                                                     <td>
-                                                        <div style="font-weight: 500;">${u.name}</div>
+                                                        <div style="font-weight: 500;">${u.name || u.email?.split('@')[0] || 'Unknown User'}</div>
                                                         <div style="font-size: 0.75rem; color: #c4b5fd;">${u.email}</div>
                                                     </td>
-                                                    <td><span class="badge badge-${u.userType}">${u.userType}</span></td>
+                                                    <td><span class="badge badge-${u.userType || 'unknown'}">${u.userType || 'unknown'}</span></td>
                                                     <td>
                                                         <select class="admin-select user-role-select" data-email="${u.email}" style="width: auto; padding: 0.25rem 0.5rem;">
                                                             <option value="viewer" ${role === 'viewer' ? 'selected' : ''}>Viewer</option>
@@ -3391,7 +3884,7 @@
                                         <div class="activity-item">
                                             <div>
                                                 <span class="activity-dot ${a.action}"></span>
-                                                <span style="color: #fff;">${a.name}</span>
+                                                <span style="color: #fff;">${a.name || a.email?.split('@')[0] || 'Unknown User'}</span>
                                                 <span style="color: #c4b5fd; margin-left: 0.5rem;">${a.action}</span>
                                                 ${a.details && Object.keys(a.details).length > 0 ? 
                                                     `<span style="color: #a855f7; margin-left: 0.5rem;">${JSON.stringify(a.details)}</span>` : ''
@@ -4071,6 +4564,15 @@
             });
         }
         
+        // Close button inside sidebar (mobile)
+        const sidebarCloseBtn = document.getElementById('sidebar-close');
+        if (sidebarCloseBtn && sidebar) {
+            sidebarCloseBtn.addEventListener('click', () => {
+                sidebar.classList.remove('mobile-open');
+                sidebarOverlay?.classList.remove('visible');
+            });
+        }
+        
         // Close sidebar on outside click (mobile)
         document.addEventListener('click', (e) => {
             if (window.innerWidth <= 1024 && sidebar && 
@@ -4080,6 +4582,17 @@
                 sidebar.classList.remove('mobile-open');
                 sidebarOverlay?.classList.remove('visible');
             }
+        });
+        
+        // Close sidebar when clicking a nav item (mobile UX)
+        const navItems = document.querySelectorAll('.cav-nav-item');
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                if (window.innerWidth <= 1024 && sidebar?.classList.contains('mobile-open')) {
+                    sidebar.classList.remove('mobile-open');
+                    sidebarOverlay?.classList.remove('visible');
+                }
+            });
         });
         
         const clearDataLink = document.getElementById('clear-data-link');
@@ -5115,14 +5628,13 @@
                                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                                 <h3 style="margin: 0; font-size: 1rem; color: #fff;">🤖 AI Strategy Assistant</h3>
                                                 <select id="ai-model-select" style="padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff; font-size: 0.75rem; cursor: pointer;">
-                                                    <option value="gemini-3-flash">Gemini 3 Flash ⚡</option>
-                                                    <option value="gemini-3-pro">Gemini 3 Pro 🧠</option>
-                                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                                    <option value="gpt-5.2" selected>GPT-5.2 (Latest) 🚀</option>
+                                                    <option value="gpt-5-mini">GPT-5 mini (Fast)</option>
+                                                    <option value="gpt-4.1">GPT-4.1 (Stable)</option>
                                                     <option value="claude-sonnet">Claude Sonnet 4.5 🔥</option>
                                                     <option value="claude-opus">Claude Opus 4.5</option>
-                                                    <option value="gpt-5.2">GPT-5.2 (Latest) 🚀</option>
-                                                    <option value="gpt-5-mini">GPT-5 mini</option>
-                                                    <option value="gpt-4.1">GPT-4.1</option>
+                                                    <option value="gemini-3-flash">Gemini 2.0 Flash ⚡</option>
+                                                    <option value="gemini-3-pro">Gemini 1.5 Pro 🧠</option>
                                                 </select>
                                             </div>
                                             <p style="margin: 0.25rem 0 0; font-size: 0.75rem; color: #6b7280;">Ask about ${company.name}'s creative strategy</p>
@@ -5136,14 +5648,19 @@
                                         
                                         <div id="ai-chat-messages" style="flex: 1; overflow-y: auto; padding: 1rem;">
                                             ${(company.chatHistory || []).length > 0 ? 
-                                                (company.chatHistory || []).slice(-10).map(msg => `
-                                                    <div style="display: flex; ${msg.role === 'user' ? 'justify-content: flex-end' : ''}; margin-bottom: 1rem;">
-                                                        <div style="background: ${msg.role === 'user' ? 'rgba(168,85,247,0.3)' : 'rgba(59,130,246,0.2)'}; padding: 0.75rem 1rem; border-radius: 12px ${msg.role === 'user' ? '12px 0 12px' : '12px 12px 0'}; max-width: 85%;">
-                                                            <div style="font-size: 0.65rem; color: #6b7280; margin-bottom: 0.25rem;">${msg.model || 'AI'} • ${new Date(msg.timestamp).toLocaleString()}</div>
-                                                            <p style="margin: 0; color: #fff; font-size: 0.9rem; white-space: pre-wrap;">${msg.content.substring(0, 500)}${msg.content.length > 500 ? '...' : ''}</p>
+                                                (company.chatHistory || []).slice(-10).map(msg => {
+                                                    // Handle both message formats (content vs prompt/response)
+                                                    const msgContent = msg.content || msg.response || msg.prompt || 'No content';
+                                                    const isUser = msg.role === 'user';
+                                                    const displayContent = (msgContent || '').substring(0, 500) + ((msgContent || '').length > 500 ? '...' : '');
+                                                    return `
+                                                    <div style="display: flex; ${isUser ? 'justify-content: flex-end' : ''}; margin-bottom: 1rem;">
+                                                        <div style="background: ${isUser ? 'rgba(168,85,247,0.3)' : 'rgba(59,130,246,0.2)'}; padding: 0.75rem 1rem; border-radius: 12px ${isUser ? '12px 0 12px' : '12px 12px 0'}; max-width: 85%;">
+                                                            <div style="font-size: 0.65rem; color: #6b7280; margin-bottom: 0.25rem;">${msg.model || 'AI'} • ${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : 'Unknown'}</div>
+                                                            <p style="margin: 0; color: #fff; font-size: 0.9rem; white-space: pre-wrap;">${displayContent}</p>
                                                         </div>
                                                     </div>
-                                                `).join('') :
+                                                `}).join('') :
                                                 `<div style="text-align: center; padding: 2rem; color: #6b7280;">
                                                     <div style="font-size: 3rem; margin-bottom: 0.5rem;">🤖</div>
                                                     <p style="margin: 0 0 1rem;">I can help analyze ${company.name}'s:</p>
@@ -5332,39 +5849,46 @@
                                     newCompetitors = await window.CAVLearn.autoFetchCompetitors(company.name, company.industry);
                                 }
                                 
-                                // Fallback: Direct Gemini API if no competitors found
-                                if ((!newCompetitors || newCompetitors.length === 0) && window.geminiApiKey) {
-                                    console.log('[CRM] Using direct Gemini fallback for competitors');
-                                    const prompt = `List the top 3 direct competitors of ${company.name} in the ${company.industry || 'same'} industry.
-Return ONLY a JSON array with 3 competitors:
-[{"name":"Company Name","website":"https://example.com","description":"Brief description","marketPosition":"leader"}]
-JSON only, no markdown:`;
-                                    
-                                    try {
-                                        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + window.geminiApiKey, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({
-                                                contents: [{ parts: [{ text: prompt }] }],
-                                                generationConfig: { temperature: 0.3 }
-                                            })
-                                        });
-                                        const data = await response.json();
-                                        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                                        const jsonMatch = text.match(/\[[\s\S]*?\]/);
-                                        if (jsonMatch) {
-                                            const parsed = JSON.parse(jsonMatch[0]);
-                                            newCompetitors = parsed.slice(0, 3).map(c => ({
-                                                name: c.name,
-                                                website: c.website,
-                                                description: c.description,
-                                                marketPosition: c.marketPosition,
-                                                source: 'AI Generated',
-                                                addedAt: new Date().toISOString()
-                                            }));
+                                // Fallback: Direct OpenAI API if no competitors found
+                                if (!newCompetitors || newCompetitors.length === 0) {
+                                    const openaiKey = window.CAVSettings?.getAPIKey?.('openai') || localStorage.getItem('cav_openai_api_key') || '';
+                                    if (openaiKey) {
+                                        console.log('[CRM] Using OpenAI fallback for competitors');
+                                        const prompt = `List the top 3 direct competitors of ${company.name} in the ${company.industry || 'same'} industry.
+Return ONLY a JSON object with a "competitors" array containing 3 competitors:
+{"competitors":[{"name":"Company Name","website":"https://example.com","description":"Brief description","marketPosition":"leader"}]}`;
+                                        
+                                        try {
+                                            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                                                method: 'POST',
+                                                headers: { 
+                                                    'Content-Type': 'application/json',
+                                                    'Authorization': 'Bearer ' + openaiKey
+                                                },
+                                                body: JSON.stringify({
+                                                    model: 'gpt-5.2',
+                                                    messages: [{ role: 'user', content: prompt }],
+                                                    temperature: 0.3,
+                                                    response_format: { type: 'json_object' }
+                                                })
+                                            });
+                                            const data = await response.json();
+                                            const text = data.choices?.[0]?.message?.content || '';
+                                            const jsonMatch = text.match(/\{[\s\S]*\}/);
+                                            if (jsonMatch) {
+                                                const parsed = JSON.parse(jsonMatch[0]);
+                                                newCompetitors = (parsed.competitors || []).slice(0, 3).map(c => ({
+                                                    name: c.name,
+                                                    website: c.website,
+                                                    description: c.description,
+                                                    marketPosition: c.marketPosition,
+                                                    source: 'AI Generated',
+                                                    addedAt: new Date().toISOString()
+                                                }));
+                                            }
+                                        } catch (e) {
+                                            console.error('[CRM] OpenAI competitor fetch failed:', e);
                                         }
-                                    } catch (e) {
-                                        console.error('[CRM] Gemini competitor fetch failed:', e);
                                     }
                                 }
                                 
@@ -5372,10 +5896,15 @@ JSON only, no markdown:`;
                                     for (const comp of newCompetitors) {
                                         window.cavCRM.addCompetitorToCompany(companyId, comp);
                                     }
+                                    // Save to Supabase for persistence
+                                    if (window.CAVSupabase?.saveCompany) {
+                                        const updatedCompany = window.cavCRM.getCompany(companyId);
+                                        window.CAVSupabase.saveCompany(updatedCompany).catch(e => console.warn('[Competitors] Supabase save error:', e));
+                                    }
                                     alert('✅ Found ' + newCompetitors.length + ' competitors!');
                                     showCompanyDetailModal(companyId); // Refresh the page
                                 } else {
-                                    alert('No competitors found. Please configure Gemini API key in Settings for AI detection.');
+                                    alert('No competitors found. Please configure OpenAI API key in Settings for AI detection.');
                                 }
                             } catch (e) {
                                 console.error('[CRM] Competitor detection error:', e);
@@ -5386,18 +5915,20 @@ JSON only, no markdown:`;
                             btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg> Auto-Detect with AI';
                         });
                         
-                        // Enrich Company Data Button
+                        // Enrich Company Data Button - Uses OpenAI GPT-5.2 (Updated: 2026-01-19)
                         page.querySelector('#enrich-company-btn')?.addEventListener('click', async () => {
+                            console.log('🔥 [Enrich] Button clicked - NEW CODE v2026-01-19-FIX2 max_completion_tokens');
                             const btn = page.querySelector('#enrich-company-btn');
                             btn.disabled = true;
                             btn.innerHTML = '<span class="cav-spinner" style="width:14px;height:14px;"></span> Researching...';
                             
                             try {
-                                const geminiKey = localStorage.getItem('cav_gemini_api_key') || '';
-                                if (!geminiKey) {
-                                    alert('Please configure your Gemini API key in Settings.');
+                                // Get OpenAI key from settings (preferred) or localStorage
+                                const openaiKey = window.CAVSettings?.getAPIKey?.('openai') || localStorage.getItem('cav_openai_api_key') || '';
+                                if (!openaiKey) {
+                                    alert('Please configure your OpenAI API key in Settings.');
                                     btn.disabled = false;
-                                    btn.textContent = '🔍 Enrich Company Data';
+                                    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg> Enrich Data';
                                     return;
                                 }
                                 
@@ -5428,28 +5959,72 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
 
 Provide accurate, up-to-date information. If unknown, use "Unknown" or omit the field.`;
                                 
-                                const res = await fetch(
-                                    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + geminiKey,
-                                    {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            contents: [{ parts: [{ text: prompt }] }],
-                                            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
-                                        })
-                                    }
-                                );
+                                console.log('[Enrich] Using OpenAI key:', openaiKey ? openaiKey.substring(0, 10) + '...' : 'NONE');
+                                
+                                // Build request body - GPT-5.x uses max_completion_tokens, older models use max_tokens
+                                const requestBody = {
+                                    model: 'gpt-5.2',
+                                    messages: [{ role: 'user', content: prompt }],
+                                    temperature: 0.3,
+                                    response_format: { type: 'json_object' }
+                                };
+                                // GPT-5.x requires max_completion_tokens
+                                requestBody.max_completion_tokens = 2048;
+                                
+                                console.log('[Enrich] Request body:', JSON.stringify(requestBody).substring(0, 200));
+                                
+                                const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                                    method: 'POST',
+                                    headers: { 
+                                        'Content-Type': 'application/json',
+                                        'Authorization': 'Bearer ' + openaiKey
+                                    },
+                                    body: JSON.stringify(requestBody)
+                                });
+                                
+                                console.log('[Enrich] API response status:', res.status);
+                                
+                                if (!res.ok) {
+                                    const errorData = await res.json().catch(() => ({}));
+                                    console.error('[Enrich] API error:', errorData);
+                                    throw new Error(errorData.error?.message || `API Error: ${res.status}`);
+                                }
+                                
                                 const data = await res.json();
-                                const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                                console.log('[Enrich] Full API response:', JSON.stringify(data).substring(0, 500));
+                                
+                                // Check for API error in response
+                                if (data.error) {
+                                    throw new Error(data.error.message || 'API returned an error');
+                                }
+                                
+                                const responseText = data.choices?.[0]?.message?.content || '';
+                                console.log('[Enrich] OpenAI response text:', responseText.substring(0, 300));
+                                
+                                if (!responseText) {
+                                    throw new Error('Empty response from AI. Please check your API key.');
+                                }
                                 
                                 // Parse enriched data from response
                                 const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                                 if (jsonMatch) {
-                                    const enrichedData = JSON.parse(jsonMatch[0]);
+                                    let enrichedData;
+                                    try {
+                                        enrichedData = JSON.parse(jsonMatch[0]);
+                                    } catch (parseErr) {
+                                        console.error('[Enrich] JSON parse error:', parseErr, jsonMatch[0]);
+                                        throw new Error('Invalid JSON in AI response');
+                                    }
                                     enrichedData.updatedAt = new Date().toISOString();
                                     
                                     // Update company with enriched data
                                     window.cavCRM.updateCompany(companyId, { enrichedData });
+                                    
+                                    // Save to Supabase for persistence
+                                    if (window.CAVSupabase?.saveCompany) {
+                                        const updatedCompany = window.cavCRM.getCompany(companyId);
+                                        window.CAVSupabase.saveCompany(updatedCompany).catch(e => console.warn('[Enrich] Supabase save error:', e));
+                                    }
                                     
                                     // Also add any detected competitors
                                     if (enrichedData.competitors?.length > 0) {
@@ -5467,7 +6042,8 @@ Provide accurate, up-to-date information. If unknown, use "Unknown" or omit the 
                                     alert('✅ Company data enriched successfully!');
                                     showCompanyDetailModal(companyId); // Refresh page
                                 } else {
-                                    alert('Could not parse company data. Try again.');
+                                    console.error('[Enrich] No JSON found in response:', responseText);
+                                    alert('Could not parse company data. The AI response was:\n\n' + responseText.substring(0, 200) + '...');
                                 }
                             } catch (e) {
                                 console.error('Enrich company error:', e);
@@ -5478,7 +6054,7 @@ Provide accurate, up-to-date information. If unknown, use "Unknown" or omit the 
                             btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg> Enrich Data';
                         });
                         
-                        // Generate AI Strategy Button
+                        // Generate AI Strategy Button - Uses OpenAI GPT-5.2
                         page.querySelector('#generate-strategy-btn')?.addEventListener('click', async () => {
                             const btn = page.querySelector('#generate-strategy-btn');
                             btn.disabled = true;
@@ -5498,9 +6074,10 @@ Provide accurate, up-to-date information. If unknown, use "Unknown" or omit the 
                             });
                             
                             try {
-                                const geminiKey = localStorage.getItem('cav_gemini_api_key') || '';
-                                if (!geminiKey) {
-                                    alert('Please configure your Gemini API key in Settings.');
+                                // Get OpenAI key from settings (preferred) or localStorage
+                                const openaiKey = window.CAVSettings?.getAPIKey?.('openai') || localStorage.getItem('cav_openai_api_key') || '';
+                                if (!openaiKey) {
+                                    alert('Please configure your OpenAI API key in Settings.');
                                     btn.disabled = false;
                                     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg> Generate AI Strategy';
                                     return;
@@ -5531,26 +6108,69 @@ Provide accurate, up-to-date information. If unknown, use "Unknown" or omit the 
                                     'Company Data:\n' + JSON.stringify(analysisData, null, 2) + '\n\n' +
                                     'Return ONLY valid JSON, no markdown code blocks.';
                                 
-                                const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + geminiKey, {
+                                const res = await fetch('https://api.openai.com/v1/chat/completions', {
                                     method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
+                                    headers: { 
+                                        'Content-Type': 'application/json',
+                                        'Authorization': 'Bearer ' + openaiKey
+                                    },
                                     body: JSON.stringify({
-                                        contents: [{ parts: [{ text: prompt }] }],
-                                        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
+                                        model: 'gpt-5.2',
+                                        messages: [{ role: 'user', content: prompt }],
+                                        temperature: 0.7,
+                                        max_completion_tokens: 4096,
+                                        response_format: { type: 'json_object' }
                                     })
                                 });
                                 
                                 const data = await res.json();
-                                const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                                const responseText = data.choices?.[0]?.message?.content || '';
                                 
-                                // Parse strategy data from response
+                                // Parse strategy data from response with robust sanitization
                                 const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                                 if (jsonMatch) {
-                                    const strategyInsights = JSON.parse(jsonMatch[0]);
+                                    // Sanitize JSON before parsing - fix common AI response issues
+                                    let jsonStr = jsonMatch[0];
+                                    
+                                    // Remove control characters that break JSON
+                                    jsonStr = jsonStr.replace(/[\x00-\x1F\x7F]/g, (char) => {
+                                        if (char === '\n' || char === '\r' || char === '\t') return ' ';
+                                        return '';
+                                    });
+                                    
+                                    // Fix unescaped quotes in strings (common AI issue)
+                                    // This regex finds strings and escapes internal quotes
+                                    jsonStr = jsonStr.replace(/:\s*"([^"]*)"/g, (match, content) => {
+                                        // Don't double-escape already escaped quotes
+                                        const fixed = content.replace(/(?<!\\)"/g, '\\"');
+                                        return ': "' + fixed + '"';
+                                    });
+                                    
+                                    // Try parsing, with fallback to more aggressive cleanup
+                                    let strategyInsights;
+                                    try {
+                                        strategyInsights = JSON.parse(jsonStr);
+                                    } catch (parseErr) {
+                                        console.warn('Initial JSON parse failed, trying aggressive cleanup:', parseErr);
+                                        // More aggressive: replace all problematic characters
+                                        jsonStr = jsonMatch[0]
+                                            .replace(/[\x00-\x1F\x7F]/g, ' ')
+                                            .replace(/\n/g, ' ')
+                                            .replace(/\r/g, ' ')
+                                            .replace(/\t/g, ' ')
+                                            .replace(/\s+/g, ' ');
+                                        strategyInsights = JSON.parse(jsonStr);
+                                    }
                                     strategyInsights.generatedAt = new Date().toISOString();
                                     
                                     // Update company with strategy insights
                                     window.cavCRM.updateCompany(companyId, { strategyInsights });
+                                    
+                                    // Save to Supabase for persistence
+                                    if (window.CAVSupabase?.saveCompany) {
+                                        const updatedCompany = window.cavCRM.getCompany(companyId);
+                                        window.CAVSupabase.saveCompany(updatedCompany).catch(e => console.warn('[Strategy] Supabase save error:', e));
+                                    }
                                     
                                     // Update UI with the generated content
                                     const creativeEl = page.querySelector('#creative-strategy-content');
@@ -5571,7 +6191,7 @@ Provide accurate, up-to-date information. If unknown, use "Unknown" or omit the 
                                         timestamp: new Date().toISOString(),
                                         prompt: 'Generated comprehensive strategy analysis',
                                         response: 'Strategy generated with creative, paid media, trends, and action items.',
-                                        model: 'gemini-2.5-flash'
+                                        model: 'GPT-4o'
                                     });
                                     window.cavCRM.updateCompany(companyId, { chatHistory: company.chatHistory });
                                     
@@ -5592,55 +6212,65 @@ Provide accurate, up-to-date information. If unknown, use "Unknown" or omit the 
                             btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg> Generate AI Strategy';
                         });
                         
-                        // Fetch Industry Benchmarks Button
+                        // Fetch Industry Benchmarks Button - Uses OpenAI GPT-5.2
                         page.querySelector('#fetch-benchmarks-btn')?.addEventListener('click', async () => {
                             const btn = page.querySelector('#fetch-benchmarks-btn');
                             btn.disabled = true;
                             btn.innerHTML = '<span class="cav-spinner" style="width:14px;height:14px;"></span> Fetching...';
                             
                             try {
-                                const geminiKey = localStorage.getItem('cav_gemini_api_key') || '';
-                                if (!geminiKey) {
-                                    alert('Please configure your Gemini API key in Settings.');
+                                // Get OpenAI key from settings (preferred) or localStorage
+                                const openaiKey = window.CAVSettings?.getAPIKey?.('openai') || localStorage.getItem('cav_openai_api_key') || '';
+                                if (!openaiKey) {
+                                    alert('Please configure your OpenAI API key in Settings.');
+                                    btn.disabled = false;
+                                    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> Fetch Benchmarks';
                                     return;
                                 }
                                 
                                 const prompt = `You are an industry research analyst. Provide real, current industry benchmarks for the ${company.industry || 'digital marketing'} industry, specifically for a company like ${company.name}.
 
-Return ONLY a valid JSON array of benchmark objects. No markdown, no explanation, just the JSON array.
+Return ONLY a valid JSON object with a "benchmarks" array. No markdown, no explanation, just the JSON.
 
 Format:
-[
-  {"metric": "CTR (Click-Through Rate)", "value": "1.5-3.0%", "industry": "${company.industry || 'Digital Marketing'}", "source": "Industry Average 2024"},
-  {"metric": "CPM (Cost Per Mille)", "value": "$7-15", "industry": "${company.industry || 'Digital Marketing'}", "source": "Meta Ads Benchmark"},
-  {"metric": "Conversion Rate", "value": "2.5-5%", "industry": "${company.industry || 'Digital Marketing'}", "source": "E-commerce Average"},
-  {"metric": "ROAS (Return on Ad Spend)", "value": "4:1 - 6:1", "industry": "${company.industry || 'Digital Marketing'}", "source": "Industry Standard"},
-  {"metric": "Engagement Rate", "value": "3-6%", "industry": "${company.industry || 'Digital Marketing'}", "source": "Social Media Benchmark"},
-  {"metric": "Video View Rate", "value": "15-25%", "industry": "${company.industry || 'Digital Marketing'}", "source": "Video Ads Average"},
-  {"metric": "Email Open Rate", "value": "15-25%", "industry": "${company.industry || 'Digital Marketing'}", "source": "Email Marketing Benchmark"},
-  {"metric": "Bounce Rate", "value": "40-55%", "industry": "${company.industry || 'Digital Marketing'}", "source": "Landing Page Average"}
-]
+{
+  "benchmarks": [
+    {"metric": "CTR (Click-Through Rate)", "value": "1.5-3.0%", "industry": "${company.industry || 'Digital Marketing'}", "source": "Industry Average 2024"},
+    {"metric": "CPM (Cost Per Mille)", "value": "$7-15", "industry": "${company.industry || 'Digital Marketing'}", "source": "Meta Ads Benchmark"},
+    {"metric": "Conversion Rate", "value": "2.5-5%", "industry": "${company.industry || 'Digital Marketing'}", "source": "E-commerce Average"},
+    {"metric": "ROAS (Return on Ad Spend)", "value": "4:1 - 6:1", "industry": "${company.industry || 'Digital Marketing'}", "source": "Industry Standard"},
+    {"metric": "Engagement Rate", "value": "3-6%", "industry": "${company.industry || 'Digital Marketing'}", "source": "Social Media Benchmark"},
+    {"metric": "Video View Rate", "value": "15-25%", "industry": "${company.industry || 'Digital Marketing'}", "source": "Video Ads Average"},
+    {"metric": "Email Open Rate", "value": "15-25%", "industry": "${company.industry || 'Digital Marketing'}", "source": "Email Marketing Benchmark"},
+    {"metric": "Bounce Rate", "value": "40-55%", "industry": "${company.industry || 'Digital Marketing'}", "source": "Landing Page Average"}
+  ]
+}
 
-Provide accurate, realistic benchmarks. Return ONLY the JSON array.`;
+Provide accurate, realistic benchmarks.`;
                                 
-                                const res = await fetch(
-                                    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + geminiKey,
-                                    {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            contents: [{ parts: [{ text: prompt }] }],
-                                            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
-                                        })
-                                    }
-                                );
+                                const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                                    method: 'POST',
+                                    headers: { 
+                                        'Content-Type': 'application/json',
+                                        'Authorization': 'Bearer ' + openaiKey
+                                    },
+                                    body: JSON.stringify({
+                                        model: 'gpt-5.2',
+                                        messages: [{ role: 'user', content: prompt }],
+                                        temperature: 0.3,
+                                        max_completion_tokens: 2048,
+                                        response_format: { type: 'json_object' }
+                                    })
+                                });
+                                
                                 const data = await res.json();
-                                const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                                const responseText = data.choices?.[0]?.message?.content || '';
                                 
                                 // Parse benchmarks from response
-                                const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+                                const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                                 if (jsonMatch) {
-                                    const newBenchmarks = JSON.parse(jsonMatch[0]);
+                                    const parsed = JSON.parse(jsonMatch[0]);
+                                    const newBenchmarks = parsed.benchmarks || [];
                                     // Add to company benchmarks
                                     if (!company.benchmarks) company.benchmarks = [];
                                     for (const benchmark of newBenchmarks) {
@@ -5653,6 +6283,13 @@ Provide accurate, realistic benchmarks. Return ONLY the JSON array.`;
                                         }
                                     }
                                     window.cavCRM.updateCompany(companyId, { benchmarks: company.benchmarks });
+                                    
+                                    // Save to Supabase for persistence
+                                    if (window.CAVSupabase?.saveCompany) {
+                                        const updatedCompany = window.cavCRM.getCompany(companyId);
+                                        window.CAVSupabase.saveCompany(updatedCompany).catch(e => console.warn('[Benchmarks] Supabase save error:', e));
+                                    }
+                                    
                                     alert('✅ Added ' + newBenchmarks.length + ' industry benchmarks!');
                                     showCompanyDetailModal(companyId); // Refresh page
                                 } else {
@@ -5690,11 +6327,11 @@ Provide accurate, realistic benchmarks. Return ONLY the JSON array.`;
                             
                             const selectedModel = modelSelect?.value || 'gemini';
                             const modelLabels = { 
-                                'gemini-3-flash': 'Gemini 3 Flash',
-                                'gemini-3-pro': 'Gemini 3 Pro',
-                                'gemini-2.5-flash': 'Gemini 2.5 Flash',
-                                'claude-sonnet': 'Claude Sonnet 4.5',
-                                'claude-opus': 'Claude Opus 4.5',
+                                'gemini-3-flash': 'Gemini 2.0 Flash',
+                                'gemini-3-pro': 'Gemini 1.5 Pro',
+                                'gemini-2.5-flash': 'Gemini 2.0 Flash',
+                                'claude-sonnet': 'Claude Sonnet',
+                                'claude-opus': 'Claude Opus',
                                 'gpt-5.2': 'GPT-5.2',
                                 'gpt-5-mini': 'GPT-5 mini',
                                 'gpt-4.1': 'GPT-4.1'
@@ -5780,11 +6417,11 @@ Provide actionable, specific strategic advice. Use data points where available. 
                                 else if ((selectedModel === 'gpt-5.2' || selectedModel === 'gpt-5-mini' || selectedModel === 'gpt-4.1') && openaiKey) {
                                     // Map user-friendly names to actual OpenAI API model names
                                     const openaiModelMap = {
-                                        'gpt-5.2': 'gpt-4o',        // Latest & Best → GPT-4o
-                                        'gpt-5-mini': 'gpt-4o-mini', // Fast → GPT-4o Mini
-                                        'gpt-4.1': 'gpt-4-turbo'    // Stable → GPT-4 Turbo
+                                        'gpt-5.2': 'gpt-5.2',       // Latest & Best
+                                        'gpt-5-mini': 'gpt-5-mini', // Fast & Cost-effective
+                                        'gpt-4.1': 'gpt-4.1'        // Stable
                                     };
-                                    const openaiModel = openaiModelMap[selectedModel] || 'gpt-4o';
+                                    const openaiModel = openaiModelMap[selectedModel] || 'gpt-5.2';
                                     const res = await fetch('https://api.openai.com/v1/chat/completions', {
                                         method: 'POST',
                                         headers: {
@@ -5803,11 +6440,11 @@ Provide actionable, specific strategic advice. Use data points where available. 
                                 // Gemini models (3 Flash, 3 Pro, 2.5 Flash) - https://ai.google.dev/gemini-api/docs/models
                                 else if (geminiKey) {
                                     const geminiModelMap = {
-                                        'gemini-3-flash': 'gemini-3-flash-preview',
-                                        'gemini-3-pro': 'gemini-3-pro-preview',
-                                        'gemini-2.5-flash': 'gemini-2.5-flash'
+                                        'gemini-3-flash': 'gemini-2.0-flash',
+                                        'gemini-3-pro': 'gemini-1.5-pro',
+                                        'gemini-2.5-flash': 'gemini-2.0-flash'
                                     };
-                                    const geminiModel = geminiModelMap[selectedModel] || 'gemini-2.5-flash';
+                                    const geminiModel = geminiModelMap[selectedModel] || 'gemini-2.0-flash';
                                     const res = await fetch(
                                         `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=` + geminiKey,
                                         {
@@ -5831,6 +6468,12 @@ Provide actionable, specific strategic advice. Use data points where available. 
                                 
                                 // Persist chat history to CRM
                                 window.cavCRM.updateCompany(companyId, { chatHistory: companyData.chatHistory });
+                                
+                                // Save to Supabase for cross-device persistence
+                                if (window.CAVSupabase?.saveCompany) {
+                                    const updatedCompany = window.cavCRM.getCompany(companyId);
+                                    window.CAVSupabase.saveCompany(updatedCompany).catch(e => console.warn('[Chat] Supabase save error:', e));
+                                }
                                 
                                 // Update history count button
                                 const historyBtn = page.querySelector('#show-chat-history');
@@ -6528,6 +7171,39 @@ Provide actionable, specific strategic advice. Use data points where available. 
                 showV3Module('brand-kit');
             });
             
+            // Google Ads Builder button
+            document.getElementById('nav-google-ads')?.addEventListener('click', () => {
+                const session = getSession();
+                if (!session) {
+                    alert('Please sign in to access the Google Ads Builder.');
+                    return;
+                }
+                setActiveNav('nav-google-ads');
+                showV3Module('google-ads');
+            });
+            
+            // Social Media Builder button
+            document.getElementById('nav-social-media')?.addEventListener('click', () => {
+                const session = getSession();
+                if (!session) {
+                    alert('Please sign in to access the Social Media Builder.');
+                    return;
+                }
+                setActiveNav('nav-social-media');
+                showV3Module('social-media');
+            });
+            
+            // Keyword Analyzer button
+            document.getElementById('nav-keyword-analyzer')?.addEventListener('click', () => {
+                const session = getSession();
+                if (!session) {
+                    alert('Please sign in to access the Keyword Analyzer.');
+                    return;
+                }
+                setActiveNav('nav-keyword-analyzer');
+                showV3Module('keyword-analyzer');
+            });
+            
             // CRM button - render as page, not modal
             document.getElementById('nav-crm')?.addEventListener('click', () => {
                 const session = getSession();
@@ -6669,6 +7345,15 @@ Provide actionable, specific strategic advice. Use data points where available. 
                 case 'brand-kit':
                     renderBrandKitPage(dynamic);
                     break;
+                case 'google-ads':
+                    renderGoogleAdsPage(dynamic);
+                    break;
+                case 'social-media':
+                    renderSocialMediaPage(dynamic);
+                    break;
+                case 'keyword-analyzer':
+                    renderKeywordAnalyzerPage(dynamic);
+                    break;
                 default:
                     dynamic.innerHTML = '<div class="cav-page-empty"><p>❌ Unknown module</p></div>';
             }
@@ -6720,10 +7405,10 @@ Provide actionable, specific strategic advice. Use data points where available. 
                         <h3 class="cav-action-card-title">Add Project</h3>
                         <p class="cav-action-card-description">Track a campaign</p>
                     </div>
-                    <div class="cav-action-card" id="crm-add-deal-btn" data-tooltip="Track a new sales opportunity">
+                    <div class="cav-action-card" id="crm-add-brief-btn" data-tooltip="Create a brief with documents and files for AI analysis">
                         <div class="cav-action-card-icon"><svg class="cav-icon" style="width:32px;height:32px;"><use href="#icon-analyze"/></svg></div>
-                        <h3 class="cav-action-card-title">Add Deal</h3>
-                        <p class="cav-action-card-description">Sales opportunity</p>
+                        <h3 class="cav-action-card-title">Add Brief</h3>
+                        <p class="cav-action-card-description">Documents & files for AI</p>
                     </div>
                 </div>
                 
@@ -6747,9 +7432,9 @@ Provide actionable, specific strategic advice. Use data points where available. 
                         <svg class="cav-icon cav-quick-pill-icon green"><use href="#icon-library"/></svg>
                         <span>${projects.length} Projects</span>
                     </button>
-                    <button class="cav-quick-pill" data-tooltip="View all deals">
+                    <button class="cav-quick-pill" data-tooltip="View all briefs">
                         <svg class="cav-icon cav-quick-pill-icon orange"><use href="#icon-analyze"/></svg>
-                        <span>${deals.length} Deals</span>
+                        <span>${deals.length} Briefs</span>
                     </button>
                 </div>
                 
@@ -6764,8 +7449,8 @@ Provide actionable, specific strategic advice. Use data points where available. 
                     <button class="cav-module-tab" data-tab="projects" data-tooltip="View and manage projects">
                         <svg class="cav-icon"><use href="#icon-library"/></svg> Projects
                     </button>
-                    <button class="cav-module-tab" data-tab="deals" data-tooltip="View sales pipeline">
-                        <svg class="cav-icon"><use href="#icon-analyze"/></svg> Deals
+                    <button class="cav-module-tab" data-tab="deals" data-tooltip="View briefs and documents">
+                        <svg class="cav-icon"><use href="#icon-analyze"/></svg> Briefs
                     </button>
                     <button class="cav-module-tab" data-tab="activity" data-tooltip="View recent activity">
                         <svg class="cav-icon"><use href="#icon-usage"/></svg> Activity
@@ -6793,9 +7478,20 @@ Provide actionable, specific strategic advice. Use data points where available. 
             container.querySelector('#crm-add-contact-btn')?.addEventListener('click', () => showCRMForm('contact'));
             container.querySelector('#crm-add-company-btn')?.addEventListener('click', () => showCRMForm('company'));
             container.querySelector('#crm-add-project-btn')?.addEventListener('click', () => showCRMForm('project'));
+            container.querySelector('#crm-add-brief-btn')?.addEventListener('click', () => showCRMForm('brief'));
             
-            // Initial render
-            renderCRMTabContent('companies');
+            // Load CRM data from backend/IndexedDB before rendering
+            async function loadCRMData() {
+                if (window.cavCRM && window.syncEngine?.isAuthenticated?.()) {
+                    console.log('[CRM Page] Loading data from IndexedDB...');
+                    await window.cavCRM.loadFromIndexedDB();
+                }
+            }
+            
+            // Initial data load then render
+            loadCRMData().then(() => {
+                renderCRMTabContent('companies');
+            });
         }
         
         function renderCRMTabContent(tab) {
@@ -6913,29 +7609,29 @@ Provide actionable, specific strategic advice. Use data points where available. 
                     break;
                     
                 case 'deals':
-                    const deals = window.cavCRM.getAllDeals();
-                    if (deals.length === 0) {
-                        content.innerHTML = '<div class="cav-page-empty"><div class="cav-page-empty-icon">💰</div><div class="cav-page-empty-title">No Deals Yet</div><div class="cav-page-empty-text">Track your sales pipeline by creating deals.</div></div>';
+                    const briefs = window.cavCRM.getAllDeals();
+                    if (briefs.length === 0) {
+                        content.innerHTML = '<div class="cav-page-empty"><div class="cav-page-empty-icon">📋</div><div class="cav-page-empty-title">No Briefs Yet</div><div class="cav-page-empty-text">Create a brief to upload documents and files for AI analysis.</div></div>';
                     } else {
                         content.innerHTML = `
                             <table class="cav-page-table">
                                 <thead>
                                     <tr>
-                                        <th>Deal</th>
-                                        <th>Company</th>
-                                        <th>Stage</th>
-                                        <th>Value</th>
-                                        <th>Probability</th>
+                                        <th>Brief</th>
+                                        <th>Type</th>
+                                        <th>Files</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${deals.map(d => `
+                                    ${briefs.map(b => `
                                         <tr>
-                                            <td><strong>${d.name}</strong></td>
-                                            <td>${d.companyName || '-'}</td>
-                                            <td><span class="cav-badge">${d.stage}</span></td>
-                                            <td style="color: var(--cav-success);">${d.value ? '$' + d.value.toLocaleString() : '-'}</td>
-                                            <td>${d.probability || 0}%</td>
+                                            <td><strong>${b.name}</strong></td>
+                                            <td><span class="cav-badge cav-badge-${b.type || 'other'}">${b.type || 'brief'}</span></td>
+                                            <td>${b.files?.length || 0} file(s)</td>
+                                            <td><span class="cav-badge cav-badge-${b.status || 'active'}">${b.status || 'active'}</span></td>
+                                            <td>${b.createdAt ? new Date(b.createdAt).toLocaleDateString() : '-'}</td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
@@ -6995,6 +7691,9 @@ Provide actionable, specific strategic advice. Use data points where available. 
                 case 'project':
                     form = window.cavCRM.createProjectForm();
                     break;
+                case 'brief':
+                    form = createBriefForm();
+                    break;
             }
             
             if (form) {
@@ -7006,6 +7705,206 @@ Provide actionable, specific strategic advice. Use data points where available. 
                 form.querySelector('.crm-modal-save')?.addEventListener('click', () => {
                     saveCRMFormData(type, form);
                 });
+                
+                // Brief-specific: File upload handler
+                if (type === 'brief') {
+                    setupBriefFileUpload(form);
+                }
+            }
+        }
+        
+        // Create Brief Form with document upload capabilities
+        function createBriefForm() {
+            const companies = window.cavCRM?.getAllCompanies() || [];
+            const projects = window.cavCRM?.getAllProjects() || [];
+            
+            const modal = document.createElement('div');
+            modal.className = 'crm-modal-overlay';
+            modal.innerHTML = `
+                <div class="crm-modal" style="max-width: 650px;">
+                    <div class="crm-modal-header">
+                        <h2>📋 New Brief</h2>
+                        <button class="crm-modal-close">&times;</button>
+                    </div>
+                    <div class="crm-modal-body" style="max-height: 70vh; overflow-y: auto;">
+                        <p style="color: var(--cav-text-muted); margin-bottom: 1.5rem;">
+                            Create a brief with documents and files. AI will analyze these to extract insights, 
+                            populate CRM data, and generate creative recommendations.
+                        </p>
+                        
+                        <div class="crm-form-group">
+                            <label class="crm-label required">Brief Name</label>
+                            <input type="text" id="brief-name" class="crm-input" placeholder="e.g., Q1 2026 Campaign Brief">
+                        </div>
+                        
+                        <div class="crm-form-row">
+                            <div class="crm-form-group">
+                                <label class="crm-label">Linked Company</label>
+                                <select id="brief-company" class="crm-select">
+                                    <option value="">Select company...</option>
+                                    ${companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="crm-form-group">
+                                <label class="crm-label">Linked Project</label>
+                                <select id="brief-project" class="crm-select">
+                                    <option value="">Select project...</option>
+                                    ${projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="crm-form-group">
+                            <label class="crm-label">Brief Type</label>
+                            <select id="brief-type" class="crm-select">
+                                <option value="creative">Creative Brief</option>
+                                <option value="campaign">Campaign Brief</option>
+                                <option value="brand">Brand Guidelines</option>
+                                <option value="strategy">Strategy Document</option>
+                                <option value="research">Research/Insights</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="crm-form-group">
+                            <label class="crm-label">Description</label>
+                            <textarea id="brief-description" class="crm-textarea" rows="3" placeholder="What is this brief about?"></textarea>
+                        </div>
+                        
+                        <div class="crm-form-group">
+                            <label class="crm-label">📎 Upload Documents & Files</label>
+                            <div id="brief-dropzone" class="brief-dropzone">
+                                <div class="brief-dropzone-content">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="17 8 12 3 7 8"/>
+                                        <line x1="12" y1="3" x2="12" y2="15"/>
+                                    </svg>
+                                    <p>Drag & drop files here or <span class="brief-browse">browse</span></p>
+                                    <small>PDF, DOC, DOCX, TXT, Images, Videos (Max 50MB each)</small>
+                                </div>
+                                <input type="file" id="brief-files" multiple accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif,.mp4,.mov,.webm" style="display:none;">
+                            </div>
+                            <div id="brief-file-list" class="brief-file-list"></div>
+                        </div>
+                        
+                        <div class="crm-form-group">
+                            <label class="crm-label">🤖 AI Analysis Options</label>
+                            <div class="brief-ai-options">
+                                <label class="brief-checkbox">
+                                    <input type="checkbox" id="brief-ai-extract" checked>
+                                    <span>Extract key information (objectives, audience, KPIs)</span>
+                                </label>
+                                <label class="brief-checkbox">
+                                    <input type="checkbox" id="brief-ai-company" checked>
+                                    <span>Auto-create/update company from brief</span>
+                                </label>
+                                <label class="brief-checkbox">
+                                    <input type="checkbox" id="brief-ai-recommendations">
+                                    <span>Generate creative recommendations</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="crm-form-group">
+                            <label class="crm-label">Tags</label>
+                            <input type="text" id="brief-tags" class="crm-input" placeholder="Comma-separated tags">
+                        </div>
+                    </div>
+                    <div class="crm-modal-footer">
+                        <button class="crm-modal-cancel">Cancel</button>
+                        <button class="crm-modal-save">Create Brief</button>
+                    </div>
+                </div>
+            `;
+            return modal;
+        }
+        
+        // Setup file upload for brief form
+        function setupBriefFileUpload(form) {
+            const dropzone = form.querySelector('#brief-dropzone');
+            const fileInput = form.querySelector('#brief-files');
+            const fileList = form.querySelector('#brief-file-list');
+            const browse = form.querySelector('.brief-browse');
+            
+            let uploadedFiles = [];
+            
+            // Store files in form data
+            form._briefFiles = uploadedFiles;
+            
+            browse?.addEventListener('click', () => fileInput.click());
+            dropzone?.addEventListener('click', (e) => {
+                if (e.target === dropzone || e.target.closest('.brief-dropzone-content')) {
+                    fileInput.click();
+                }
+            });
+            
+            // Drag and drop
+            dropzone?.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+            
+            dropzone?.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+            
+            dropzone?.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                handleFiles(e.dataTransfer.files);
+            });
+            
+            fileInput?.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
+            
+            function handleFiles(files) {
+                Array.from(files).forEach(file => {
+                    if (file.size > 50 * 1024 * 1024) {
+                        alert(`File ${file.name} is too large (max 50MB)`);
+                        return;
+                    }
+                    
+                    uploadedFiles.push(file);
+                    renderFileList();
+                });
+            }
+            
+            function renderFileList() {
+                fileList.innerHTML = uploadedFiles.map((file, i) => `
+                    <div class="brief-file-item" data-index="${i}">
+                        <span class="brief-file-icon">${getFileIcon(file.type)}</span>
+                        <span class="brief-file-name">${file.name}</span>
+                        <span class="brief-file-size">${formatFileSize(file.size)}</span>
+                        <button class="brief-file-remove" data-index="${i}">&times;</button>
+                    </div>
+                `).join('');
+                
+                // Remove handlers
+                fileList.querySelectorAll('.brief-file-remove').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const idx = parseInt(btn.dataset.index);
+                        uploadedFiles.splice(idx, 1);
+                        renderFileList();
+                    });
+                });
+            }
+            
+            function getFileIcon(type) {
+                if (type.includes('pdf')) return '📄';
+                if (type.includes('word') || type.includes('document')) return '📝';
+                if (type.includes('image')) return '🖼️';
+                if (type.includes('video')) return '🎬';
+                if (type.includes('text')) return '📃';
+                return '📎';
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes < 1024) return bytes + ' B';
+                if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
             }
         }
         
@@ -7065,7 +7964,98 @@ Provide actionable, specific strategic advice. Use data points where available. 
                 window.cavCRM.createProject(data);
                 form.remove();
                 renderCRMTabContent('projects');
+            } else if (type === 'brief') {
+                const data = {
+                    name: form.querySelector('#brief-name')?.value,
+                    company: form.querySelector('#brief-company')?.value,
+                    project: form.querySelector('#brief-project')?.value,
+                    type: form.querySelector('#brief-type')?.value,
+                    description: form.querySelector('#brief-description')?.value,
+                    tags: form.querySelector('#brief-tags')?.value?.split(',').map(t => t.trim()).filter(Boolean) || [],
+                    aiOptions: {
+                        extractInfo: form.querySelector('#brief-ai-extract')?.checked,
+                        autoCreateCompany: form.querySelector('#brief-ai-company')?.checked,
+                        generateRecommendations: form.querySelector('#brief-ai-recommendations')?.checked
+                    },
+                    files: form._briefFiles || []
+                };
+                
+                if (!data.name) {
+                    alert('Brief name is required.');
+                    return;
+                }
+                
+                // Create the brief (stored as a deal/brief)
+                const brief = window.cavCRM.createBrief(data);
+                
+                // Process files with AI if requested
+                if (data.files.length > 0 && (data.aiOptions.extractInfo || data.aiOptions.generateRecommendations)) {
+                    processBriefWithAI(brief, data);
+                }
+                
+                form.remove();
+                renderCRMTabContent('deals'); // Briefs are stored in deals tab
+                
+                // Show success notification
+                if (window.showNotification) {
+                    window.showNotification(`Brief "${data.name}" created with ${data.files.length} file(s)`, 'success');
+                }
             }
+        }
+        
+        // Process brief files with AI
+        async function processBriefWithAI(brief, data) {
+            if (!window.AIOrchestrator && !window.EnhancedCreativeAnalysis) {
+                console.warn('[Brief] No AI provider available for processing');
+                return;
+            }
+            
+            console.log('[Brief] Processing files with AI...', data.files.length, 'files');
+            
+            for (const file of data.files) {
+                try {
+                    // Read file content
+                    const content = await readFileContent(file);
+                    
+                    if (file.type.includes('image')) {
+                        // Image analysis
+                        if (window.EnhancedCreativeAnalysis) {
+                            const analysis = await window.EnhancedCreativeAnalysis.quickAnalyze(content);
+                            console.log('[Brief] Image analysis complete:', file.name);
+                            
+                            // Store analysis result with the brief
+                            if (window.cavCRM && brief.id) {
+                                window.cavCRM.addBriefAnalysis(brief.id, {
+                                    fileName: file.name,
+                                    type: 'image',
+                                    analysis: analysis
+                                });
+                            }
+                        }
+                    } else if (file.type.includes('pdf') || file.type.includes('text') || file.type.includes('document')) {
+                        // Document analysis - extract text and analyze
+                        console.log('[Brief] Document analysis for:', file.name);
+                        // For now, just log - full text extraction would need PDF.js or similar
+                    }
+                } catch (e) {
+                    console.error('[Brief] Error processing file:', file.name, e);
+                }
+            }
+        }
+        
+        // Read file content as base64 or text
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                
+                if (file.type.includes('text') || file.name.endsWith('.txt')) {
+                    reader.readAsText(file);
+                } else {
+                    reader.readAsDataURL(file);
+                }
+            });
         }
         
         // =============================================
@@ -7090,6 +8080,133 @@ Provide actionable, specific strategic advice. Use data points where available. 
                     </div>
                 `;
                 console.warn('[BrandKit] Brand Kit Generator not loaded');
+            }
+        }
+        
+        // =============================================
+        // GOOGLE ADS BUILDER PAGE
+        // =============================================
+        function renderGoogleAdsPage(container) {
+            if (window.GoogleAdsBuilder && window.GoogleAdsBuilder.createUI) {
+                // Clear and set up container
+                container.innerHTML = '';
+                container.className = 'cav-dynamic-content';
+                container.style.pointerEvents = 'auto';
+                
+                // Create the UI HTML
+                const html = window.GoogleAdsBuilder.createUI(window.GoogleAdsBuilder.builder);
+                container.innerHTML = html;
+                
+                // Ensure all interactive elements are clickable
+                container.querySelectorAll('button, input, select, textarea, .gads-type-btn').forEach(el => {
+                    el.style.pointerEvents = 'auto';
+                });
+                
+                // Attach event handlers after DOM is ready
+                requestAnimationFrame(() => {
+                    window.GoogleAdsBuilder.attachEventHandlers(container, window.GoogleAdsBuilder.builder);
+                    console.log('[GoogleAds] Event handlers attached');
+                });
+            } else {
+                container.innerHTML = `
+                    <div class="cav-empty-state">
+                        <div class="cav-empty-icon">
+                            <svg viewBox="0 0 24 24" width="48" height="48" fill="none">
+                                <path d="M4 20L10 4" stroke="#FBBC04" stroke-width="3.5" stroke-linecap="round"/>
+                                <path d="M10 4L20 20" stroke="#4285F4" stroke-width="3.5" stroke-linecap="round"/>
+                                <circle cx="5.5" cy="18" r="3" fill="#34A853"/>
+                            </svg>
+                        </div>
+                        <h2>Google Ads Builder</h2>
+                        <p>Loading Google Ads module...</p>
+                    </div>
+                `;
+                console.warn('[GoogleAds] Google Ads Builder not loaded');
+            }
+        }
+        
+        // =============================================
+        // SOCIAL MEDIA BUILDER PAGE
+        // =============================================
+        function renderSocialMediaPage(container) {
+            if (window.SocialMediaBuilder && window.SocialMediaBuilder.createUI) {
+                // Clear and set up container
+                container.innerHTML = '';
+                container.className = 'cav-dynamic-content';
+                container.style.pointerEvents = 'auto';
+                
+                // Create the UI HTML
+                const html = window.SocialMediaBuilder.createUI(window.SocialMediaBuilder.builder);
+                container.innerHTML = html;
+                
+                // Ensure all interactive elements are clickable
+                container.querySelectorAll('button, input, select, textarea').forEach(el => {
+                    el.style.pointerEvents = 'auto';
+                });
+                
+                // Attach event handlers after DOM is ready
+                requestAnimationFrame(() => {
+                    window.SocialMediaBuilder.attachEventHandlers(container);
+                    console.log('[SocialMedia] Event handlers attached');
+                });
+            } else {
+                container.innerHTML = `
+                    <div class="cav-empty-state">
+                        <div class="cav-empty-icon">
+                            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="18" cy="5" r="3"/>
+                                <circle cx="6" cy="12" r="3"/>
+                                <circle cx="18" cy="19" r="3"/>
+                                <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/>
+                            </svg>
+                        </div>
+                        <h2>Social Media Builder</h2>
+                        <p>Loading Social Media module...</p>
+                    </div>
+                `;
+                console.warn('[SocialMedia] Social Media Builder not loaded');
+            }
+        }
+        
+        // =============================================
+        // KEYWORD ANALYZER PAGE
+        // =============================================
+        function renderKeywordAnalyzerPage(container) {
+            if (window.KeywordAnalyzer && window.KeywordAnalyzer.createUI) {
+                // Clear and set up container
+                container.innerHTML = '';
+                container.className = 'cav-dynamic-content';
+                container.style.pointerEvents = 'auto';
+                
+                // Create the UI HTML
+                const html = window.KeywordAnalyzer.createUI();
+                container.innerHTML = html;
+                
+                // Ensure all interactive elements are clickable
+                container.querySelectorAll('button, input, select, textarea').forEach(el => {
+                    el.style.pointerEvents = 'auto';
+                });
+                
+                // Attach event handlers after DOM is ready
+                requestAnimationFrame(() => {
+                    window.KeywordAnalyzer.attachEventHandlers(container);
+                    console.log('[KeywordAnalyzer] Event handlers attached');
+                });
+            } else {
+                container.innerHTML = `
+                    <div class="cav-empty-state">
+                        <div class="cav-empty-icon">
+                            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.3-4.3"/>
+                                <path d="M11 8v6M8 11h6"/>
+                            </svg>
+                        </div>
+                        <h2>Keyword Analyzer</h2>
+                        <p>Loading Keyword Analyzer module...</p>
+                    </div>
+                `;
+                console.warn('[KeywordAnalyzer] Keyword Analyzer not loaded');
             }
         }
         
@@ -7533,6 +8650,23 @@ Provide actionable, specific strategic advice. Use data points where available. 
                 console.log('[CAV Auth] Dev session created:', window.cavUserSession.email);
             }
             
+            // AUTO-LOGIN: Check if we have credentials from login-test.html
+            if (window._autoLoginCredentials) {
+                console.log('[AUTO-LOGIN] Processing stored credentials...');
+                const creds = window._autoLoginCredentials;
+                // Clear stored credentials
+                sessionStorage.removeItem('google_credential');
+                sessionStorage.removeItem('google_email');
+                sessionStorage.removeItem('google_name');
+                sessionStorage.removeItem('google_picture');
+                sessionStorage.removeItem('google_sub');
+                window._autoLoginCredentials = null;
+                
+                // Process login directly
+                processLogin(creds.email, creds.name, creds.picture, creds.sub);
+                return; // Exit early, processLogin will handle the rest
+            }
+            
             // Wait for pending session restore first (skip if dev mode)
             if (!isDevMode && pendingSessionRestore) {
                 try {
@@ -7595,7 +8729,7 @@ Provide actionable, specific strategic advice. Use data points where available. 
         }
         
         // ========================================
-        // RESPONSIVE HANDLER - Force mobile layout
+        // RESPONSIVE HANDLER - Mobile layout
         // ========================================
         function handleResponsiveLayout() {
             const isMobile = window.innerWidth <= 1024;
@@ -7605,19 +8739,34 @@ Provide actionable, specific strategic advice. Use data points where available. 
             const mainContent = document.getElementById('creative-asset-validator-root');
             const topbar = document.querySelector('.cav-topbar');
             const footer = document.querySelector('.site-footer');
+            const mobileMenuBtn = document.querySelector('.cav-mobile-menu-btn');
             
+            // FIXED: Don't hide sidebar completely on mobile - let CSS handle it
+            // The sidebar should be off-screen by default but openable via menu button
             if (sidebar) {
-                if (isMobile && !sidebar.classList.contains('mobile-open') && !sidebar.classList.contains('open')) {
-                    sidebar.style.display = 'none';
-                    sidebar.style.visibility = 'hidden';
-                    sidebar.style.width = '0';
-                    sidebar.style.opacity = '0';
-                } else if (!isMobile) {
+                if (isMobile) {
+                    // On mobile, sidebar is controlled by CSS transform, not display:none
+                    // Only manipulate if it's explicitly open
+                    if (sidebar.classList.contains('mobile-open') || sidebar.classList.contains('open')) {
+                        sidebar.style.display = 'flex';
+                        sidebar.style.visibility = 'visible';
+                        sidebar.style.opacity = '1';
+                    }
+                    // Don't hide it - let CSS position it off-screen
+                } else {
+                    // Desktop - clear all inline styles, let CSS handle
                     sidebar.style.display = '';
                     sidebar.style.visibility = '';
                     sidebar.style.width = '';
                     sidebar.style.opacity = '';
+                    sidebar.style.transform = '';
+                    sidebar.classList.remove('mobile-open', 'open');
                 }
+            }
+            
+            // Ensure mobile menu button is visible on mobile
+            if (mobileMenuBtn) {
+                mobileMenuBtn.style.display = isMobile ? 'flex' : 'none';
             }
             
             if (dynamicContent) {
@@ -7627,7 +8776,6 @@ Provide actionable, specific strategic advice. Use data points where available. 
                     dynamicContent.style.maxWidth = '100vw';
                     dynamicContent.style.padding = isSmallMobile ? '8px' : '12px';
                 } else {
-                    // Let CSS handle desktop
                     dynamicContent.style.marginLeft = '';
                     dynamicContent.style.width = '';
                     dynamicContent.style.maxWidth = '';
@@ -7670,12 +8818,85 @@ Provide actionable, specific strategic advice. Use data points where available. 
             console.log('[CAV Responsive] Layout updated - isMobile:', isMobile, 'width:', window.innerWidth);
         }
         
+        // Mobile menu toggle function
+        window.toggleMobileSidebar = function() {
+            const sidebar = document.querySelector('.cav-sidebar');
+            const overlay = document.getElementById('sidebar-overlay') || createSidebarOverlay();
+            
+            if (sidebar) {
+                const isOpen = sidebar.classList.contains('mobile-open');
+                
+                if (isOpen) {
+                    sidebar.classList.remove('mobile-open', 'open');
+                    sidebar.style.transform = 'translateX(-100%)';
+                    overlay.style.display = 'none';
+                } else {
+                    sidebar.classList.add('mobile-open');
+                    sidebar.style.display = 'flex';
+                    sidebar.style.visibility = 'visible';
+                    sidebar.style.opacity = '1';
+                    sidebar.style.transform = 'translateX(0)';
+                    overlay.style.display = 'block';
+                }
+                
+                console.log('[Mobile] Sidebar toggled:', !isOpen ? 'open' : 'closed');
+            }
+        };
+        
+        // Create overlay for mobile sidebar
+        function createSidebarOverlay() {
+            let overlay = document.getElementById('sidebar-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'sidebar-overlay';
+                overlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0,0,0,0.5);
+                    z-index: 998;
+                    display: none;
+                `;
+                overlay.onclick = function() {
+                    window.toggleMobileSidebar();
+                };
+                document.body.appendChild(overlay);
+            }
+            return overlay;
+        }
+        
         // Run on load and resize
         window.addEventListener('resize', handleResponsiveLayout);
         window.addEventListener('load', handleResponsiveLayout);
-        document.addEventListener('DOMContentLoaded', handleResponsiveLayout);
+        document.addEventListener('DOMContentLoaded', function() {
+            handleResponsiveLayout();
+            createSidebarOverlay();
+            
+            // Wire up mobile menu button
+            const mobileMenuBtn = document.querySelector('.cav-mobile-menu-btn');
+            if (mobileMenuBtn) {
+                mobileMenuBtn.onclick = window.toggleMobileSidebar;
+            }
+            
+            // Wire up sidebar close button
+            const closeBtn = document.getElementById('sidebar-close');
+            if (closeBtn) {
+                closeBtn.onclick = window.toggleMobileSidebar;
+            }
+            
+            // Close sidebar when clicking nav items on mobile
+            document.querySelectorAll('.cav-nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 1024) {
+                        setTimeout(() => window.toggleMobileSidebar(), 100);
+                    }
+                });
+            });
+        });
         
-        // Also run after a short delay to ensure all elements are rendered
+        // Also run after a short delay
         setTimeout(handleResponsiveLayout, 100);
         setTimeout(handleResponsiveLayout, 500);
     })();
@@ -7684,8 +8905,9 @@ Provide actionable, specific strategic advice. Use data points where available. 
     <!-- Service Worker Registration for Speed & Offline Support -->
     <script>
     (function() {
-        // Register Service Worker for instant loading
-        if ('serviceWorker' in navigator) {
+        // TEMPORARILY DISABLED: Service Worker might be caching old files
+        // TODO: Re-enable after debugging
+        if (false && 'serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 navigator.serviceWorker.register('./sw.js')
                     .then(function(registration) {
@@ -7730,6 +8952,95 @@ Provide actionable, specific strategic advice. Use data points where available. 
             });
         }
     })();
+    </script>
+    
+    <!-- FLOATING MOBILE MENU BUTTON - Always Visible on Mobile -->
+    <button id="floating-mobile-menu" class="floating-mobile-menu-btn" onclick="window.toggleMobileSidebar()" aria-label="Open Menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+    
+    <style>
+    /* Floating Mobile Menu Button - ALWAYS visible on mobile */
+    .floating-mobile-menu-btn {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #e1306c 0%, #c13584 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 20px rgba(225, 48, 108, 0.4);
+        cursor: pointer;
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .floating-mobile-menu-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 24px rgba(225, 48, 108, 0.5);
+    }
+    
+    .floating-mobile-menu-btn:active {
+        transform: scale(0.95);
+    }
+    
+    /* Show floating button on mobile/tablet */
+    @media (max-width: 1024px) {
+        .floating-mobile-menu-btn {
+            display: flex;
+        }
+    }
+    
+    /* Hide when sidebar is open */
+    .cav-sidebar.mobile-open ~ .floating-mobile-menu-btn,
+    .cav-sidebar.open ~ .floating-mobile-menu-btn {
+        display: none;
+    }
+    
+    /* Extra: Also ensure topbar mobile menu button shows */
+    @media (max-width: 1024px) {
+        .cav-mobile-menu-btn {
+            display: flex !important;
+        }
+        .cav-topbar {
+            display: flex !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 100 !important;
+        }
+    }
+    </style>
+    
+    <script>
+    // Ensure floating menu hides when sidebar opens
+    document.addEventListener('DOMContentLoaded', function() {
+        const floatingBtn = document.getElementById('floating-mobile-menu');
+        const sidebar = document.querySelector('.cav-sidebar');
+        
+        if (floatingBtn && sidebar) {
+            // Watch for sidebar state changes
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.attributeName === 'class') {
+                        const isOpen = sidebar.classList.contains('mobile-open') || sidebar.classList.contains('open');
+                        floatingBtn.style.display = isOpen ? 'none' : (window.innerWidth <= 1024 ? 'flex' : 'none');
+                    }
+                });
+            });
+            observer.observe(sidebar, { attributes: true });
+        }
+    });
     </script>
 </body>
 </html>

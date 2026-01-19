@@ -344,7 +344,7 @@ CONSTRAINTS (FOLLOW STRICTLY):
                 result = await orchestrator.callOpenAI(VISUAL_EXTRACTION_PROMPT, { 
                     image: imageBase64,
                     temperature: 0.1, // Low temp for factual extraction
-                    model: 'gpt-5.2' // Latest GPT model
+                    model: 'gpt-5.2-2025-12-11' // Latest GPT-5.2 flagship model
                 });
             } else if (orchestrator.isProviderAvailable('gemini')) {
                 result = await orchestrator.callGemini(VISUAL_EXTRACTION_PROMPT, { 
@@ -355,7 +355,7 @@ CONSTRAINTS (FOLLOW STRICTLY):
             }
 
             const extracted = this.parseJSON(result.content);
-            extracted._extractedBy = 'gpt-5.2';
+            extracted._extractedBy = 'gpt-5.2-2025-12-11';
             extracted._extractedAt = new Date().toISOString();
             extracted._contentType = contentType;
             
@@ -566,7 +566,7 @@ Return ONLY valid JSON:
     "analysisMetadata": {
         "promptVersion": "${this.promptVersion}",
         "analyzedAt": "${new Date().toISOString()}",
-        "analyzedBy": "claude-opus-4.5",
+        "analyzedBy": "claude-opus-4-5-20250929",
         "confidenceLevel": 0.85
     }
 }`;
@@ -627,7 +627,7 @@ Return ONLY valid JSON:
                 analysis.visualExtraction = await this.extractVisualData(imageBase64, contentType);
                 analysis.pipelineSteps.push({
                     step: 'visual_extraction',
-                    provider: 'gpt-5.2',
+                    provider: 'gpt-5.2-2025-12-11',
                     duration: Date.now() - step1Start,
                     success: true
                 });
@@ -654,7 +654,7 @@ Return ONLY valid JSON:
                 );
                 analysis.pipelineSteps.push({
                     step: 'strategic_synthesis',
-                    provider: 'claude-opus',
+                    provider: 'claude-opus-4-5-20250929',
                     duration: Date.now() - step3Start,
                     success: true
                 });
@@ -758,7 +758,7 @@ Return ONLY valid JSON:
             if (orchestrator?.isProviderAvailable('openai')) {
                 const result = await orchestrator.callOpenAI(prompt, {
                     image: imageBase64,
-                    model: 'gpt-5-mini', // Fast, efficient classification
+                    model: 'gpt-5-mini', // Fast, efficient GPT-5 Mini model
                     temperature: 0.2
                 });
                 return this.parseJSON(result.content);

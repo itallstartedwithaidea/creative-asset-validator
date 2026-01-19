@@ -1,7 +1,8 @@
 /**
- * Settings Module - Creative Asset Validator v3.0
+ * Settings Module - Creative Asset Validator v5.11.0
  * API Key Management for Claude, OpenAI, SearchAPI, and Gemini
  * Secure local storage with encryption and connection testing
+ * Updated: January 16, 2026 - Fixed API Key Sharing
  */
 
 (function() {
@@ -11,7 +12,7 @@
     // SETTINGS CONFIGURATION
     // ============================================
     
-    const SETTINGS_VERSION = '3.0.0';
+    const SETTINGS_VERSION = '5.11.0'; // Updated January 16, 2026
     const STORAGE_KEY = 'cav_v3_settings';
     const ENCRYPTION_KEY = 'cav_secure_2024';
 
@@ -42,8 +43,10 @@
         link: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
         users: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
         user: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+        save: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
         plus: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
         trash: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+        edit: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
         plug: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg>`,
         refresh: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>`,
         google: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>`,
@@ -65,13 +68,14 @@
         version: SETTINGS_VERSION,
         apiKeys: {
             claude: { key: '', model: 'claude-sonnet-4-5-20250929', status: 'untested', lastTested: null },
-            openai: { key: '', orgId: '', model: 'gpt-5.2', status: 'untested', lastTested: null },
+            openai: { key: '', orgId: '', model: 'gpt-5.2-2025-12-11', status: 'untested', lastTested: null },
             searchapi: { key: '', status: 'untested', lastTested: null },
-            gemini: { key: '', model: 'gemini-2.0-flash', status: 'untested', lastTested: null }
+            gemini: { key: '', model: 'gemini-3-flash-preview', status: 'untested', lastTested: null },
+            googleVision: { key: '', status: 'untested', lastTested: null }
         },
         modelConfig: {
             claudeModel: 'claude-sonnet-4-5-20250929',
-            openaiVisionModel: 'gpt-5.2',
+            openaiVisionModel: 'gpt-5.2-2025-12-11',
             analysisTemperature: 0.3,
             creativeTemperature: 0.7,
             maxTokens: 8192
@@ -116,11 +120,205 @@
             // Immediately try to set userEmail from session if available
             this.initUserEmail();
             
+            // Consolidate keys from ALL storage locations (legacy, user-specific, etc.)
+            this.consolidateAllApiKeys();
+            
             // Load user-specific API keys from IndexedDB
             this.loadUserApiKeys();
             
             // Sync existing Gemini key to legacy storage locations on startup
             this.syncGeminiKeyToLegacy();
+            
+            // Load platform credentials from backend (for team members)
+            this.loadPlatformCredentialsFromBackend();
+            
+            // Also sync from UnifiedStorage if available (cross-device keys)
+            this.loadFromUnifiedStorage();
+            
+            // Load directly from Supabase (most reliable for cross-device)
+            this.loadFromSupabase();
+            
+            // Load Cloudinary credentials from Supabase
+            this.loadCloudinaryFromSupabase();
+        }
+        
+        // Load API keys directly from Supabase
+        async loadFromSupabase() {
+            // Wait for Supabase to be ready
+            let attempts = 0;
+            const checkSupabase = async () => {
+                attempts++;
+                if (!window.CAVSupabase?.getClient) {
+                    if (attempts < 10) {
+                        setTimeout(checkSupabase, 1000);
+                    }
+                    return;
+                }
+                
+                try {
+                    const supabase = window.CAVSupabase.getClient();
+                    if (!supabase) return;
+                    
+                    // Get user email from session (works with Google Sign-In)
+                    const userEmail = this.userEmail || 
+                                     window.cavUserSession?.email || 
+                                     window.CAVSecurity?.SecureSessionManager?.getSession()?.email;
+                    
+                    if (!userEmail) {
+                        console.log('[Settings] No user email, skipping Supabase key load');
+                        return;
+                    }
+                    
+                    console.log('[Settings] Loading API keys from Supabase for:', userEmail);
+                    
+                    // Load API keys from user_api_keys table (using user_email since auth.uid() is NULL)
+                    const { data: keys, error } = await supabase
+                        .from('user_api_keys')
+                        .select('provider, key, encrypted_key, is_active')
+                        .eq('user_email', userEmail)
+                        .eq('is_active', true);
+                    
+                    if (error) {
+                        console.warn('[Settings] Supabase API keys load error:', error.message);
+                        // Try fallback to api_keys table
+                        const { data: fallbackKeys, error: fallbackError } = await supabase
+                            .from('api_keys')
+                            .select('provider, key, encrypted_key, is_active')
+                            .eq('user_email', userEmail)
+                            .eq('is_active', true);
+                        
+                        if (!fallbackError && fallbackKeys && fallbackKeys.length > 0) {
+                            this.processLoadedKeys(fallbackKeys);
+                        }
+                        return;
+                    }
+                    
+                    if (keys && keys.length > 0) {
+                        this.processLoadedKeys(keys);
+                    }
+                    
+                    // Also load shared keys from shared_api_keys
+                    await this.loadSharedKeysFromSupabase(supabase, userEmail);
+                    
+                } catch (e) {
+                    console.warn('[Settings] Supabase load error:', e);
+                }
+            };
+            
+            checkSupabase();
+        }
+        
+        // Process loaded keys from Supabase
+        processLoadedKeys(keys) {
+            console.log(`[Settings] ☁️ Processing ${keys.length} API keys from Supabase`);
+            
+            for (const keyData of keys) {
+                const provider = keyData.provider;
+                // Use 'key' column first (new schema), fall back to 'encrypted_key' (old schema)
+                const key = keyData.key || keyData.encrypted_key;
+                
+                if (key && key.length >= 10 && this.settings.apiKeys[provider]) {
+                    // Only update if we don't already have a key
+                    if (!this.settings.apiKeys[provider].key) {
+                        this.settings.apiKeys[provider].key = key;
+                        this.settings.apiKeys[provider].status = 'active';
+                        this.settings.apiKeys[provider].source = 'supabase';
+                        
+                        // Also save to legacy locations
+                        localStorage.setItem(`cav_${provider}_api_key`, key);
+                        if (provider === 'gemini') {
+                            localStorage.setItem('cav_ai_api_key', key);
+                            localStorage.setItem('cav_gemini_api_key', key);
+                        }
+                        
+                        console.log(`🔑 [Settings] Loaded ${provider} key from Supabase`);
+                    }
+                }
+            }
+            
+            // Save to localStorage so it's available immediately next time
+            this.saveSettings();
+            
+            // Notify listeners
+            this.notifyListeners('apiKeysLoaded', this.settings.apiKeys);
+        }
+        
+        // Load shared keys from Supabase
+        async loadSharedKeysFromSupabase(supabase, userEmail) {
+            try {
+                const userDomain = userEmail.split('@')[1];
+                
+                // Load shared keys - the table stores keys in encrypted_keys JSONB
+                // Schema: organization_id, encrypted_keys (JSONB), is_global_share, allowed_domains (array)
+                const { data: sharedKeyRows, error } = await supabase
+                    .from('shared_api_keys')
+                    .select('encrypted_keys, is_global_share, allowed_domains, organization_id')
+                    .or(`allowed_domains.cs.{${userDomain}},is_global_share.eq.true`);
+                
+                if (!error && sharedKeyRows && sharedKeyRows.length > 0) {
+                    console.log(`[Settings] ☁️ Found ${sharedKeyRows.length} shared API key rows`);
+                    
+                    for (const row of sharedKeyRows) {
+                        const encryptedKeys = row.encrypted_keys || {};
+                        const isGlobal = row.is_global_share;
+                        
+                        // encrypted_keys is a JSONB object: { provider: key, ... }
+                        for (const [provider, key] of Object.entries(encryptedKeys)) {
+                            // Only use shared key if user doesn't have their own
+                            if (key && key.length >= 10 && this.settings.apiKeys[provider] && !this.settings.apiKeys[provider].key) {
+                                this.settings.apiKeys[provider].key = key;
+                                this.settings.apiKeys[provider].status = 'active';
+                                this.settings.apiKeys[provider].source = isGlobal ? 'global_shared' : 'domain_shared';
+                                
+                                // Also save to legacy locations
+                                localStorage.setItem(`cav_${provider}_api_key`, key);
+                                
+                                console.log(`🔑 [Settings] Loaded shared ${provider} key (${isGlobal ? 'global' : 'domain'})`);
+                            }
+                        }
+                    }
+                    
+                    this.saveSettings();
+                }
+            } catch (e) {
+                console.warn('[Settings] Shared keys load error:', e);
+            }
+        }
+        
+        // Load keys from UnifiedStorage (Supabase cross-device sync)
+        async loadFromUnifiedStorage() {
+            if (!window.UnifiedStorage?.getAPIKey) {
+                // Retry after UnifiedStorage initializes
+                setTimeout(() => this.loadFromUnifiedStorage(), 2000);
+                return;
+            }
+            
+            const providers = ['claude', 'openai', 'searchapi', 'gemini', 'googleVision'];
+            
+            for (const provider of providers) {
+                // Skip if already has a key
+                if (this.settings.apiKeys[provider]?.key) continue;
+                
+                try {
+                    const result = await window.UnifiedStorage.getAPIKey(provider);
+                    if (result?.key && result.key.length >= 10) {
+                        this.settings.apiKeys[provider].key = result.key;
+                        console.log(`🔑 Settings: Loaded ${provider} key from UnifiedStorage (source: ${result.source})`);
+                        
+                        // Also save to legacy locations
+                        localStorage.setItem(`cav_${provider}_api_key`, result.key);
+                        if (provider === 'gemini') {
+                            localStorage.setItem('cav_ai_api_key', result.key);
+                            localStorage.setItem('cav_gemini_api_key', result.key);
+                        }
+                    }
+                } catch (e) {
+                    // Ignore errors for individual providers
+                }
+            }
+            
+            // Notify listeners that keys are loaded
+            this.notifyListeners('apiKeysLoaded', this.settings.apiKeys);
         }
         
         // Immediately set userEmail if session is available
@@ -145,8 +343,20 @@
         // PLATFORM CREDENTIALS (Super Admin Only)
         // ============================================
         
-        getPlatformCredentials() {
-            if (!this.isSuperAdmin()) return null;
+        getPlatformCredentials(readOnly = false) {
+            // Super admin can always access
+            // Team members can read (for shared keys) but not modify
+            if (!this.isSuperAdmin() && !readOnly) return null;
+            try {
+                const stored = localStorage.getItem('cav_platform_credentials');
+                return stored ? JSON.parse(stored) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+        
+        // Get platform credentials for reading (any authenticated user)
+        getSharedPlatformCredentials() {
             try {
                 const stored = localStorage.getItem('cav_platform_credentials');
                 return stored ? JSON.parse(stored) : null;
@@ -162,11 +372,141 @@
             }
             try {
                 localStorage.setItem('cav_platform_credentials', JSON.stringify(credentials));
-                console.log('[Settings] Platform credentials saved');
+                console.log('[Settings] Platform credentials saved to localStorage');
+                
+                // Sync to backend for cross-device/cross-user access
+                this.syncPlatformCredentialsToBackend(credentials);
+                
                 return true;
             } catch (e) {
                 console.error('[Settings] Failed to save platform credentials:', e);
                 return false;
+            }
+        }
+        
+        // Sync platform credentials to backend for team members
+        async syncPlatformCredentialsToBackend(credentials) {
+            // PRIORITY 1: Use Supabase DIRECT save (no auth required)
+            if (window.CAVSupabase?.isConfigured?.()) {
+                try {
+                    const sharedKeys = credentials.sharedKeys || {};
+                    const orgId = credentials.sharing?.organizationId || 'default';
+                    
+                    // Use direct save - doesn't require Supabase authentication
+                    const result = await window.CAVSupabase.saveSharedKeysDirect(sharedKeys, orgId);
+                    
+                    if (result.success) {
+                        console.log('[Settings] ☁️ Platform credentials synced to Supabase cloud!');
+                        return;
+                    } else {
+                        console.warn('[Settings] Supabase save failed:', result.error);
+                    }
+                } catch (e) {
+                    console.warn('[Settings] Supabase sync failed, falling back to syncEngine:', e);
+                }
+            }
+            
+            // FALLBACK: Use local syncEngine
+            if (!window.syncEngine) {
+                console.warn('[Settings] No backend available for sync');
+                return;
+            }
+            
+            try {
+                // Create a shareable config (exclude actual keys, only include sharing settings)
+                const shareableConfig = {
+                    uuid: 'platform_credentials_global',
+                    setting_type: 'platform_credentials_global',
+                    data: {
+                        sharing: credentials.sharing || {},
+                        sharedKeys: credentials.sharedKeys || {}, // Keys will be included for authorized users
+                        adminEmail: this.userEmail || window.cavUserSession?.email,
+                        updatedAt: new Date().toISOString()
+                    }
+                };
+                
+                await window.syncEngine.save('user_settings', shareableConfig);
+                console.log('[Settings] Platform credentials synced to local backend');
+            } catch (e) {
+                console.warn('[Settings] Failed to sync platform credentials to backend:', e);
+            }
+        }
+        
+        // Load platform credentials from backend (for team members)
+        async loadPlatformCredentialsFromBackend() {
+            // PRIORITY 1: Use Supabase DIRECT load (no auth required)
+            if (window.CAVSupabase?.isConfigured?.()) {
+                try {
+                    const orgId = 'default';
+                    
+                    // Use direct load - doesn't require Supabase authentication
+                    const result = await window.CAVSupabase.loadSharedKeysDirect(orgId);
+                    
+                    if (result.success && result.keys && Object.keys(result.keys).length > 0) {
+                        console.log('[Settings] ☁️ Loaded shared keys from Supabase cloud!');
+                        console.log('[Settings] ☁️ Keys found:', Object.keys(result.keys).join(', '));
+                        
+                        // Merge with existing local credentials
+                        const existing = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+                        const merged = {
+                            ...existing,
+                            sharing: { ...existing.sharing, enabled: true },
+                            sharedKeys: { ...existing.sharedKeys, ...result.keys }
+                        };
+                        localStorage.setItem('cav_platform_credentials', JSON.stringify(merged));
+                        console.log('[Settings] ☁️ Platform credentials merged from Supabase');
+                        
+                        // Subscribe to real-time updates (if auth is available)
+                        try {
+                            window.CAVSupabase.subscribeToSharedKeys(orgId, (newKeys) => {
+                                console.log('[Settings] ☁️ Real-time key update received');
+                                const current = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+                                current.sharedKeys = { ...current.sharedKeys, ...newKeys };
+                                localStorage.setItem('cav_platform_credentials', JSON.stringify(current));
+                            });
+                        } catch (subErr) {
+                            console.log('[Settings] Real-time subscription not available (requires auth)');
+                        }
+                        
+                        return;
+                    } else if (result.error) {
+                        console.warn('[Settings] Supabase load issue:', result.error);
+                    } else {
+                        console.log('[Settings] No shared keys in Supabase yet');
+                    }
+                } catch (e) {
+                    console.warn('[Settings] Supabase load failed:', e);
+                }
+            }
+            
+            // FALLBACK: Use local syncEngine
+            if (!window.syncEngine) {
+                // Retry after sync engine initializes
+                setTimeout(() => this.loadPlatformCredentialsFromBackend(), 1000);
+                return;
+            }
+            
+            try {
+                const userSettings = await window.syncEngine.getAllFromLocal('user_settings');
+                const globalConfig = userSettings?.find(s => s.setting_type === 'platform_credentials_global');
+                
+                if (globalConfig?.data) {
+                    console.log('[Settings] Loaded platform credentials from local backend');
+                    
+                    // Merge with existing (don't overwrite if admin)
+                    if (!this.isSuperAdmin()) {
+                        const existing = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+                        const merged = {
+                            ...existing,
+                            sharing: globalConfig.data.sharing || existing.sharing,
+                            sharedKeys: globalConfig.data.sharedKeys || existing.sharedKeys
+                        };
+                        localStorage.setItem('cav_platform_credentials', JSON.stringify(merged));
+                        console.log('[Settings] Platform credentials merged from local backend for team member');
+                    }
+                }
+            } catch (e) {
+                console.warn('[Settings] Failed to load platform credentials from backend:', e);
             }
         }
         
@@ -180,16 +520,66 @@
                 return null;
             }
             
-            // Check if platform sharing is enabled and user is allowed
-            const platformCreds = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+            // --- NEW: Check API Access Control System (API Key Sharing UI) ---
+            try {
+                const apiAccessData = JSON.parse(localStorage.getItem('cav_api_access_control') || '{}');
+                const sharedKeysConfig = apiAccessData.sharedKeys || {};
+                const providerConfig = sharedKeysConfig[provider];
+                
+                // Check if sharing is enabled for this provider and user is allowed
+                if (providerConfig && providerConfig.enabled) {
+                    const allowedUsers = (providerConfig.allowedUsers || []).map(e => e.toLowerCase().trim());
+                    const revokedUsers = (providerConfig.revokedUsers || []).map(e => e.toLowerCase().trim());
+                    
+                    // Check if user is explicitly revoked
+                    if (revokedUsers.includes(currentEmail)) {
+                        console.log(`[Settings] User ${currentEmail} is revoked from ${provider}`);
+                        // Continue to check legacy system
+                    } else if (allowedUsers.length === 0 || allowedUsers.includes(currentEmail)) {
+                        // User is allowed - get admin's key
+                        const adminEmail = apiAccessData.adminEmail;
+                        if (adminEmail) {
+                            // Get admin's settings
+                            const adminStorageKey = `cav_v3_settings_${adminEmail.replace(/[^a-z0-9]/gi, '_')}`;
+                            try {
+                                const adminSettings = JSON.parse(localStorage.getItem(adminStorageKey) || '{}');
+                                const adminKey = adminSettings.apiKeys?.[provider]?.key;
+                                if (adminKey && adminKey.length >= 10) {
+                                    console.log(`[Settings] ✅ Using shared ${provider} key from admin (${adminEmail})`);
+                                    return adminKey;
+                                }
+                            } catch (e) {
+                                console.warn(`[Settings] Failed to load admin settings for ${adminEmail}:`, e);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('[Settings] Failed to check API access control:', e);
+            }
+            
+            // --- LEGACY: Check old platform credentials system ---
+            try {
+                const platformCreds = this.getSharedPlatformCredentials() || {};
             const sharing = platformCreds.sharing || {};
+                
+                console.log('[Settings] Checking platform credentials for shared key:', provider, {
+                    enabled: sharing.enabled,
+                    globalUniversalShare: sharing.globalUniversalShare,
+                    hasKeys: !!platformCreds.sharedKeys
+                });
             
             if (!sharing.enabled) return null;
             
             // If global universal share is enabled, allow all authenticated users
             if (sharing.globalUniversalShare) {
                 const sharedKeys = platformCreds.sharedKeys || {};
-                return sharedKeys[provider] || null;
+                    const key = sharedKeys[provider];
+                    if (key) {
+                        console.log(`[Settings] ✅ Found ${provider} key via Global Universal Share`);
+                        return key;
+                    }
+                    return null;
             }
             
             // Check if current user is in allowed list (or allowed by domain)
@@ -211,13 +601,15 @@
                 return entry === currentEmail;
             });
             
-            if (!isAllowed) {
-                return null; // Not in allowed list
-            }
-            
-            // Return the shared key for this provider
+                if (isAllowed) {
             const sharedKeys = platformCreds.sharedKeys || {};
             return sharedKeys[provider] || null;
+                }
+            } catch (e) {
+                console.warn('[Settings] Failed to check platform credentials:', e);
+            }
+            
+            return null;
         }
         
         // Check if user can access shared keys
@@ -263,12 +655,135 @@
         saveUserCloudinaryCredentials(credentials) {
             try {
                 localStorage.setItem('cav_user_cloudinary', JSON.stringify(credentials));
-                console.log('[Settings] User Cloudinary credentials saved');
+                console.log('[Settings] User Cloudinary credentials saved to localStorage');
+                
+                // Also sync to Supabase for cross-device access
+                this.saveCloudinaryToSupabase(credentials);
+                
                 return true;
             } catch (e) {
                 console.error('[Settings] Failed to save Cloudinary credentials:', e);
                 return false;
             }
+        }
+        
+        // Save Cloudinary credentials to Supabase
+        async saveCloudinaryToSupabase(credentials) {
+            const userEmail = this.userEmail || window.cavUserSession?.email;
+            if (!userEmail || !window.CAVSupabase?.getClient) {
+                console.log('[Settings] No user email or Supabase client for Cloudinary sync');
+                return;
+            }
+            
+            try {
+                const supabase = window.CAVSupabase.getClient();
+                if (!supabase) return;
+                
+                const credentialId = `cloudinary_${userEmail.replace(/[^a-z0-9]/gi, '_')}`;
+                
+                const { error } = await supabase
+                    .from('integration_credentials')
+                    .upsert({
+                        uuid: credentialId,
+                        user_email: userEmail,
+                        owner_email: userEmail,
+                        service: 'cloudinary',
+                        provider: 'cloudinary',
+                        credentials: credentials,
+                        is_active: true,
+                        updated_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'uuid'
+                    });
+                
+                if (error) {
+                    console.warn('[Settings] Cloudinary Supabase save error:', error.message);
+                } else {
+                    console.log('[Settings] ☁️ Cloudinary credentials synced to Supabase');
+                }
+            } catch (e) {
+                console.warn('[Settings] Cloudinary Supabase sync error:', e);
+            }
+        }
+        
+        // Load Cloudinary credentials from Supabase
+        async loadCloudinaryFromSupabase() {
+            const userEmail = this.userEmail || window.cavUserSession?.email;
+            if (!userEmail || !window.CAVSupabase?.getClient) return null;
+            
+            try {
+                const supabase = window.CAVSupabase.getClient();
+                if (!supabase) return null;
+                
+                const { data, error } = await supabase
+                    .from('integration_credentials')
+                    .select('credentials')
+                    .eq('user_email', userEmail)
+                    .eq('service', 'cloudinary')
+                    .eq('is_active', true)
+                    .single();
+                
+                if (!error && data?.credentials) {
+                    // Also save to localStorage for offline access
+                    localStorage.setItem('cav_user_cloudinary', JSON.stringify(data.credentials));
+                    console.log('[Settings] ☁️ Cloudinary credentials loaded from Supabase');
+                    return data.credentials;
+                }
+            } catch (e) {
+                console.warn('[Settings] Error loading Cloudinary from Supabase:', e);
+            }
+            return null;
+        }
+        
+        // Get Cloudinary credentials (shared first, then user's own)
+        getCloudinaryCredentials() {
+            // First check if user has their own credentials
+            const userCreds = this.getUserCloudinaryCredentials();
+            if (userCreds?.cloudName && userCreds?.apiKey) {
+                console.log('[Settings] Using user\'s own Cloudinary credentials');
+                return { ...userCreds, source: 'own' };
+            }
+            
+            // Check for shared platform credentials
+            const platformCreds = this.getSharedPlatformCredentials() || 
+                                 JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+            const sharing = platformCreds.sharing || {};
+            const cloudinaryCreds = platformCreds.cloudinary || {};
+            
+            // Check if sharing is enabled and Cloudinary credentials exist
+            if (sharing.enabled && cloudinaryCreds.cloudName && cloudinaryCreds.apiKey) {
+                // Verify user has access to shared resources
+                if (sharing.globalUniversalShare || this.hasAccessToSharedResource()) {
+                    console.log('[Settings] Using shared Cloudinary credentials');
+                    return { ...cloudinaryCreds, source: 'shared' };
+                }
+            }
+            
+            console.log('[Settings] No Cloudinary credentials available');
+            return null;
+        }
+        
+        // Check if current user has access to shared resources
+        hasAccessToSharedResource() {
+            const session = window.cavUserSession || window.CAVSecurity?.SecureSessionManager?.getSession?.();
+            const currentEmail = session?.email?.toLowerCase();
+            if (!currentEmail) return false;
+            
+            const platformCreds = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+            const sharing = platformCreds.sharing || {};
+            
+            // If no email restrictions, allow all authenticated users
+            const allowedEmails = (sharing.allowedEmails || []).map(e => e.toLowerCase().trim());
+            if (allowedEmails.length === 0) return true;
+            
+            // Check if user's email or domain is allowed
+            return allowedEmails.some(entry => {
+                if (entry.startsWith('@')) {
+                    // Domain match
+                    return currentEmail.endsWith(entry);
+                }
+                return entry === currentEmail;
+            });
         }
         
         // Load API keys from IndexedDB for current user
@@ -382,7 +897,7 @@
             return merged;
         }
 
-        // Save settings to localStorage AND IndexedDB for persistence
+        // Save settings to localStorage, IndexedDB, AND Supabase for full persistence
         saveSettings() {
             try {
                 this.settings.updatedAt = new Date().toISOString();
@@ -395,6 +910,9 @@
                     
                     // Save API keys to IndexedDB for maximum persistence
                     this.saveApiKeysToIndexedDB();
+                    
+                    // Save API keys to Supabase for cross-device sync
+                    this.saveApiKeysToSupabase();
                 }
                 
                 this.notifyListeners('save', this.settings);
@@ -402,6 +920,96 @@
             } catch (e) {
                 console.error('[Settings] Error saving settings:', e);
                 return false;
+            }
+        }
+        
+        // Save API keys to Supabase cloud for cross-device sync
+        async saveApiKeysToSupabase() {
+            if (!this.userEmail || !window.CAVSupabase?.getClient) return;
+            
+            try {
+                const supabase = window.CAVSupabase.getClient();
+                if (!supabase) return;
+                
+                console.log('[Settings] Saving API keys to Supabase for:', this.userEmail);
+                
+                // Save each API key to the user_api_keys table (works with Google Sign-In)
+                for (const [provider, config] of Object.entries(this.settings.apiKeys)) {
+                    if (config?.key && config.key.length >= 10) {
+                        const keyId = `apikey_${provider}_${this.userEmail.replace(/[^a-z0-9]/gi, '_')}`;
+                        
+                        const { error } = await supabase
+                            .from('user_api_keys')
+                            .upsert({
+                                uuid: keyId,
+                                user_email: this.userEmail,
+                                owner_email: this.userEmail,
+                                provider: provider,
+                                key: config.key,
+                                encrypted_key: config.key, // Also set encrypted_key for compatibility
+                                is_active: config.status !== 'error',
+                                domain: this.userEmail.split('@')[1] || 'local',
+                                updated_at: new Date().toISOString()
+                            }, {
+                                onConflict: 'uuid'
+                            });
+                        
+                        if (error) {
+                            console.warn(`[Settings] Supabase save error for ${provider}:`, error.message);
+                            // Try fallback to api_keys table
+                            const { error: fallbackError } = await supabase
+                                .from('api_keys')
+                                .upsert({
+                                    id: keyId,
+                                    user_email: this.userEmail,
+                                    owner_email: this.userEmail,
+                                    provider: provider,
+                                    key: config.key,
+                                    encrypted_key: config.key,
+                                    is_active: config.status !== 'error',
+                                    domain: this.userEmail.split('@')[1] || 'local',
+                                    updated_at: new Date().toISOString()
+                                }, {
+                                    onConflict: 'id'
+                                });
+                            if (!fallbackError) {
+                                console.log(`[Settings] ☁️ Saved ${provider} key to api_keys (fallback)`);
+                            }
+                        } else {
+                            console.log(`[Settings] ☁️ Saved ${provider} key to Supabase`);
+                        }
+                    }
+                }
+                
+                // Also save full settings to user_settings table
+                const settingsUuid = `settings_${this.userEmail.replace(/[^a-z0-9]/gi, '_')}`;
+                const { error: settingsError } = await supabase
+                    .from('user_settings')
+                    .upsert({
+                        uuid: settingsUuid,
+                        user_email: this.userEmail,
+                        settings_type: 'app_settings',
+                        data: {
+                            features: this.settings.features,
+                            modelConfig: this.settings.modelConfig,
+                            notifications: this.settings.notifications,
+                            brandProfiles: this.settings.brandProfiles,
+                            competitors: this.settings.competitors,
+                            // Don't store keys in plain text here
+                            apiKeyStatus: Object.fromEntries(
+                                Object.entries(this.settings.apiKeys).map(([k, v]) => [k, { status: v?.status, hasKey: !!v?.key }])
+                            )
+                        },
+                        updated_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'uuid'
+                    });
+                
+                if (!settingsError) {
+                    console.log('[Settings] ☁️ Settings synced to Supabase');
+                }
+            } catch (e) {
+                console.warn('[Settings] Supabase sync error:', e);
             }
         }
         
@@ -464,7 +1072,7 @@
             return '';
         }
 
-        // Set API key
+        // Set API key - saves to ALL storage locations for maximum persistence
         setAPIKey(provider, key) {
             if (this.settings.apiKeys[provider]) {
                 this.settings.apiKeys[provider].key = key;
@@ -479,17 +1087,105 @@
                     }
                 }
                 
+                // Save to main settings storage
                 this.saveSettings();
                 
-                // Sync to legacy storage locations for backwards compatibility
-                if (provider === 'gemini' && key) {
-                    localStorage.setItem('cav_ai_api_key', key);
-                    localStorage.setItem('cav_gemini_api_key', key);
-                    // Also update AI Studio if available
-                    if (window.cavAIStudio) {
-                        window.cavAIStudio.apiKey = key;
+                // === SYNC TO ALL LEGACY STORAGE LOCATIONS ===
+                // This ensures keys persist regardless of which system loads first
+                if (key) {
+                    // Provider-specific legacy keys
+                    localStorage.setItem(`cav_${provider}_api_key`, key);
+                    
+                    // Gemini has extra legacy locations
+                    if (provider === 'gemini') {
+                        localStorage.setItem('cav_ai_api_key', key);
+                        localStorage.setItem('cav_gemini_api_key', key);
+                        if (window.cavAIStudio) {
+                            window.cavAIStudio.apiKey = key;
+                        }
                     }
-                    console.log('🔑 Gemini API key synced to all storage locations');
+                    
+                    // Claude legacy
+                    if (provider === 'claude') {
+                        localStorage.setItem('cav_claude_api_key', key);
+                        localStorage.setItem('cav_anthropic_api_key', key);
+                    }
+                    
+                    // OpenAI legacy
+                    if (provider === 'openai') {
+                        localStorage.setItem('cav_openai_api_key', key);
+                    }
+                    
+                    // SearchAPI legacy
+                    if (provider === 'searchapi') {
+                        localStorage.setItem('cav_searchapi_key', key);
+                    }
+                    
+                    // Google Vision uses same key as Gemini
+                    if (provider === 'googleVision') {
+                        localStorage.setItem('cav_google_vision_api_key', key);
+                    }
+                    
+                    console.log(`🔑 ${provider} key synced to all legacy storage locations`);
+                }
+
+                // === SYNC TO UNIFIED STORAGE (cross-device) ===
+                if (window.UnifiedStorage?.saveAPIKey && key) {
+                    window.UnifiedStorage.saveAPIKey(provider, key, {
+                        shareWithDomain: false,
+                        shareGlobally: false,
+                        isAdmin: this.isAdmin()
+                    }).then(() => {
+                        console.log(`🔑 ${provider} key synced to UnifiedStorage (Supabase)`);
+                    }).catch(e => {
+                        console.warn(`[Settings] UnifiedStorage sync failed for ${provider}:`, e);
+                    });
+                }
+            }
+        }
+
+        // Check if current user is admin
+        isAdmin() {
+            const session = window.cavUserSession || window.CAVSecurity?.SecureSessionManager?.getSession?.();
+            return session?.role === 'admin' || session?.role === 'super_admin';
+        }
+        
+        // Load API keys from ALL storage locations (consolidate)
+        consolidateAllApiKeys() {
+            const providers = ['claude', 'openai', 'searchapi', 'gemini', 'googleVision'];
+            
+            for (const provider of providers) {
+                // Skip if already has a key
+                if (this.settings.apiKeys[provider]?.key) continue;
+                
+                // Check legacy storage locations
+                let key = null;
+                
+                if (provider === 'gemini') {
+                    key = localStorage.getItem('cav_gemini_api_key') || 
+                          localStorage.getItem('cav_ai_api_key') ||
+                          localStorage.getItem('cav_gemini_api_key');
+                } else if (provider === 'claude') {
+                    key = localStorage.getItem('cav_claude_api_key') ||
+                          localStorage.getItem('cav_anthropic_api_key');
+                } else if (provider === 'openai') {
+                    key = localStorage.getItem('cav_openai_api_key');
+                } else if (provider === 'searchapi') {
+                    key = localStorage.getItem('cav_searchapi_key') ||
+                          localStorage.getItem('cav_searchapi_api_key');
+                } else if (provider === 'googleVision') {
+                    key = localStorage.getItem('cav_google_vision_api_key') ||
+                          localStorage.getItem('cav_gemini_api_key'); // Can use same key
+                }
+                
+                // Also check generic pattern
+                if (!key) {
+                    key = localStorage.getItem(`cav_${provider}_api_key`);
+                }
+                
+                if (key && key.length >= 10) {
+                    this.settings.apiKeys[provider].key = key;
+                    console.log(`🔑 Settings: Recovered ${provider} key from legacy storage`);
                 }
             }
         }
@@ -666,7 +1362,7 @@
             }
 
             try {
-                const url = `${API_ENDPOINTS.gemini}/gemini-2.0-flash:generateContent?key=${key}`;
+                const url = `${API_ENDPOINTS.gemini}/gemini-3-flash-preview:generateContent?key=${key}`;
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -693,13 +1389,59 @@
             }
         }
 
+        // Test Google Cloud Vision API connection
+        async testGoogleVisionConnection() {
+            const key = this.getAPIKey('googleVision') || this.getAPIKey('gemini'); // Can use same Google Cloud key
+            if (!key) {
+                return { success: false, error: 'No API key configured' };
+            }
+
+            try {
+                // Simple test with a blank image
+                const testImage = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='; // 1x1 white PNG
+                const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${key}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        requests: [{
+                            image: { content: testImage },
+                            features: [{ type: 'LABEL_DETECTION', maxResults: 1 }]
+                        }]
+                    })
+                });
+
+                if (response.ok) {
+                    if (this.settings.apiKeys.googleVision) {
+                        this.settings.apiKeys.googleVision.status = 'active';
+                        this.settings.apiKeys.googleVision.lastTested = new Date().toISOString();
+                    }
+                    this.saveSettings();
+                    return { success: true, message: 'Google Cloud Vision API connected successfully' };
+                } else {
+                    const error = await response.json();
+                    if (this.settings.apiKeys.googleVision) {
+                        this.settings.apiKeys.googleVision.status = 'error';
+                    }
+                    this.saveSettings();
+                    return { success: false, error: error.error?.message || 'Connection failed' };
+                }
+            } catch (e) {
+                if (this.settings.apiKeys.googleVision) {
+                    this.settings.apiKeys.googleVision.status = 'error';
+                }
+                this.saveSettings();
+                return { success: false, error: e.message };
+            }
+        }
+
         // Test all connections
         async testAllConnections() {
             const results = {
                 claude: await this.testClaudeConnection(),
                 openai: await this.testOpenAIConnection(),
                 searchapi: await this.testSearchAPIConnection(),
-                gemini: await this.testGeminiConnection()
+                gemini: await this.testGeminiConnection(),
+                googleVision: await this.testGoogleVisionConnection()
             };
             return results;
         }
@@ -850,6 +1592,9 @@
         constructor() {
             this.accessList = this.loadAccessList();
             this.usageStats = this.loadUsageStats();
+            // Async load from IndexedDB/backend for cross-device sync
+            this.loadFromIndexedDB();
+            this.loadFromBackend();
         }
 
         // Load access list from storage
@@ -860,6 +1605,7 @@
                 
                 if (stored) {
                     const parsed = JSON.parse(stored);
+                    console.log('[API Access] Loaded from localStorage:', parsed.adminEmail ? `admin: ${parsed.adminEmail}` : 'no admin set');
                     // Ensure all required fields exist
                     return {
                         sharedKeys: parsed.sharedKeys || {},
@@ -878,14 +1624,119 @@
                 return { sharedKeys: {}, adminEmail: null, adminDomain: null };
             }
         }
+        
+        // Load from IndexedDB (cross-tab sync)
+        async loadFromIndexedDB() {
+            const db = window.CAVSecurity?.SecureDataPersistence?.db;
+            if (!db) {
+                // Retry after security module initializes
+                setTimeout(() => this.loadFromIndexedDB(), 1000);
+                return;
+            }
+
+            try {
+                const tx = db.transaction('preferences', 'readonly');
+                const store = tx.objectStore('preferences');
+                const request = store.get('api_access_control');
+                
+                request.onsuccess = (event) => {
+                    const result = event.target.result;
+                    if (result?.data && result.data.adminEmail) {
+                        console.log('[API Access] Loaded from IndexedDB:', result.data.adminEmail);
+                        // Merge with existing (IndexedDB takes precedence if newer)
+                        if (result.data.sharedKeys) {
+                            this.accessList.sharedKeys = { ...this.accessList.sharedKeys, ...result.data.sharedKeys };
+                        }
+                        if (result.data.adminEmail) {
+                            this.accessList.adminEmail = result.data.adminEmail;
+                            this.accessList.adminDomain = result.data.adminDomain;
+                        }
+                        // Save merged config back to localStorage
+                        localStorage.setItem(API_ACCESS_STORAGE_KEY, JSON.stringify(this.accessList));
+                    }
+                };
+            } catch (e) {
+                console.warn('[API Access] IndexedDB load failed:', e);
+            }
+        }
+        
+        // Load from backend (cross-device sync) via sync-engine
+        async loadFromBackend() {
+            // Method 1: Try syncEngine first
+            if (window.syncEngine) {
+                try {
+                    const userSettings = await window.syncEngine.getAllFromLocal('user_settings');
+                    const apiConfig = userSettings?.find(s => s.setting_type === 'api_access_control_global');
+                    
+                    if (apiConfig?.data && apiConfig.data.adminEmail) {
+                        console.log('[API Access] Loaded from syncEngine:', apiConfig.data.adminEmail);
+                        if (apiConfig.data.sharedKeys) {
+                            this.accessList.sharedKeys = { ...this.accessList.sharedKeys, ...apiConfig.data.sharedKeys };
+                        }
+                        if (apiConfig.data.adminEmail) {
+                            this.accessList.adminEmail = apiConfig.data.adminEmail;
+                            this.accessList.adminDomain = apiConfig.data.adminDomain;
+                        }
+                        localStorage.setItem(API_ACCESS_STORAGE_KEY, JSON.stringify(this.accessList));
+                    }
+                } catch (e) {
+                    console.warn('[API Access] SyncEngine load failed:', e);
+                }
+            }
+            
+            // Method 2: Try Supabase for cross-device sync
+            if (window.CAVSupabase?.isConfigured?.()) {
+                try {
+                    // Determine the organization ID based on current user's domain
+                    const currentEmail = this.getCurrentUserEmail();
+                    const domain = currentEmail?.split('@')[1] || '';
+                    const orgId = domain.replace(/\./g, '_');
+                    
+                    if (orgId && domain !== 'gmail.com') {
+                        // Load shared keys for this domain
+                        const result = await window.CAVSupabase.loadSharedKeysDirect?.(orgId);
+                        
+                        if (result?.keys && Object.keys(result.keys).length > 0) {
+                            console.log(`[API Access] Loaded shared keys from Supabase for domain: ${domain}`);
+                            
+                            // Update platform credentials with domain-shared keys
+                            const platformCreds = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+                            platformCreds.sharedKeys = { ...platformCreds.sharedKeys, ...result.keys };
+                            platformCreds.sharing = { enabled: true };
+                            localStorage.setItem('cav_platform_credentials', JSON.stringify(platformCreds));
+                            
+                            // Sync keys to legacy locations
+                            for (const [provider, key] of Object.entries(result.keys)) {
+                                if (provider === 'gemini') {
+                                    localStorage.setItem('cav_ai_api_key', key);
+                                    localStorage.setItem('cav_gemini_api_key', key);
+                                }
+                                localStorage.setItem(`cav_${provider}_api_key`, key);
+                            }
+                            
+                            console.log(`[API Access] Domain keys synced: ${Object.keys(result.keys).join(', ')}`);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[API Access] Supabase load failed:', e);
+                }
+            } else {
+                // Retry after Supabase initializes
+                setTimeout(() => this.loadFromBackend(), 2000);
+            }
+        }
 
         // Save access list
         saveAccessList() {
             try {
                 localStorage.setItem(API_ACCESS_STORAGE_KEY, JSON.stringify(this.accessList));
+                console.log('[API Access] Saved to localStorage:', this.accessList.adminEmail || 'no admin');
                 
                 // Also save to IndexedDB for persistence
                 this.saveToIndexedDB();
+                
+                // Sync to backend for cross-device access
+                this.saveToBackend();
             } catch (e) {
                 console.error('[API Access] Failed to save access list:', e);
             }
@@ -904,8 +1755,65 @@
                     data: this.accessList,
                     updated_at: new Date().toISOString()
                 });
+                console.log('[API Access] Saved to IndexedDB');
             } catch (e) {
                 console.error('[API Access] IndexedDB save failed:', e);
+            }
+        }
+        
+        // Save to backend for cross-device sync
+        async saveToBackend() {
+            const adminEmail = this.accessList.adminEmail || this.getCurrentUserEmail();
+            if (!adminEmail) return;
+            
+            try {
+                // Method 1: Save via syncEngine (for sync_engine based systems)
+                if (window.syncEngine) {
+                    const globalConfig = {
+                        uuid: 'api_access_control_global',
+                        setting_type: 'api_access_control_global',
+                        data: this.accessList,
+                        updated_at: new Date().toISOString()
+                    };
+                    await window.syncEngine.save('user_settings', globalConfig);
+                }
+                
+                // Method 2: Save directly to Supabase for cross-device access
+                if (window.CAVSupabase?.isConfigured?.()) {
+                    const domain = adminEmail.split('@')[1];
+                    const orgId = domain.replace(/\./g, '_');
+                    
+                    // Save the sharing configuration
+                    await window.CAVSupabase.saveEntity?.('api_sharing_config', {
+                        uuid: `api_access_${orgId}`,
+                        organization_id: orgId,
+                        admin_email: adminEmail,
+                        shared_keys_config: this.accessList.sharedKeys,
+                        allowed_domains: [domain],
+                        updated_at: new Date().toISOString()
+                    });
+                    
+                    // If there are actual keys to share, save them to shared_api_keys
+                    const settingsManager = window.cavSettingsManager;
+                    if (settingsManager) {
+                        const keysToShare = {};
+                        for (const [provider, config] of Object.entries(this.accessList.sharedKeys || {})) {
+                            if (config.enabled) {
+                                const key = settingsManager.getAPIKey(provider);
+                                if (key) keysToShare[provider] = key;
+                            }
+                        }
+                        
+                        if (Object.keys(keysToShare).length > 0) {
+                            await window.CAVSupabase.saveSharedKeysDirect?.(keysToShare, orgId);
+                            console.log(`[API Access] Shared keys synced to Supabase for org: ${orgId}`);
+                        }
+                    }
+                }
+                
+                console.log('[API Access] Saved to backend for cross-device sync');
+            } catch (e) {
+                console.warn('[API Access] Backend save failed:', e);
             }
         }
 
@@ -1201,45 +2109,141 @@
         // Check if current user has access to admin's API key
         hasAccessToAdminKey(provider) {
             const currentEmail = this.getCurrentUserEmail();
-            if (!currentEmail) return false;
+            if (!currentEmail) {
+                console.log(`[API Access] No current user email, cannot check access for ${provider}`);
+                return false;
+            }
 
             // Admins always have access
-            if (this.isAdmin()) return true;
+            if (this.isAdmin()) {
+                console.log(`[API Access] User ${currentEmail} is admin, has access to ${provider}`);
+                return true;
+            }
 
             const config = this.accessList.sharedKeys[provider];
-            if (!config || !config.enabled) return false;
+            if (!config) {
+                console.log(`[API Access] No sharing config for ${provider}`);
+                return false;
+            }
+            
+            if (!config.enabled) {
+                console.log(`[API Access] Sharing disabled for ${provider}`);
+                return false;
+            }
 
             // Check if explicitly revoked
-            if (config.revokedUsers.includes(currentEmail)) return false;
+            if (config.revokedUsers && config.revokedUsers.includes(currentEmail)) {
+                console.log(`[API Access] User ${currentEmail} is revoked from ${provider}`);
+                return false;
+            }
 
             // Check if explicitly allowed OR if allowedUsers is empty (share with all)
-            return config.allowedUsers.length === 0 || config.allowedUsers.includes(currentEmail);
+            const allowedUsers = config.allowedUsers || [];
+            const hasAccess = allowedUsers.length === 0 || allowedUsers.includes(currentEmail);
+            
+            if (hasAccess) {
+                console.log(`[API Access] ✅ User ${currentEmail} has access to shared ${provider} key`);
+            } else {
+                console.log(`[API Access] User ${currentEmail} NOT in allowed list for ${provider}. Allowed: ${JSON.stringify(allowedUsers)}`);
+            }
+            
+            return hasAccess;
         }
 
         // Get the API key to use (admin's shared key or user's own)
         getAPIKey(provider, settingsManager) {
             const currentEmail = this.getCurrentUserEmail();
+            console.log(`[API Access] getAPIKey called for ${provider} by ${currentEmail || 'unknown user'}`);
+            
+            // Map provider names to platform credentials keys
+            const providerMap = {
+                'openai': 'openai',
+                'claude': 'anthropic',
+                'gemini': 'gemini',
+                'searchapi': 'searchapi'
+            };
+            const platformProvider = providerMap[provider] || provider;
             
             // If user has their own key, they can choose to use it
             const ownKey = settingsManager.settings.apiKeys[provider]?.key;
             
-            // Check if user has access to admin's key
-            if (this.hasAccessToAdminKey(provider)) {
-                // Load admin's key from their storage
-                const adminKey = this.getAdminAPIKey(provider);
-                if (adminKey) {
-                    // Track usage
-                    this.trackUsage(provider, currentEmail, 'admin_key');
-                    return { key: adminKey, source: 'admin', admin: this.accessList.adminEmail };
-                }
-            }
-
-            // Fall back to own key
-            if (ownKey) {
+            if (ownKey && ownKey.length >= 10) {
+                console.log(`[API Access] User ${currentEmail} has own ${provider} key, using it`);
                 this.trackUsage(provider, currentEmail, 'own_key');
                 return { key: ownKey, source: 'own' };
             }
+            
+            console.log(`[API Access] No own key, checking for shared ${provider} key...`);
+            
+            // === CHECK 1: cav_platform_credentials (Settings → API Sharing tab) ===
+            try {
+                const platformCreds = settingsManager.getSharedPlatformCredentials() || 
+                                     JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+                const sharing = platformCreds.sharing || {};
+                
+                console.log(`[API Access] Platform credentials sharing:`, { 
+                    enabled: sharing.enabled, 
+                    globalUniversalShare: sharing.globalUniversalShare,
+                    hasSharedKeys: Object.keys(platformCreds.sharedKeys || {}).length > 0
+                });
+                
+                if (sharing.enabled) {
+                    const sharedKeys = platformCreds.sharedKeys || {};
+                    const sharedKey = sharedKeys[platformProvider] || sharedKeys[provider];
+                    
+                    if (sharedKey && sharedKey.length >= 10) {
+                        // Check if user is allowed
+                        const allowedEmails = (sharing.allowedEmails || []).map(e => e.toLowerCase().trim());
+                        const userDomain = '@' + (currentEmail?.split('@')[1] || '');
+                        
+                        // Global universal share OR no email restrictions OR user is in list
+                        const isAllowed = sharing.globalUniversalShare || 
+                                         allowedEmails.length === 0 || 
+                                         allowedEmails.includes(currentEmail) ||
+                                         allowedEmails.some(e => e.startsWith('@') && e === userDomain);
+                        
+                        if (isAllowed) {
+                            console.log(`[API Access] ✅ Using shared ${provider} key from platform credentials`);
+                            this.trackUsage(provider, currentEmail, 'platform_shared');
+                            
+                            // Also sync to legacy storage for ai-library-integration.js
+                            if (provider === 'gemini') {
+                                localStorage.setItem('cav_ai_api_key', sharedKey);
+                                localStorage.setItem('cav_gemini_api_key', sharedKey);
+                            }
+                            
+                            return { key: sharedKey, source: 'platform_shared' };
+                        } else {
+                            console.log(`[API Access] User ${currentEmail} not in allowed list for platform sharing`);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('[API Access] Error checking platform credentials:', e);
+            }
+            
+            // === CHECK 2: cav_api_access_control (API Access Control system) ===
+            if (this.hasAccessToAdminKey(provider)) {
+                // Load admin's key from their storage
+                const adminKey = this.getAdminAPIKey(provider);
+                if (adminKey && adminKey.length >= 10) {
+                    console.log(`[API Access] ✅ Using shared ${provider} key from admin (${this.accessList.adminEmail || 'system'})`);
+                    // Track usage
+                    this.trackUsage(provider, currentEmail, 'admin_key');
+                    
+                    // Also sync to legacy storage for ai-library-integration.js
+                    if (provider === 'gemini') {
+                        localStorage.setItem('cav_ai_api_key', adminKey);
+                        localStorage.setItem('cav_gemini_api_key', adminKey);
+                    }
+                    
+                    return { key: adminKey, source: 'admin', admin: this.accessList.adminEmail };
+                } else {
+                    console.warn(`[API Access] User has access but admin key not found for ${provider}`);
+                }
+            }
 
+            console.log(`[API Access] No key available for ${provider}`);
             return { key: null, source: null };
         }
 
@@ -1846,6 +2850,9 @@
             let content = '';
             
             switch(sectionId) {
+                case 'profile':
+                    content = this.renderProfileSection(settings);
+                    break;
                 case 'model-config':
                     content = this.renderModelConfigSection(settings);
                     break;
@@ -1899,6 +2906,10 @@
                     
                     <div class="cav-settings-layout">
                         <div class="cav-settings-nav">
+                            <button class="cav-settings-nav-btn" data-section="profile">
+                                <span class="nav-icon">${ICONS.user}</span>
+                                <span class="nav-label">Profile</span>
+                            </button>
                             <button class="cav-settings-nav-btn active" data-section="api-keys">
                                 <span class="nav-icon">${ICONS.key}</span>
                                 <span class="nav-label">API Keys</span>
@@ -1937,6 +2948,7 @@
                         </div>
                         
                         <div class="cav-settings-content">
+                            ${this.renderProfileSection(settings)}
                             ${this.renderAPIKeysSection(settings)}
                             <div class="cav-settings-section" data-section="model-config"></div>
                             <div class="cav-settings-section" data-section="features"></div>
@@ -1953,12 +2965,109 @@
             this.attachEventHandlers(container);
         }
 
+        // ============================================
+        // PROFILE SECTION - Avatar & User Settings
+        // ============================================
+        
+        renderProfileSection(settings) {
+            const session = window.cavUserSession || window.CAVSecurity?.SecureSessionManager?.getSession?.() || {};
+            const customAvatar = localStorage.getItem('cav_custom_avatar') || '';
+            const currentPicture = customAvatar || session.picture || '';
+            const userName = session.name || 'User';
+            const userEmail = session.email || '';
+            const userRole = session.role || 'viewer';
+            
+            const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+            const fallbackAvatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect fill="#e1306c" width="120" height="120" rx="60"/><text x="60" y="75" font-family="system-ui" font-size="48" fill="white" text-anchor="middle" font-weight="bold">${initials}</text></svg>`)}`;
+            
+            return `
+                <div class="cav-settings-section" data-section="profile">
+                    <h2>${ICONS.user} Profile Settings</h2>
+                    <p class="cav-settings-desc">Customize your profile picture. Your avatar will persist across all devices when you log in.</p>
+                    
+                    <div class="profile-card" style="display: flex; align-items: center; gap: 32px; padding: 32px; background: linear-gradient(135deg, rgba(225, 48, 108, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%); border-radius: 16px; border: 1px solid rgba(225, 48, 108, 0.3); margin-bottom: 24px;">
+                        <!-- Avatar Preview -->
+                        <div class="avatar-section" style="text-align: center;">
+                            <div class="avatar-container" style="position: relative; width: 120px; height: 120px; margin: 0 auto 16px;">
+                                <img id="profile-avatar-preview" 
+                                     src="${currentPicture || fallbackAvatar}" 
+                                     alt="Profile Avatar" 
+                                     style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid #e1306c; box-shadow: 0 4px 20px rgba(225, 48, 108, 0.4);">
+                                <button id="change-avatar-btn" 
+                                        style="position: absolute; bottom: 0; right: 0; width: 36px; height: 36px; border-radius: 50%; background: #e1306c; border: 3px solid #0f0f14; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;"
+                                        title="Change Avatar">
+                                    ${ICONS.edit || '✏️'}
+                                </button>
+                            </div>
+                            <div style="color: white; font-weight: 600; font-size: 18px;">${userName}</div>
+                            <div style="color: #94a3b8; font-size: 14px;">${userEmail}</div>
+                            <div style="margin-top: 8px;">
+                                <span style="background: ${userRole === 'admin' || userRole === 'super_admin' ? '#22c55e' : '#3b82f6'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; text-transform: uppercase;">${userRole}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Avatar Options -->
+                        <div class="avatar-options" style="flex: 1;">
+                            <h4 style="margin: 0 0 16px; color: white;">Change Profile Picture</h4>
+                            
+                            <!-- Upload Image -->
+                            <div class="avatar-option" style="margin-bottom: 16px;">
+                                <label style="display: block; color: #94a3b8; margin-bottom: 8px; font-size: 13px;">Upload Your Own Image</label>
+                                <div style="display: flex; gap: 12px;">
+                                    <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;">
+                                    <button id="upload-avatar-btn" class="cav-btn" style="background: #334155; border: 1px solid #475569; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                        ${ICONS.upload || '📤'} Upload Image
+                                    </button>
+                                </div>
+                                <p style="font-size: 12px; color: #64748b; margin-top: 8px;">Recommended: Square image, at least 200x200 pixels. Max 2MB.</p>
+                            </div>
+                            
+                            <!-- AI Generate -->
+                            <div class="avatar-option" style="margin-bottom: 16px;">
+                                <label style="display: block; color: #94a3b8; margin-bottom: 8px; font-size: 13px;">Generate with AI</label>
+                                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                    <input type="text" id="ai-avatar-prompt" placeholder="Describe your ideal avatar..." 
+                                           style="flex: 1; min-width: 200px; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 10px; color: white;">
+                                    <button id="generate-avatar-btn" class="cav-btn cav-btn-primary" style="background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                        ${ICONS.sparkles} Generate
+                                    </button>
+                                </div>
+                                <p style="font-size: 12px; color: #64748b; margin-top: 8px;">Example: "Professional headshot, modern style" or "Abstract geometric pattern"</p>
+                            </div>
+                            
+                            <!-- Quick Options -->
+                            <div class="avatar-option">
+                                <label style="display: block; color: #94a3b8; margin-bottom: 8px; font-size: 13px;">Quick Options</label>
+                                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                    <button id="use-google-avatar-btn" class="cav-btn" style="background: #334155; border: 1px solid #475569; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px;">
+                                        ${ICONS.google} Use Google Photo
+                                    </button>
+                                    <button id="use-initials-avatar-btn" class="cav-btn" style="background: #334155; border: 1px solid #475569; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px;">
+                                        ${ICONS.user} Use Initials
+                                    </button>
+                                    ${customAvatar ? `
+                                    <button id="remove-custom-avatar-btn" class="cav-btn" style="background: #dc2626; border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px;">
+                                        ${ICONS.trash || '🗑️'} Remove Custom
+                                    </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Save Status -->
+                    <div id="avatar-save-status" style="display: none; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;"></div>
+                </div>
+            `;
+        }
+
         renderAPIKeysSection(settings) {
             const providers = [
                 { id: 'claude', name: 'Claude (Anthropic)', icon: ICONS.brain, desc: 'Primary reasoning engine for analysis and recommendations' },
                 { id: 'openai', name: 'OpenAI', icon: ICONS.openai, desc: 'Vision capabilities for image/video analysis' },
                 { id: 'searchapi', name: 'SearchAPI', icon: ICONS.search, desc: 'Web research and competitive intelligence' },
-                { id: 'gemini', name: 'Google Gemini', icon: ICONS.google, desc: 'Image generation and multimodal analysis' }
+                { id: 'gemini', name: 'Google Gemini', icon: ICONS.google, desc: 'Image generation and multimodal analysis' },
+                { id: 'googleVision', name: 'Google Cloud Vision', icon: ICONS.google, desc: 'Advanced object detection, face detection, OCR text extraction' }
             ];
             
             // Check if using shared keys
@@ -1985,8 +3094,16 @@
                         </div>
                     </div>
                     
-                    <!-- Shared Access Status (for users who have shared access) -->
-                    ${accessControl.canAccessSharedKeys?.() || this.manager.canAccessSharedKeys?.() ? `
+                    <!-- Shared Access Status (for users who have shared access AND keys are actually configured) -->
+                    ${(() => {
+                        // Check if any shared keys are actually configured
+                        const platformCreds = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+                        const accessControlConfig = JSON.parse(localStorage.getItem('cav_api_access_control') || '{}');
+                        const hasAnySharedKeys = Object.keys(platformCreds.sharedKeys || {}).length > 0 || 
+                                                 Object.keys(accessControlConfig.sharedKeys || {}).length > 0;
+                        const sharingEnabled = platformCreds.sharing?.enabled || accessControlConfig.enabled;
+                        return hasAnySharedKeys && sharingEnabled;
+                    })() ? `
                     <div class="shared-access-notice" style="margin-bottom: 24px; padding: 16px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 12px;">
                         <h4 style="margin: 0 0 8px; color: #22c55e;">${ICONS.check} Shared API Access Available</h4>
                         <p style="margin: 0; color: #94a3b8; font-size: 14px;">Your admin has shared API access with you. You can use AI features without your own keys, or configure your own keys below to use instead.</p>
@@ -2003,9 +3120,12 @@
                             const statusText = keyData.status === 'active' ? 'Connected' :
                                               keyData.status === 'error' ? 'Error' : 'Not Tested';
                             
-                            // Check if user has shared access to this key
+                            // Check if user has shared access AND there's actually a shared key configured
                             const hasSharedAccess = accessControl.hasAccessToAdminKey(p.id);
-                            const usingShared = hasSharedAccess && !keyData.key;
+                            // Actually verify a shared key exists before showing "Using Shared"
+                            const sharedKeyResult = hasSharedAccess ? accessControl.getAPIKey(p.id, this.manager) : null;
+                            const actuallyHasSharedKey = sharedKeyResult && sharedKeyResult.source === 'shared' && sharedKeyResult.key && sharedKeyResult.key.length > 10;
+                            const usingShared = actuallyHasSharedKey && !keyData.key;
                             
                             return `
                                 <div class="cav-api-key-card">
@@ -2046,9 +3166,17 @@
                                                value="${keyData.orgId || ''}">
                                     ` : ''}
                                     <div class="cav-api-key-actions">
+                                        <button class="cav-btn cav-btn-secondary cav-save-api-key" data-provider="${p.id}">
+                                            ${ICONS.save} Save Key
+                                        </button>
                                         <button class="cav-btn cav-btn-primary cav-test-connection" data-provider="${p.id}">
                                             ${ICONS.plug} Test Connection
                                         </button>
+                                        ${keyData.key ? `
+                                        <button class="cav-btn cav-btn-danger cav-btn-small cav-delete-api-key" data-provider="${p.id}" title="Delete this API key">
+                                            ${ICONS.trash}
+                                        </button>
+                                        ` : ''}
                                         ${keyData.lastTested ? `
                                             <span class="cav-last-tested">Last tested: ${new Date(keyData.lastTested).toLocaleString()}</span>
                                         ` : ''}
@@ -2642,10 +3770,61 @@
             const sharedKeys = platformCreds.sharedKeys || { openai: '', anthropic: '', gemini: '', searchapi: '' };
             const sharingConfig = platformCreds.sharing || { enabled: false, allowedEmails: [], globalUniversalShare: false };
             
+            // Get sync status
+            const syncStatus = window.RealtimeSync?.getStatus?.() || {};
+            const lastSync = localStorage.getItem('cav_unified_last_sync');
+            const lastSyncDisplay = lastSync ? new Date(lastSync).toLocaleString() : 'Never';
+            
             return `
                 <div class="cav-settings-section" data-section="platform-admin">
                     <h2>👥 API Key Sharing (Super Admin)</h2>
                     <p class="cav-settings-desc">Share your AI API keys with team members. You can also configure your own Cloudinary account for video/image processing.</p>
+                    
+                    <!-- SYNC STATUS PANEL - Admin Only -->
+                    <div class="admin-sync-panel" style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+                            <div>
+                                <h4 style="margin: 0 0 8px; color: #3b82f6; display: flex; align-items: center; gap: 8px;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
+                                    Cross-Device Sync Status
+                                </h4>
+                                <p style="margin: 0 0 12px; color: #94a3b8; font-size: 13px;">Real-time sync across all your devices and browsers</p>
+                                
+                                <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+                                    <div class="sync-status-item" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                                        <span class="sync-status-dot" id="admin-sync-dot" style="width: 10px; height: 10px; border-radius: 50%; background: ${syncStatus.connected ? '#22c55e' : '#f59e0b'};"></span>
+                                        <span style="font-size: 13px; color: white;" id="admin-sync-status-text">${syncStatus.connected ? 'Connected' : 'Connecting...'}</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                                        <span style="font-size: 13px; color: #94a3b8;">Last Sync:</span>
+                                        <span style="font-size: 13px; color: white;" id="admin-last-sync">${lastSyncDisplay}</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                                        <span style="font-size: 13px; color: #94a3b8;">Pending:</span>
+                                        <span style="font-size: 13px; color: white;" id="admin-pending-changes">${syncStatus.pendingChanges || 0}</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                                        <span style="font-size: 13px; color: #94a3b8;">Tables:</span>
+                                        <span style="font-size: 13px; color: white;" id="admin-subscribed-tables">${syncStatus.subscribedTables?.length || 0}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <button id="admin-force-sync" class="cav-btn" style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg>
+                                    Force Sync Now
+                                </button>
+                                <button id="admin-run-diagnostics" class="cav-btn" style="background: transparent; border: 1px solid rgba(148, 163, 184, 0.3); padding: 10px 20px; border-radius: 8px; color: #94a3b8; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                    Run Diagnostics
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Diagnostics Output (hidden by default) -->
+                        <div id="admin-diagnostics-output" style="display: none; margin-top: 16px; padding: 12px; background: #0f0f14; border-radius: 8px; font-family: monospace; font-size: 12px; color: #22c55e; max-height: 200px; overflow-y: auto; white-space: pre-wrap;"></div>
+                    </div>
                     
                     <div class="api-security-notice" style="border-color: #a855f7;">
                         <div class="security-icon">${ICONS.shield}</div>
@@ -2696,19 +3875,24 @@
                             <textarea id="sharing-allowed-emails" rows="4" placeholder="user1@company.com&#10;@entirecompany.com (allow all from domain)&#10;specific@user.com" 
                                 style="width: 100%; background: #0f0f14; border: 1px solid #334155; border-radius: 8px; padding: 12px; color: white; resize: vertical;">${(sharingConfig.allowedEmails || []).join('\n')}</textarea>
                             <p style="font-size: 12px; color: #64748b; margin-top: 8px;">Enter specific emails or @domain.com to allow all users from that domain. Leave empty to allow ALL users.</p>
+                            
+                            <button id="save-sharing-config" class="cav-btn cav-btn-primary" style="margin-top: 12px; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border: none; padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                ${ICONS.save || '💾'} Save Sharing Configuration
+                            </button>
+                            <span id="sharing-save-status" style="display: none; margin-left: 12px; color: #22c55e; font-size: 13px;">✓ Saved!</span>
                         </div>
                     </div>
                     
                     <div class="cav-platform-admin-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                        <!-- Cloudinary Configuration (Super Admin Only - NOT shared) -->
+                        <!-- Cloudinary Configuration (Shareable) -->
                         <div class="cav-platform-admin-card" data-service="cloudinary" style="background: linear-gradient(180deg, rgba(52, 72, 197, 0.1) 0%, rgba(33, 148, 227, 0.05) 100%); border: 1px solid rgba(52, 72, 197, 0.3); border-radius: 12px; padding: 20px;">
                             <div class="platform-admin-header" style="display: flex; gap: 16px; margin-bottom: 16px;">
                                 <div class="platform-admin-icon" style="width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #3448C5 0%, #2194E3 100%); color: white;">
                                     ${ICONS.cloud}
                                 </div>
                                 <div class="platform-admin-info">
-                                    <h4 style="margin: 0; color: white;">Cloudinary (Admin Only)</h4>
-                                    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">NOT shared - Users must use their own</p>
+                                    <h4 style="margin: 0; color: white;">Cloudinary (Shareable)</h4>
+                                    <p style="margin: 4px 0 0; color: #94a3b8; font-size: 13px;">Video/image processing for team</p>
                                     <span class="platform-status ${cloudinaryCreds.cloudName ? 'configured' : ''}" style="font-size: 12px; color: ${cloudinaryCreds.cloudName ? '#22c55e' : '#f59e0b'};">
                                         ${cloudinaryCreds.cloudName ? '✓ Configured' : '⚠ Not configured'}
                                     </span>
@@ -2843,6 +4027,11 @@
         }
 
         attachEventHandlers(container) {
+            // Attach handlers for pre-rendered sections (Profile and API Keys are pre-rendered)
+            this.attachProfileHandlers(container);
+            this._loadedSections.add('profile');
+            this._loadedSections.add('api-keys');
+            
             // Navigation
             container.querySelectorAll('.cav-settings-nav-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -2934,6 +4123,123 @@
                 e.target.textContent = '🔄 Test All Connections';
                 this.render(container); // Refresh UI
                 this.showToast('success', 'All connections tested');
+            });
+
+            // Save API key buttons
+            container.querySelectorAll('.cav-save-api-key').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const provider = e.target.closest('.cav-save-api-key')?.dataset.provider || e.target.dataset.provider;
+                    const input = container.querySelector(`.cav-api-key-input[data-provider="${provider}"]`);
+                    const key = input?.value?.trim();
+                    
+                    if (!key) {
+                        this.showToast('error', 'Please enter an API key first');
+                        return;
+                    }
+                    
+                    const btn = e.target.closest('.cav-save-api-key') || e.target;
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = `${ICONS.loader || '⏳'} Saving...`;
+                    
+                    try {
+                        this.manager.setAPIKey(provider, key);
+                        
+                        // Also save to UnifiedStorage for cross-device sync
+                        if (window.UnifiedStorage?.saveAPIKey) {
+                            await window.UnifiedStorage.saveAPIKey(provider, key, { 
+                                shareWithDomain: false 
+                            });
+                        }
+                        
+                        btn.innerHTML = `${ICONS.check} Saved!`;
+                        btn.style.background = 'rgba(16, 185, 129, 0.2)';
+                        btn.style.borderColor = '#10b981';
+                        btn.style.color = '#10b981';
+                        
+                        if (window.PersistenceUI) {
+                            window.PersistenceUI.showSuccess('API Key Saved', `Your ${provider} API key has been saved securely`);
+                        } else {
+                            this.showToast('success', `${provider} API key saved successfully`);
+                        }
+                        
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                            btn.style.background = '';
+                            btn.style.borderColor = '';
+                            btn.style.color = '';
+                            btn.disabled = false;
+                        }, 2000);
+                        
+                    } catch (error) {
+                        console.error('[Settings] Save API key error:', error);
+                        btn.innerHTML = `${ICONS.x} Failed`;
+                        btn.style.borderColor = '#ef4444';
+                        btn.style.color = '#ef4444';
+                        
+                        if (window.PersistenceUI) {
+                            window.PersistenceUI.showError('Save Failed', error.message || 'Could not save API key');
+                        } else {
+                            this.showToast('error', 'Failed to save API key');
+                        }
+                        
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                            btn.style.borderColor = '';
+                            btn.style.color = '';
+                            btn.disabled = false;
+                        }, 3000);
+                    }
+                });
+            });
+            
+            // Delete API key buttons
+            container.querySelectorAll('.cav-delete-api-key').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const provider = e.target.closest('.cav-delete-api-key')?.dataset.provider || e.target.dataset.provider;
+                    
+                    const confirmDelete = window.PersistenceUI 
+                        ? await window.PersistenceUI.confirm({
+                            title: `Delete ${provider} API Key?`,
+                            message: 'This will remove your API key from this device. You can add it again later.',
+                            confirmText: 'Delete Key',
+                            cancelText: 'Cancel'
+                        })
+                        : confirm(`Are you sure you want to delete your ${provider} API key?`);
+                    
+                    if (!confirmDelete) return;
+                    
+                    try {
+                        // Clear the key
+                        this.manager.setAPIKey(provider, '');
+                        
+                        // Clear from all legacy locations
+                        localStorage.removeItem(`cav_${provider}_api_key`);
+                        if (provider === 'gemini') {
+                            localStorage.removeItem('cav_ai_api_key');
+                            localStorage.removeItem('cav_gemini_api_key');
+                        }
+                        
+                        if (window.PersistenceUI) {
+                            window.PersistenceUI.showSuccess('API Key Deleted', `Your ${provider} API key has been removed`);
+                        } else {
+                            this.showToast('info', `${provider} API key deleted`);
+                        }
+                        
+                        // Refresh the UI
+                        this.render(container);
+                        this.showSection('api-keys');
+                        
+                    } catch (error) {
+                        console.error('[Settings] Delete API key error:', error);
+                        if (window.PersistenceUI) {
+                            window.PersistenceUI.showError('Delete Failed', error.message);
+                        } else {
+                            this.showToast('error', 'Failed to delete API key');
+                        }
+                    }
+                });
             });
             
             // User Cloudinary BYOK - Save
@@ -3209,6 +4515,11 @@
         // Attach event handlers for a specific lazily-loaded section
         attachSectionEventHandlers(container, sectionId) {
             switch(sectionId) {
+                case 'profile':
+                    // Profile section handlers
+                    this.attachProfileHandlers(container);
+                    break;
+                    
                 case 'model-config':
                     // Model config selects
                     container.querySelectorAll('.cav-model-select').forEach(select => {
@@ -3371,7 +4682,7 @@
                             'Global Universal Share disabled - using allowed emails list');
                     });
                     
-                    // Save sharing allowed emails
+                    // Save sharing allowed emails (on blur - auto-save)
                     container.querySelector('#sharing-allowed-emails')?.addEventListener('blur', (e) => {
                         const emails = e.target.value.split('\n')
                             .map(email => email.trim().toLowerCase())
@@ -3383,9 +4694,243 @@
                         this.manager.savePlatformCredentials(platformCreds);
                     });
                     
+                    // Save Sharing Configuration button
+                    container.querySelector('#save-sharing-config')?.addEventListener('click', async (e) => {
+                        const btn = e.target.closest('#save-sharing-config');
+                        const statusEl = container.querySelector('#sharing-save-status');
+                        
+                        // Get all sharing settings
+                        const emails = container.querySelector('#sharing-allowed-emails')?.value?.split('\n')
+                            .map(email => email.trim().toLowerCase())
+                            .filter(email => email && (email.includes('@') || email.startsWith('@'))) || [];
+                        
+                        const enabled = container.querySelector('#enable-api-sharing')?.checked || false;
+                        const globalShare = container.querySelector('#enable-global-universal-share')?.checked || false;
+                        
+                        // Save to platform credentials
+                        const platformCreds = this.manager.getPlatformCredentials() || {};
+                        platformCreds.sharing = platformCreds.sharing || {};
+                        platformCreds.sharing.enabled = enabled;
+                        platformCreds.sharing.globalUniversalShare = globalShare;
+                        platformCreds.sharing.allowedEmails = emails;
+                        platformCreds.sharing.updatedAt = new Date().toISOString();
+                        
+                        // Show loading state
+                        const originalText = btn.innerHTML;
+                        btn.innerHTML = '⏳ Saving...';
+                        btn.disabled = true;
+                        
+                        try {
+                            // Save locally
+                            this.manager.savePlatformCredentials(platformCreds);
+                            
+                            // Also sync to Supabase for cross-device access
+                            if (window.CAVSupabase?.isConfigured?.()) {
+                                const userEmail = this.manager.userEmail || window.cavUserSession?.email;
+                                const domain = userEmail?.split('@')[1] || '';
+                                const orgId = domain.replace(/\./g, '_');
+                                
+                                if (orgId) {
+                                    await window.CAVSupabase.saveEntity?.('api_sharing_config', {
+                                        uuid: `sharing_config_${orgId}`,
+                                        organization_id: orgId,
+                                        admin_email: userEmail,
+                                        sharing_enabled: enabled,
+                                        global_share: globalShare,
+                                        allowed_emails: emails,
+                                        allowed_domains: emails.filter(e => e.startsWith('@')),
+                                        updated_at: new Date().toISOString()
+                                    });
+                                }
+                            }
+                            
+                            // Show success
+                            btn.innerHTML = '✓ Saved!';
+                            btn.style.background = '#22c55e';
+                            if (statusEl) {
+                                statusEl.style.display = 'inline';
+                                setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+                            }
+                            
+                            this.showToast('success', `Sharing configuration saved! ${emails.length} allowed email/domain${emails.length !== 1 ? 's' : ''}`);
+                            
+                            // Reset button after delay
+                            setTimeout(() => {
+                                btn.innerHTML = originalText;
+                                btn.style.background = '';
+                                btn.disabled = false;
+                            }, 2000);
+                            
+                        } catch (error) {
+                            console.error('[Settings] Failed to save sharing config:', error);
+                            btn.innerHTML = '❌ Error';
+                            btn.style.background = '#ef4444';
+                            this.showToast('error', 'Failed to save sharing configuration');
+                            
+                            setTimeout(() => {
+                                btn.innerHTML = originalText;
+                                btn.style.background = '';
+                                btn.disabled = false;
+                            }, 2000);
+                        }
+                    });
+                    
+                    // =============================================
+                    // SYNC STATUS PANEL HANDLERS (Admin Only)
+                    // =============================================
+                    
+                    // Force Sync button
+                    container.querySelector('#admin-force-sync')?.addEventListener('click', async (e) => {
+                        const btn = e.target.closest('#admin-force-sync');
+                        const statusDot = container.querySelector('#admin-sync-dot');
+                        const statusText = container.querySelector('#admin-sync-status-text');
+                        const lastSyncEl = container.querySelector('#admin-last-sync');
+                        const pendingEl = container.querySelector('#admin-pending-changes');
+                        
+                        // Show syncing state
+                        const originalText = btn.innerHTML;
+                        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/></svg> Syncing...';
+                        btn.disabled = true;
+                        if (statusDot) statusDot.style.background = '#f59e0b';
+                        if (statusText) statusText.textContent = 'Syncing...';
+                        
+                        try {
+                            // Use RealtimeSync if available
+                            if (window.RealtimeSync?.forceSync) {
+                                await window.RealtimeSync.forceSync();
+                            } else if (window.UnifiedStorage?.syncToCloud) {
+                                await window.UnifiedStorage.syncToCloud();
+                            }
+                            
+                            // Update UI
+                            if (statusDot) statusDot.style.background = '#22c55e';
+                            if (statusText) statusText.textContent = 'Connected';
+                            if (lastSyncEl) lastSyncEl.textContent = new Date().toLocaleString();
+                            if (pendingEl) pendingEl.textContent = '0';
+                            
+                            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Synced!';
+                            btn.style.background = '#22c55e';
+                            
+                            this.showToast('success', 'All data synced across devices!');
+                            
+                        } catch (error) {
+                            console.error('[Settings] Sync failed:', error);
+                            if (statusDot) statusDot.style.background = '#ef4444';
+                            if (statusText) statusText.textContent = 'Sync Error';
+                            btn.innerHTML = '❌ Sync Failed';
+                            btn.style.background = '#ef4444';
+                            this.showToast('error', 'Sync failed: ' + error.message);
+                        }
+                        
+                        // Reset button
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                            btn.style.background = '';
+                            btn.disabled = false;
+                        }, 2000);
+                    });
+                    
+                    // Run Diagnostics button
+                    container.querySelector('#admin-run-diagnostics')?.addEventListener('click', async (e) => {
+                        const btn = e.target.closest('#admin-run-diagnostics');
+                        const outputEl = container.querySelector('#admin-diagnostics-output');
+                        
+                        if (!outputEl) return;
+                        
+                        // Toggle visibility
+                        if (outputEl.style.display === 'block') {
+                            outputEl.style.display = 'none';
+                            return;
+                        }
+                        
+                        outputEl.style.display = 'block';
+                        outputEl.textContent = 'Running diagnostics...\\n';
+                        
+                        try {
+                            // Get RealtimeSync status
+                            if (window.RealtimeSync?.getStatus) {
+                                const status = window.RealtimeSync.getStatus();
+                                outputEl.textContent += '\\n=== REALTIME SYNC ===\\n';
+                                outputEl.textContent += 'Initialized: ' + (status.initialized ? '✓' : '✗') + '\\n';
+                                outputEl.textContent += 'Connected: ' + (status.connected ? '✓' : '✗') + '\\n';
+                                outputEl.textContent += 'User: ' + (status.userEmail || 'N/A') + '\\n';
+                                outputEl.textContent += 'Subscribed Tables: ' + (status.subscribedTables?.length || 0) + '\\n';
+                                outputEl.textContent += 'Pending Changes: ' + (status.pendingChanges || 0) + '\\n';
+                                outputEl.textContent += 'Last Sync: ' + (status.lastSyncTime || 'Never') + '\\n';
+                            }
+                            
+                            // Get UnifiedStorage stats
+                            if (window.UnifiedStorage?.getDiagnostics) {
+                                const diag = await window.UnifiedStorage.getDiagnostics();
+                                outputEl.textContent += '\\n=== UNIFIED STORAGE ===\\n';
+                                for (const [store, count] of Object.entries(diag.stores || {})) {
+                                    outputEl.textContent += store + ': ' + count + ' items\\n';
+                                }
+                            }
+                            
+                            // Check Supabase connection
+                            outputEl.textContent += '\\n=== SUPABASE ===\\n';
+                            if (window.CAVSupabase?.isConfigured?.()) {
+                                outputEl.textContent += 'Status: ✓ Configured\\n';
+                                // Test connection
+                                try {
+                                    const client = window.CAVSupabase.getClient?.();
+                                    if (client) {
+                                        const { error } = await client.from('organizations').select('id').limit(1);
+                                        outputEl.textContent += 'Connection: ' + (error ? '✗ ' + error.message : '✓ OK') + '\\n';
+                                    }
+                                } catch (e) {
+                                    outputEl.textContent += 'Connection: ✗ ' + e.message + '\\n';
+                                }
+                            } else {
+                                outputEl.textContent += 'Status: ✗ Not configured\\n';
+                            }
+                            
+                            // Browser info
+                            outputEl.textContent += '\\n=== BROWSER ===\\n';
+                            outputEl.textContent += 'Online: ' + (navigator.onLine ? '✓' : '✗') + '\\n';
+                            outputEl.textContent += 'IndexedDB: ' + (window.indexedDB ? '✓' : '✗') + '\\n';
+                            outputEl.textContent += 'BroadcastChannel: ' + (typeof BroadcastChannel !== 'undefined' ? '✓' : '✗') + '\\n';
+                            
+                            outputEl.textContent += '\\n=== DIAGNOSTICS COMPLETE ===';
+                            
+                        } catch (error) {
+                            outputEl.textContent += '\\nError: ' + error.message;
+                        }
+                    });
+                    
+                    // Update sync status periodically while on this section
+                    const updateSyncUI = () => {
+                        const statusDot = container.querySelector('#admin-sync-dot');
+                        const statusText = container.querySelector('#admin-sync-status-text');
+                        const lastSyncEl = container.querySelector('#admin-last-sync');
+                        const pendingEl = container.querySelector('#admin-pending-changes');
+                        const tablesEl = container.querySelector('#admin-subscribed-tables');
+                        
+                        if (window.RealtimeSync?.getStatus) {
+                            const status = window.RealtimeSync.getStatus();
+                            if (statusDot) statusDot.style.background = status.connected ? '#22c55e' : '#f59e0b';
+                            if (statusText) statusText.textContent = status.connected ? 'Connected' : 'Connecting...';
+                            if (pendingEl) pendingEl.textContent = status.pendingChanges || 0;
+                            if (tablesEl) tablesEl.textContent = status.subscribedTables?.length || 0;
+                        }
+                        
+                        const lastSync = localStorage.getItem('cav_unified_last_sync');
+                        if (lastSyncEl && lastSync) {
+                            lastSyncEl.textContent = new Date(lastSync).toLocaleString();
+                        }
+                    };
+                    
+                    // Initial update and set interval
+                    updateSyncUI();
+                    const syncInterval = setInterval(updateSyncUI, 5000);
+                    
+                    // Clear interval when section is hidden (store on container for cleanup)
+                    container._syncInterval = syncInterval;
+                    
                     // Save Admin Cloudinary
                     container.querySelector('.save-admin-cloudinary')?.addEventListener('click', (e) => {
-                        const btn = e.target;
+                        const btn = e.target.closest('.save-admin-cloudinary');
                         const cloudName = container.querySelector('#admin-cloudinary-cloud-name')?.value?.trim();
                         const apiKey = container.querySelector('#admin-cloudinary-api-key')?.value?.trim();
                         const apiSecret = container.querySelector('#admin-cloudinary-api-secret')?.value?.trim();
@@ -3400,16 +4945,32 @@
                         platformCreds.cloudinary = { cloudName, apiKey, apiSecret };
                         
                         if (this.manager.savePlatformCredentials(platformCreds)) {
-                            this.showToast('success', 'Cloudinary credentials saved!');
+                            this.showToast('success', 'Cloudinary credentials saved and shared with your team!');
+                            // Update the status indicator
+                            const card = btn.closest('.cav-platform-admin-card');
+                            if (card) {
+                                const statusEl = card.querySelector('.platform-status');
+                                if (statusEl) {
+                                    statusEl.textContent = '✓ Configured';
+                                    statusEl.style.color = '#22c55e';
+                                    statusEl.classList.add('configured');
+                                }
+                            }
                         } else {
                             this.showToast('error', 'Failed to save credentials');
                         }
                     });
                     
-                    // Save shared API keys (OpenAI, Anthropic)
+                    // Save shared API keys (OpenAI, Anthropic, Gemini, SearchAPI)
                     container.querySelectorAll('.save-admin-shared-key').forEach(btn => {
                         btn.addEventListener('click', (e) => {
-                            const provider = e.target.dataset.provider;
+                            const button = e.target.closest('.save-admin-shared-key');
+                            const provider = button?.dataset.provider;
+                            if (!provider) {
+                                console.error('No provider found for shared key button');
+                                return;
+                            }
+                            
                             const apiKey = container.querySelector(`#admin-shared-${provider}`)?.value?.trim();
                             
                             if (!apiKey) {
@@ -3421,8 +4982,31 @@
                             platformCreds.sharedKeys = platformCreds.sharedKeys || {};
                             platformCreds.sharedKeys[provider] = apiKey;
                             
+                            // Ensure sharing is enabled
+                            if (!platformCreds.sharing) {
+                                platformCreds.sharing = { enabled: true, allowedEmails: [], globalUniversalShare: false };
+                            }
+                            
                             if (this.manager.savePlatformCredentials(platformCreds)) {
-                                this.showToast('success', `${provider} shared key saved!`);
+                                const providerNames = {
+                                    openai: 'OpenAI',
+                                    anthropic: 'Claude',
+                                    gemini: 'Google Gemini',
+                                    searchapi: 'SearchAPI'
+                                };
+                                this.showToast('success', `${providerNames[provider] || provider} shared key saved!`);
+                                
+                                // Update the status indicator
+                                const card = button.closest('.cav-platform-admin-card');
+                                if (card) {
+                                    const statusEl = card.querySelector('span[style*="font-size: 12px"]');
+                                    if (statusEl) {
+                                        statusEl.textContent = '✓ Configured';
+                                        statusEl.style.color = '#22c55e';
+                                    }
+                                }
+                                
+                                console.log(`[Settings] Shared ${provider} key saved. Keys now:`, Object.keys(platformCreds.sharedKeys || {}));
                             } else {
                                 this.showToast('error', 'Failed to save');
                             }
@@ -3430,6 +5014,335 @@
                     });
                     break;
             }
+        }
+        
+        // ============================================
+        // PROFILE HANDLERS - Avatar Management
+        // ============================================
+        
+        attachProfileHandlers(container) {
+            const self = this;
+            
+            // Load avatar from Supabase (in case it was set on another device)
+            this.loadAvatarFromSupabase().then(avatar => {
+                if (avatar) {
+                    const preview = container.querySelector('#profile-avatar-preview');
+                    if (preview) preview.src = avatar;
+                }
+            });
+            
+            // Change avatar button (opens options)
+            container.querySelector('#change-avatar-btn')?.addEventListener('click', () => {
+                container.querySelector('#avatar-upload-input')?.click();
+            });
+            
+            // Upload avatar button
+            container.querySelector('#upload-avatar-btn')?.addEventListener('click', () => {
+                container.querySelector('#avatar-upload-input')?.click();
+            });
+            
+            // Handle file upload
+            container.querySelector('#avatar-upload-input')?.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                
+                // Validate file
+                if (!file.type.startsWith('image/')) {
+                    self.showToast('error', 'Please select an image file');
+                    return;
+                }
+                
+                if (file.size > 2 * 1024 * 1024) {
+                    self.showToast('error', 'Image must be less than 2MB');
+                    return;
+                }
+                
+                try {
+                    // Convert to base64
+                    const reader = new FileReader();
+                    reader.onload = async (event) => {
+                        const base64 = event.target.result;
+                        
+                        // Resize if needed (max 200x200)
+                        const resized = await self.resizeImage(base64, 200, 200);
+                        
+                        // Save and update UI
+                        self.saveCustomAvatar(resized, container);
+                    };
+                    reader.readAsDataURL(file);
+                } catch (err) {
+                    console.error('[Profile] Avatar upload error:', err);
+                    self.showToast('error', 'Failed to upload image');
+                }
+            });
+            
+            // Generate AI avatar
+            container.querySelector('#generate-avatar-btn')?.addEventListener('click', async () => {
+                const prompt = container.querySelector('#ai-avatar-prompt')?.value?.trim();
+                if (!prompt) {
+                    self.showToast('error', 'Please enter a description for your avatar');
+                    return;
+                }
+                
+                const btn = container.querySelector('#generate-avatar-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '⏳ Generating...';
+                btn.disabled = true;
+                
+                try {
+                    // Use Gemini or other AI to generate avatar
+                    const apiKey = self.manager.getAPIKey('gemini');
+                    if (!apiKey) {
+                        self.showToast('error', 'Please configure Gemini API key to generate avatars');
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        return;
+                    }
+                    
+                    // Use Nano Banana Pro (gemini-3-pro-image-preview) for highest quality avatar generation
+                    const modelId = 'gemini-3-pro-image-preview';
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{
+                                    text: `Generate a professional profile picture avatar based on this description: ${prompt}. 
+                                    
+Requirements:
+- Square format (1:1 aspect ratio)
+- Centered composition
+- High quality, clean design
+- Suitable for a professional profile picture
+- Modern and appealing aesthetic`
+                                }]
+                            }],
+                            generationConfig: {
+                                responseModalities: ['IMAGE', 'TEXT'],
+                                imageConfig: {
+                                    imageSize: '1K'
+                                }
+                            }
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        
+                        // Extract image from Gemini response
+                        const candidates = data.candidates || [];
+                        let imageData = null;
+                        
+                        for (const candidate of candidates) {
+                            const parts = candidate.content?.parts || [];
+                            for (const part of parts) {
+                                if (part.inlineData?.mimeType?.startsWith('image/')) {
+                                    imageData = part.inlineData.data;
+                                    break;
+                                }
+                            }
+                            if (imageData) break;
+                        }
+                        
+                        if (imageData) {
+                            const base64 = `data:image/png;base64,${imageData}`;
+                            self.saveCustomAvatar(base64, container);
+                            self.showToast('success', 'AI avatar generated with Nano Banana Pro!');
+                        } else {
+                            // Check if there's a text response explaining why
+                            const textPart = candidates[0]?.content?.parts?.find(p => p.text);
+                            throw new Error(textPart?.text || 'No image generated. The model may have declined the request.');
+                        }
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.error?.message || 'Generation failed');
+                    }
+                } catch (err) {
+                    console.error('[Profile] AI generation error:', err);
+                    self.showToast('error', `Failed to generate avatar: ${err.message}`);
+                } finally {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            });
+            
+            // Use Google avatar
+            container.querySelector('#use-google-avatar-btn')?.addEventListener('click', () => {
+                const session = window.cavUserSession || {};
+                if (session.picture) {
+                    // Remove custom avatar to use Google's
+                    localStorage.removeItem('cav_custom_avatar');
+                    self.updateAvatarUI(session.picture, container);
+                    self.syncAvatarToSupabase(null); // Clear custom in cloud
+                    self.showToast('success', 'Using Google profile picture');
+                } else {
+                    self.showToast('error', 'No Google profile picture available');
+                }
+            });
+            
+            // Use initials avatar
+            container.querySelector('#use-initials-avatar-btn')?.addEventListener('click', () => {
+                const session = window.cavUserSession || {};
+                const name = session.name || 'User';
+                const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                const initialsAvatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect fill="#e1306c" width="200" height="200" rx="100"/><text x="100" y="125" font-family="system-ui" font-size="80" fill="white" text-anchor="middle" font-weight="bold">${initials}</text></svg>`)}`;
+                
+                self.saveCustomAvatar(initialsAvatar, container);
+                self.showToast('success', 'Using initials avatar');
+            });
+            
+            // Remove custom avatar
+            container.querySelector('#remove-custom-avatar-btn')?.addEventListener('click', () => {
+                localStorage.removeItem('cav_custom_avatar');
+                const session = window.cavUserSession || {};
+                self.updateAvatarUI(session.picture || '', container);
+                self.syncAvatarToSupabase(null);
+                self.showToast('success', 'Custom avatar removed');
+                
+                // Re-render to remove the button
+                self.loadSection('profile');
+            });
+        }
+        
+        // Save custom avatar to localStorage and Supabase
+        saveCustomAvatar(base64, container) {
+            localStorage.setItem('cav_custom_avatar', base64);
+            this.updateAvatarUI(base64, container);
+            this.syncAvatarToSupabase(base64);
+            this.updateGlobalAvatars(base64);
+            this.showToast('success', 'Profile picture updated!');
+        }
+        
+        // Update avatar preview in settings
+        updateAvatarUI(src, container) {
+            const preview = container.querySelector('#profile-avatar-preview');
+            if (preview && src) {
+                preview.src = src;
+            }
+        }
+        
+        // Update avatars across the entire app
+        updateGlobalAvatars(src) {
+            // Update sidebar avatar
+            const sidebarAvatar = document.getElementById('sidebar-user-avatar');
+            if (sidebarAvatar && src) {
+                sidebarAvatar.src = src;
+            }
+            
+            // Update topbar avatar
+            const userAvatar = document.getElementById('user-avatar');
+            if (userAvatar && src) {
+                userAvatar.src = src;
+            }
+            
+            // Update session object
+            if (window.cavUserSession) {
+                window.cavUserSession.customPicture = src;
+            }
+        }
+        
+        // Sync avatar to Supabase for cross-device persistence
+        async syncAvatarToSupabase(base64) {
+            if (!window.CAVSupabase?.getClient?.()) return;
+            
+            try {
+                const userEmail = this.manager?.userEmail || window.cavUserSession?.email;
+                if (!userEmail) return;
+                
+                const supabase = window.CAVSupabase.getClient();
+                if (!supabase) return;
+                
+                const avatarId = `avatar_${userEmail.replace(/[^a-z0-9]/gi, '_')}`;
+                
+                const { error } = await supabase
+                    .from('user_settings')
+                    .upsert({
+                        uuid: avatarId,
+                        user_email: userEmail,
+                        owner_email: userEmail,
+                        settings_type: 'custom_avatar',
+                        data: { avatar: base64 },
+                        updated_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'uuid'
+                    });
+                
+                if (error) {
+                    console.warn('[Profile] Avatar Supabase error:', error.message);
+                } else {
+                    console.log('[Profile] ☁️ Avatar synced to Supabase');
+                }
+            } catch (e) {
+                console.warn('[Profile] Failed to sync avatar to Supabase:', e);
+            }
+        }
+        
+        // Load avatar from Supabase on startup
+        async loadAvatarFromSupabase() {
+            if (!window.CAVSupabase?.getClient?.()) return;
+            
+            try {
+                const userEmail = this.manager?.userEmail || window.cavUserSession?.email;
+                if (!userEmail) return;
+                
+                const supabase = window.CAVSupabase.getClient();
+                if (!supabase) return;
+                
+                const avatarId = `avatar_${userEmail.replace(/[^a-z0-9]/gi, '_')}`;
+                
+                const { data, error } = await supabase
+                    .from('user_settings')
+                    .select('data')
+                    .eq('uuid', avatarId)
+                    .single();
+                
+                if (!error && data?.data?.avatar) {
+                    // Save to localStorage for offline access
+                    localStorage.setItem('cav_custom_avatar', data.data.avatar);
+                    console.log('[Profile] ☁️ Avatar loaded from Supabase');
+                    
+                    // Update UI if visible
+                    this.updateGlobalAvatars(data.data.avatar);
+                    return data.data.avatar;
+                }
+            } catch (e) {
+                // Silent fail - avatar from localStorage will be used
+            }
+            return null;
+        }
+        
+        // Resize image to max dimensions
+        async resizeImage(base64, maxWidth, maxHeight) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // Calculate new dimensions maintaining aspect ratio
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height = (height * maxWidth) / width;
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width = (width * maxHeight) / height;
+                            height = maxHeight;
+                        }
+                    }
+                    
+                    // Create canvas and draw resized image
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    resolve(canvas.toDataURL('image/jpeg', 0.9));
+                };
+                img.src = base64;
+            });
         }
         
         async checkPlatformStatus(container) {
@@ -3763,15 +5676,38 @@
         trackTokens: (provider, tokens) => {
             const email = apiAccessControl.getCurrentUserEmail();
             if (email) apiAccessControl.trackTokens(provider, email, tokens);
+        },
+        // Debug helper
+        debugSharing: (provider) => {
+            console.log('=== API KEY SHARING DEBUG ===');
+            console.log('Provider:', provider || 'all');
+            console.log('Current User:', apiAccessControl.getCurrentUserEmail());
+            console.log('Is Admin:', apiAccessControl.isAdmin());
+            console.log('\n--- Sharing Configuration ---');
+            const accessData = JSON.parse(localStorage.getItem('cav_api_access_control') || '{}');
+            console.log('Full Config:', accessData);
+            if (provider) {
+                console.log(`\n--- ${provider} Specific ---`);
+                const config = accessData.sharedKeys?.[provider];
+                console.log('Config:', config);
+                console.log('Enabled:', config?.enabled);
+                console.log('Allowed Users:', config?.allowedUsers);
+                console.log('Revoked Users:', config?.revokedUsers);
+                console.log('\n--- Key Retrieval Test ---');
+                const result = apiAccessControl.getAPIKey(provider, settingsManager);
+                console.log('Result:', result);
+            }
+            console.log('=============================');
         }
     };
     
     // Also expose on cavSettings for backwards compatibility
     window.cavSettings = window.CAVSettings;
 
-    console.log('⚙️ Settings Module loaded - Version 3.1.0');
+    console.log('⚙️ Settings Module loaded - Version 5.11.1 (January 17, 2026)');
     console.log('   Providers: Claude, OpenAI, SearchAPI, Gemini');
-    console.log('   NEW: API Key Access Control & Usage Tracking');
+    console.log('   ✅ FIXED: API Key Sharing - UI updates after save');
+    console.log('   ✅ FIXED: Cloudinary sharing status indicator');
 
 })();
 

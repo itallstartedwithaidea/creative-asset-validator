@@ -105,6 +105,14 @@
             // Save to localStorage
             try {
                 localStorage.setItem(STORAGE_KEYS.STRATEGY_HISTORY, JSON.stringify(this.strategyHistory));
+                
+                // Also save to unified storage for cross-device sync
+                if (window.UnifiedStorage) {
+                    window.UnifiedStorage.saveStrategy({
+                        ...strategy,
+                        id: strategy.id || strategy.assetId || `strategy_${Date.now()}`
+                    }).catch(e => console.warn('[Strategy] Unified storage save failed:', e));
+                }
             } catch (e) {
                 console.warn('[Strategy] Failed to save strategy history:', e);
             }

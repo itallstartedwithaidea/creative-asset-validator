@@ -1,7 +1,7 @@
 /**
  * Creative Asset Validator - Sync Engine
  * Real-time bidirectional sync with MySQL backend
- * Version 5.0.0
+ * Version 5.11.0 - January 16, 2026
  */
 
 class SyncEngine {
@@ -75,6 +75,10 @@ class SyncEngine {
         } else {
             this.stopAutoSync();
         }
+    }
+    
+    isAuthenticated() {
+        return !!this.sessionToken;
     }
     
     async authenticate(googleIdToken, deviceFingerprint = null) {
@@ -273,7 +277,7 @@ class SyncEngine {
         if (this._db) return this._db;
         
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open('CreativeAssetValidator', 2);
+            const request = indexedDB.open('CreativeAssetValidator', 3);
             
             request.onerror = () => reject(request.error);
             request.onsuccess = () => {
@@ -285,13 +289,28 @@ class SyncEngine {
                 const db = event.target.result;
                 
                 // Create stores for each entity type
-                const stores = ['assets', 'companies', 'projects', 'brand_kits', 'swipe_files'];
+                const stores = [
+                    'assets', 
+                    'companies', 
+                    'contacts',
+                    'projects', 
+                    'deals',
+                    'activities',
+                    'creative_analyses',
+                    'strategies',
+                    'url_analyses',
+                    'benchmarks',
+                    'brand_kits', 
+                    'swipe_files',
+                    'user_settings'
+                ];
                 
                 stores.forEach(storeName => {
                     if (!db.objectStoreNames.contains(storeName)) {
                         const store = db.createObjectStore(storeName, { keyPath: 'uuid' });
                         store.createIndex('sync_version', 'sync_version', { unique: false });
                         store.createIndex('needs_sync', 'needs_sync', { unique: false });
+                        store.createIndex('deleted_at', 'deleted_at', { unique: false });
                     }
                 });
                 
@@ -353,7 +372,12 @@ class SyncEngine {
             const store = tx.objectStore(entityType);
             
             const request = store.getAll();
-            request.onsuccess = () => resolve(request.result || []);
+            request.onsuccess = () => {
+                // Filter out items marked as deleted
+                const allItems = request.result || [];
+                const activeItems = allItems.filter(item => !item.deleted_at);
+                resolve(activeItems);
+            };
             request.onerror = () => reject(request.error);
         });
     }
@@ -390,7 +414,7 @@ class SyncEngine {
     }
     
     async delete(entityType, uuid) {
-        // Mark as deleted locally
+        // Mark as deleted locally (for sync purposes)
         const existing = await this.getFromLocal(entityType, uuid);
         if (existing) {
             existing.deleted_at = new Date().toISOString();
@@ -406,9 +430,17 @@ class SyncEngine {
             version: existing?.sync_version || 0
         });
         
-        // Try to sync
+        // Try to sync immediately
         if (this.isOnline && this.sessionToken) {
-            this.sync().catch(e => console.log('[SyncEngine] Background sync failed:', e));
+            try {
+                await this.sync();
+                // After successful sync, actually remove from IndexedDB
+                await this.deleteFromLocal(entityType, uuid);
+                console.log(`[SyncEngine] Successfully deleted ${entityType} ${uuid}`);
+            } catch (e) {
+                console.log('[SyncEngine] Background sync failed:', e);
+                // Keep the deleted_at mark so it will be filtered out
+            }
         }
     }
     
@@ -587,6 +619,30 @@ class SyncEngine {
     async getProject(uuid) { return this.getFromLocal('projects', uuid); }
     async getAllProjects() { return this.getAllFromLocal('projects'); }
     async deleteProject(uuid) { return this.delete('projects', uuid); }
+    
+    // Contacts
+    async saveContact(data) { return this.save('contacts', data); }
+    async getContact(uuid) { return this.getFromLocal('contacts', uuid); }
+    async getAllContacts() { return this.getAllFromLocal('contacts'); }
+    async deleteContact(uuid) { return this.delete('contacts', uuid); }
+    
+    // Deals
+    async saveDeal(data) { return this.save('deals', data); }
+    async getDeal(uuid) { return this.getFromLocal('deals', uuid); }
+    async getAllDeals() { return this.getAllFromLocal('deals'); }
+    async deleteDeal(uuid) { return this.delete('deals', uuid); }
+    
+    // Strategies
+    async saveStrategy(data) { return this.save('strategies', data); }
+    async getStrategy(uuid) { return this.getFromLocal('strategies', uuid); }
+    async getAllStrategies() { return this.getAllFromLocal('strategies'); }
+    async deleteStrategy(uuid) { return this.delete('strategies', uuid); }
+    
+    // Creative Analyses
+    async saveCreativeAnalysis(data) { return this.save('creative_analyses', data); }
+    async getCreativeAnalysis(uuid) { return this.getFromLocal('creative_analyses', uuid); }
+    async getAllCreativeAnalyses() { return this.getAllFromLocal('creative_analyses'); }
+    async deleteCreativeAnalysis(uuid) { return this.delete('creative_analyses', uuid); }
 }
 
 // Export for module systems

@@ -1,6 +1,6 @@
 /**
  * Creative Asset Validator - Enhanced React Application
- * Version 2.2.0
+ * Version 5.11.0 - January 16, 2026
  * 
  * Features:
  * - Drag & Drop Upload
@@ -684,14 +684,44 @@
         return this.localGetAssets(params);
       }
       
-      return new Promise((resolve) => {
+      return new Promise(async (resolve) => {
         const transaction = this.db.transaction(['assets', 'video_blobs'], 'readonly');
         const assetsStore = transaction.objectStore('assets');
         const videosStore = transaction.objectStore('video_blobs');
         const request = assetsStore.getAll();
         
+        // Load cloud assets in parallel
+        const cloudAssetsPromise = this.loadAssetsFromSupabase();
+        
         request.onsuccess = async () => {
           let assets = request.result || [];
+          
+          // Merge with cloud assets (for cross-device sync)
+          try {
+            const cloudAssets = await cloudAssetsPromise;
+            if (cloudAssets && cloudAssets.length > 0) {
+              // Get existing asset UUIDs
+              const localUuids = new Set(assets.map(a => a.uuid || a.id));
+              
+              // Add cloud assets that don't exist locally
+              for (const cloudAsset of cloudAssets) {
+                if (!localUuids.has(cloudAsset.uuid)) {
+                  // Convert cloud asset format to local format
+                  assets.push({
+                    ...cloudAsset,
+                    id: cloudAsset.uuid,
+                    user_key: this.localStorageKey,
+                    from_cloud: true
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('[CAV] Cloud asset merge failed:', e);
+          }
+          
+          // Filter out deleted assets (from sync-engine)
+          assets = assets.filter(a => !a.deleted_at);
           
           // Filter by user or team
           const isTeamMode = params.is_team === true || params.is_team === 'true';
@@ -705,10 +735,11 @@
           }
           
           // Filter out trashed unless specifically requested
+          // Check both is_trashed and is_archived for backwards compatibility
           if (!params.include_trash) {
-            assets = assets.filter(a => !a.is_trashed);
+            assets = assets.filter(a => !a.is_trashed && !a.is_archived);
           } else if (params.trash_only) {
-            assets = assets.filter(a => a.is_trashed);
+            assets = assets.filter(a => a.is_trashed || a.is_archived);
           }
           
           // Filter favorites
@@ -772,9 +803,13 @@
         return this.localSaveAsset(asset);
       }
       
+      // Generate UUID for Supabase sync
+      const assetUuid = asset.uuid || asset.id || `asset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
       return new Promise((resolve) => {
         const newAsset = {
           ...asset,
+          uuid: assetUuid, // Ensure UUID exists for Supabase
           id: asset.id || `asset-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           user_key: this.localStorageKey,
           team_key: asset.is_team ? this.teamStorageKey : null,
@@ -814,6 +849,13 @@
             });
           }
           
+          // SYNC TO SUPABASE for cross-device access (images only - videos too large)
+          if (newAsset.file_type !== 'video') {
+            this.syncAssetToSupabase(newAsset).catch(e => 
+              console.warn('[CAV] Supabase asset sync failed:', e)
+            );
+          }
+          
           // Return asset with video_url attached for immediate use
           newAsset.video_url = videoDataUrl;
           resolve({ success: true, asset: newAsset });
@@ -824,6 +866,65 @@
           resolve({ success: false, message: 'Failed to save asset' });
         };
       });
+    }
+    
+    // Sync asset metadata to Supabase for cross-device access
+    async syncAssetToSupabase(asset) {
+      if (!window.CAVSupabase?.saveAsset) return;
+      
+      const userEmail = this.userEmail || window.cavUserSession?.email;
+      if (!userEmail) return;
+      
+      try {
+        // Create a metadata-only version (no large data URLs)
+        const assetMetadata = {
+          uuid: asset.uuid || asset.id,
+          user_email: userEmail,
+          owner_email: userEmail,
+          filename: asset.filename || asset.name,
+          name: asset.name || asset.filename,
+          file_type: asset.file_type,
+          mime_type: asset.mime_type,
+          file_size: asset.file_size,
+          width: asset.width,
+          height: asset.height,
+          duration: asset.duration,
+          aspect_ratio: asset.aspect_ratio,
+          tags: asset.tags || {},
+          channels: asset.channels || [],
+          status: asset.status || 'ready',
+          is_favorite: asset.is_favorite || false,
+          is_team: asset.is_team || false,
+          thumbnail_url: asset.thumbnail_url || null, // Small thumbnail is OK
+          external_url: asset.external_url || asset.cloudinary_url || null,
+          metadata: {
+            original_filename: asset.filename,
+            created_by: asset.created_by || userEmail,
+            source: asset.source || 'upload'
+          },
+          created_at: asset.created_at,
+          updated_at: new Date().toISOString()
+        };
+        
+        await window.CAVSupabase.saveAsset(assetMetadata);
+        console.log('[CAV] ☁️ Asset metadata synced to Supabase:', asset.filename);
+      } catch (e) {
+        console.warn('[CAV] Supabase asset sync error:', e);
+      }
+    }
+    
+    // Load assets from Supabase and merge with local
+    async loadAssetsFromSupabase() {
+      if (!window.CAVSupabase?.getAssets) return [];
+      
+      try {
+        const cloudAssets = await window.CAVSupabase.getAssets();
+        console.log('[CAV] ☁️ Loaded', cloudAssets?.length || 0, 'assets from Supabase');
+        return cloudAssets || [];
+      } catch (e) {
+        console.warn('[CAV] Failed to load assets from Supabase:', e);
+        return [];
+      }
     }
     
     async idbUpdateAsset(id, data) {
@@ -879,15 +980,39 @@
         const assetsStore = transaction.objectStore('assets');
         const videosStore = transaction.objectStore('video_blobs');
         
-        // Delete asset
-        assetsStore.delete(id);
-        
-        // Also delete video blob if exists
-        videosStore.delete(id);
+        // Get asset first to get UUID for Supabase deletion
+        const getRequest = assetsStore.get(id);
+        getRequest.onsuccess = () => {
+          const asset = getRequest.result;
+          const assetUuid = asset?.uuid || id;
+          
+          // Delete asset from IndexedDB
+          assetsStore.delete(id);
+          
+          // Also delete video blob if exists
+          videosStore.delete(id);
+          
+          // ALSO delete from Supabase
+          this.deleteAssetFromSupabase(assetUuid).catch(e => 
+            console.warn('[CAV] Supabase asset delete failed:', e)
+          );
+        };
         
         transaction.oncomplete = () => resolve({ success: true });
         transaction.onerror = () => resolve({ success: false, message: 'Failed to delete' });
       });
+    }
+    
+    // Delete asset from Supabase
+    async deleteAssetFromSupabase(uuid) {
+      if (!window.CAVSupabase?.deleteAsset) return;
+      
+      try {
+        await window.CAVSupabase.deleteAsset(uuid);
+        console.log('[CAV] ☁️ Asset deleted from Supabase:', uuid);
+      } catch (e) {
+        console.warn('[CAV] Supabase asset delete error:', e);
+      }
     }
     
     async idbBulkOperation(operation, assetIds, data = {}) {
@@ -1165,13 +1290,21 @@
     localGetAssets(params) {
       const allAssets = this.getAllLocalAssets();
       const isTeam = params.is_team === 'true' || params.is_team === true;
-      const isArchived = params.is_archived === 'true' || params.is_archived === true;
+      const includeTrash = params.include_trash === true || params.include_trash === 'true';
+      const trashOnly = params.trash_only === true || params.trash_only === 'true';
       
-      // Filter by team and archive status
+      // Filter by team and trash status
       let filtered = allAssets.filter(a => {
         const matchesTeam = a.is_team === isTeam;
-        const matchesArchive = isArchived ? a.is_archived === true : a.is_archived !== true;
-        return matchesTeam && matchesArchive;
+        // Check both is_trashed and is_archived for backwards compatibility
+        const isTrashed = a.is_trashed === true || a.is_archived === true;
+        
+        if (trashOnly) {
+          return matchesTeam && isTrashed;
+        } else if (!includeTrash) {
+          return matchesTeam && !isTrashed;
+        }
+        return matchesTeam;
       });
       
       // Search
@@ -1830,23 +1963,34 @@ Esc - Close modal/clear selection
     async archiveAsset(assetId) {
       const asset = this.state.assets.find(a => a.id === assetId);
       if (asset) {
+        asset.is_trashed = true;
         asset.is_archived = true;
-        asset.archived_at = new Date().toISOString();
+        asset.trashed_at = new Date().toISOString();
+        asset.archived_at = asset.trashed_at;
         await this.storage.updateAsset(assetId, { 
+          is_trashed: true,
           is_archived: true, 
-          archived_at: asset.archived_at 
+          trashed_at: asset.trashed_at,
+          archived_at: asset.trashed_at 
         });
         this.state.showDeleteConfirm = null;
         await this.loadAssets();
+        // Show success notification
+        window.showNotification?.(`"${asset.filename}" moved to trash`, 'success');
       }
     }
 
     async restoreAsset(assetId) {
+      const asset = this.state.trashedAssets?.find(a => a.id === assetId);
       await this.storage.updateAsset(assetId, { 
+        is_trashed: false,
         is_archived: false, 
+        trashed_at: null,
         archived_at: null 
       });
       await this.loadTrashedAssets();
+      // Show success notification
+      window.showNotification?.(`"${asset?.filename || 'Asset'}" restored`, 'success');
     }
 
     async permanentlyDeleteAsset(assetId) {
@@ -1860,11 +2004,14 @@ Esc - Close modal/clear selection
           page: 1,
           per_page: 100,
           is_team: this.state.storageMode === 'team',
-          is_archived: true
+          include_trash: true,
+          trash_only: true
         });
-        this.state.trashedAssets = (result.assets || []).filter(a => a.is_archived);
+        // Filter by both is_trashed and is_archived for backwards compatibility
+        this.state.trashedAssets = (result.assets || []).filter(a => a.is_trashed || a.is_archived);
         this.render();
       } catch (e) {
+        console.error('Failed to load trashed assets:', e);
         this.state.trashedAssets = [];
         this.render();
       }

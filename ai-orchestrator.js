@@ -157,7 +157,7 @@
                 },
                 body: JSON.stringify({
                     model,
-                    max_completion_tokens: maxTokens,
+                    max_tokens: maxTokens,  // Claude API requires 'max_tokens', not 'max_completion_tokens'
                     temperature,
                     messages
                 })
@@ -184,15 +184,16 @@
         // Map user-friendly model names to actual OpenAI API model names
         mapOpenAIModel(userModel) {
             const modelMap = {
-                'gpt-5.2': 'gpt-4o',            // Latest & Best → GPT-4o (most capable)
-                'gpt-5-mini': 'gpt-4o-mini',    // Fast → GPT-4o Mini
-                'gpt-4.1': 'gpt-4-turbo',       // Stable → GPT-4 Turbo
-                'gpt-4o': 'gpt-4o',             // Direct passthrough
-                'gpt-4o-mini': 'gpt-4o-mini',   // Direct passthrough
-                'gpt-4-turbo': 'gpt-4-turbo',   // Direct passthrough
-                'gpt-4': 'gpt-4'                // Direct passthrough
+                'gpt-5.2': 'gpt-5.2',                       // GPT-5.2 flagship model
+                'gpt-5.2-2025-12-11': 'gpt-5.2-2025-12-11', // GPT-5.2 snapshot
+                'gpt-5': 'gpt-5',                           // GPT-5
+                'gpt-5-mini': 'gpt-5-mini',                 // GPT-5 Mini
+                'gpt-4o': 'gpt-4o',                         // GPT-4o (legacy)
+                'gpt-4o-mini': 'gpt-4o-mini',               // GPT-4o Mini (legacy)
+                'gpt-4-turbo': 'gpt-4-turbo',               // GPT-4 Turbo (legacy)
+                'gpt-4': 'gpt-4'                            // GPT-4 (legacy)
             };
-            return modelMap[userModel] || 'gpt-4o'; // Default to gpt-4o
+            return modelMap[userModel] || 'gpt-5.2'; // Default to gpt-5.2
         }
 
         async callOpenAI(prompt, options = {}) {
@@ -202,7 +203,7 @@
             }
 
             const modelConfig = window.CAVSettings?.getModelConfig() || {};
-            const userModel = options.mini ? 'gpt-5-mini' : (options.model || modelConfig.openaiVisionModel || 'gpt-5.2');
+            const userModel = options.mini ? 'gpt-5-mini' : (options.model || modelConfig.openaiVisionModel || 'gpt-5.2-2025-12-11');
             const model = this.mapOpenAIModel(userModel);
             const temperature = options.temperature ?? modelConfig.analysisTemperature ?? 0.3;
             const maxTokens = options.maxTokens || modelConfig.maxTokens || 8192;
@@ -310,7 +311,7 @@
                 throw new Error('Gemini API key not configured');
             }
 
-            const model = options.model || 'gemini-2.0-flash';
+            const model = options.model || 'gemini-3-flash-preview';
             let url = `${API_ENDPOINTS.gemini}/${model}:generateContent?key=${apiKey}`;
 
             let contents;
