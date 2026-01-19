@@ -1,7 +1,7 @@
 /**
  * Internal CRM Module - HubSpot-Style Contact & Project Management
  * ================================================================
- * Version 2.0.0
+ * Version 5.11.1 - January 17, 2026
  * 
  * Features:
  * - Contact Management (clients, team members, vendors)
@@ -78,6 +78,148 @@
         constructor() {
             this._loadUserData();
             console.log('[CRM] Initialized with user prefix:', getUserStoragePrefix());
+            
+            // Auto-load from IndexedDB when available (async)
+            this._autoLoadFromBackend();
+        }
+        
+        // Auto-load from backend/IndexedDB AND Supabase on initialization
+        async _autoLoadFromBackend() {
+            // Wait a bit for syncEngine to be ready
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (window.syncEngine?.isAuthenticated?.()) {
+                console.log('[CRM] Auto-loading from IndexedDB...');
+                await this.loadFromIndexedDB();
+            } else {
+                console.log('[CRM] SyncEngine not authenticated yet, will load on sync_complete');
+            }
+            
+            // Also try to load from Supabase (most reliable for cross-device)
+            await this.loadFromSupabase();
+        }
+        
+        // Load CRM data directly from Supabase
+        async loadFromSupabase() {
+            if (!window.CAVSupabase?.getClient) {
+                // Retry after a delay
+                setTimeout(() => this.loadFromSupabase(), 2000);
+                return;
+            }
+            
+            try {
+                const supabase = window.CAVSupabase.getClient();
+                if (!supabase) return;
+                
+                // Get user info - support both Supabase Auth and Google Sign-In
+                const supabaseUser = await supabase.auth.getUser();
+                const userId = supabaseUser?.data?.user?.id;
+                const userEmail = supabaseUser?.data?.user?.email || window.cavUserSession?.email;
+                
+                // Must have at least user_email to load data
+                if (!userEmail) {
+                    console.warn('[CRM] No user email, skipping Supabase load');
+                    return;
+                }
+                
+                console.log('[CRM] Loading data from Supabase for:', userEmail);
+                
+                // Load companies - filter by user_email (works for Google Sign-In)
+                let query = supabase.from('companies').select('*').is('deleted_at', null);
+                
+                // Use user_id if available, otherwise user_email
+                if (userId) {
+                    query = query.eq('user_id', userId);
+                } else {
+                    query = query.eq('user_email', userEmail);
+                }
+                
+                const { data: companies, error: compError } = await query;
+                
+                if (!compError && companies?.length > 0) {
+                    console.log(`[CRM] ☁️ Loaded ${companies.length} companies from Supabase`);
+                    
+                    for (const c of companies) {
+                        // Parse JSON fields
+                        const company = {
+                            id: c.uuid || c.id,
+                            uuid: c.uuid || c.id,
+                            name: c.name,
+                            industry: c.industry,
+                            website: c.website,
+                            type: c.type,
+                            description: c.description,
+                            tags: c.tags || [],
+                            metadata: this._parseJSON(c.metadata),
+                            enrichedData: this._parseJSON(c.enriched_data),
+                            strategyInsights: this._parseJSON(c.strategy_insights),
+                            chatHistory: this._parseJSON(c.chat_history) || [],
+                            benchmarks: this._parseJSON(c.benchmarks) || [],
+                            bestPractices: this._parseJSON(c.best_practices) || [],
+                            competitors: this._parseJSON(c.competitors) || [],
+                            sharing: { isShared: c.is_shared },
+                            createdAt: c.created_at,
+                            updatedAt: c.updated_at
+                        };
+                        
+                        // Only add if not already present (local takes precedence)
+                        if (!this.companies[company.id]) {
+                            this.companies[company.id] = company;
+                        }
+                    }
+                    
+                    // Save merged data to localStorage
+                    this.saveData(CRM_STORAGE.COMPANIES, this.companies);
+                }
+                
+                // Load contacts - filter by user_email (works for Google Sign-In)
+                let contactQuery = supabase.from('contacts').select('*').is('deleted_at', null);
+                if (userId) {
+                    contactQuery = contactQuery.eq('user_id', userId);
+                } else {
+                    contactQuery = contactQuery.eq('user_email', userEmail);
+                }
+                const { data: contacts, error: contError } = await contactQuery;
+                
+                if (!contError && contacts?.length > 0) {
+                    console.log(`[CRM] ☁️ Loaded ${contacts.length} contacts from Supabase`);
+                    for (const c of contacts) {
+                        if (!this.contacts[c.uuid || c.id]) {
+                            this.contacts[c.uuid || c.id] = {
+                                id: c.uuid || c.id,
+                                firstName: c.first_name,
+                                lastName: c.last_name,
+                                email: c.email,
+                                phone: c.phone,
+                                company: c.company_id,
+                                companyName: c.company_name,
+                                title: c.title,
+                                tags: c.tags || [],
+                                metadata: this._parseJSON(c.metadata),
+                                createdAt: c.created_at,
+                                updatedAt: c.updated_at
+                            };
+                        }
+                    }
+                    this.saveData(CRM_STORAGE.CONTACTS, this.contacts);
+                }
+                
+                console.log('[CRM] ☁️ Supabase data load complete');
+                
+            } catch (e) {
+                console.warn('[CRM] Supabase load error:', e);
+            }
+        }
+        
+        // Helper to safely parse JSON
+        _parseJSON(value) {
+            if (!value) return {};
+            if (typeof value === 'object') return value;
+            try {
+                return JSON.parse(value);
+            } catch (e) {
+                return {};
+            }
         }
         
         // Load user-specific data - called on init and when user changes
@@ -98,6 +240,77 @@
             console.log('[CRM] Reloading data for user prefix:', getUserStoragePrefix());
             this._loadUserData();
             return this;
+        }
+        
+        // Load data from IndexedDB (via sync-engine) and merge with localStorage
+        async loadFromIndexedDB() {
+            if (!window.syncEngine) {
+                console.log('[CRM] SyncEngine not available, using localStorage only');
+                return;
+            }
+            
+            try {
+                console.log('[CRM] Loading data from IndexedDB...');
+                
+                // Load companies from IndexedDB
+                const idbCompanies = await window.syncEngine.getAllCompanies();
+                if (idbCompanies && idbCompanies.length > 0) {
+                    console.log(`[CRM] Loaded ${idbCompanies.length} companies from IndexedDB`);
+                    // Convert array to object with uuid as key
+                    const companiesObj = {};
+                    idbCompanies.forEach(company => {
+                        // Ensure id is set for UI compatibility
+                        company.id = company.uuid || company.id;
+                        companiesObj[company.id] = company;
+                    });
+                    this.companies = companiesObj;
+                    // Save to localStorage for faster subsequent loads
+                    this.saveData(CRM_STORAGE.COMPANIES, this.companies);
+                }
+                
+                // Load contacts from IndexedDB
+                const idbContacts = await window.syncEngine.getAllContacts();
+                if (idbContacts && idbContacts.length > 0) {
+                    console.log(`[CRM] Loaded ${idbContacts.length} contacts from IndexedDB`);
+                    const contactsObj = {};
+                    idbContacts.forEach(contact => {
+                        contact.id = contact.uuid || contact.id;
+                        contactsObj[contact.id] = contact;
+                    });
+                    this.contacts = contactsObj;
+                    this.saveData(CRM_STORAGE.CONTACTS, this.contacts);
+                }
+                
+                // Load projects from IndexedDB
+                const idbProjects = await window.syncEngine.getAllProjects();
+                if (idbProjects && idbProjects.length > 0) {
+                    console.log(`[CRM] Loaded ${idbProjects.length} projects from IndexedDB`);
+                    const projectsObj = {};
+                    idbProjects.forEach(project => {
+                        project.id = project.uuid || project.id;
+                        projectsObj[project.id] = project;
+                    });
+                    this.projects = projectsObj;
+                    this.saveData(CRM_STORAGE.PROJECTS, this.projects);
+                }
+                
+                // Load deals from IndexedDB
+                const idbDeals = await window.syncEngine.getAllDeals();
+                if (idbDeals && idbDeals.length > 0) {
+                    console.log(`[CRM] Loaded ${idbDeals.length} deals from IndexedDB`);
+                    const dealsObj = {};
+                    idbDeals.forEach(deal => {
+                        deal.id = deal.uuid || deal.id;
+                        dealsObj[deal.id] = deal;
+                    });
+                    this.deals = dealsObj;
+                    this.saveData(CRM_STORAGE.DEALS, this.deals);
+                }
+                
+                console.log('[CRM] Successfully loaded data from IndexedDB');
+            } catch (error) {
+                console.error('[CRM] Failed to load from IndexedDB:', error);
+            }
         }
         
         // Get current user's storage prefix (for debugging)
@@ -137,6 +350,9 @@
             this.saveData(CRM_STORAGE.COMPETITORS, this.competitors);
             this.logActivity('competitor_created', { competitorId: id, name: competitor.name });
             
+            // Sync to Supabase
+            this.saveCompetitorToSupabase(competitor);
+            
             return competitor;
         }
         
@@ -152,6 +368,9 @@
             this.saveData(CRM_STORAGE.COMPETITORS, this.competitors);
             this.logActivity('competitor_updated', { competitorId: id });
             
+            // Sync to Supabase
+            this.saveCompetitorToSupabase(this.competitors[id]);
+            
             return this.competitors[id];
         }
         
@@ -162,6 +381,13 @@
             delete this.competitors[id];
             this.saveData(CRM_STORAGE.COMPETITORS, this.competitors);
             this.logActivity('competitor_deleted', { competitorId: id, name: competitor.name });
+            
+            // Delete from Supabase
+            if (window.CAVSupabase?.deleteCompetitor) {
+                window.CAVSupabase.deleteCompetitor(competitor.uuid || id).catch(e => 
+                    console.warn('[CRM] Failed to delete competitor from Supabase:', e)
+                );
+            }
             
             return true;
         }
@@ -270,6 +496,14 @@
             this.saveData(CRM_STORAGE.CONTACTS, this.contacts);
             this.logActivity('contact_created', { contactId: id, name: `${contact.firstName} ${contact.lastName}` });
             
+            // Also save to sync-engine/IndexedDB for persistence
+            if (window.syncEngine) {
+                contact.uuid = contact.id; // Ensure uuid is set
+                window.syncEngine.saveContact(contact).catch(e => 
+                    console.warn('[CRM] Failed to save contact to sync-engine:', e)
+                );
+            }
+            
             return contact;
         }
 
@@ -285,6 +519,15 @@
             this.saveData(CRM_STORAGE.CONTACTS, this.contacts);
             this.logActivity('contact_updated', { contactId: id });
             
+            // Also save to sync-engine/IndexedDB for persistence
+            if (window.syncEngine) {
+                const contact = this.contacts[id];
+                contact.uuid = contact.id; // Ensure uuid is set
+                window.syncEngine.saveContact(contact).catch(e => 
+                    console.warn('[CRM] Failed to update contact in sync-engine:', e)
+                );
+            }
+            
             return this.contacts[id];
         }
 
@@ -295,6 +538,13 @@
             delete this.contacts[id];
             this.saveData(CRM_STORAGE.CONTACTS, this.contacts);
             this.logActivity('contact_deleted', { contactId: id, name: `${contact.firstName} ${contact.lastName}` });
+            
+            // Also delete from sync-engine/IndexedDB
+            if (window.syncEngine && contact.uuid) {
+                window.syncEngine.deleteContact(contact.uuid).catch(e => 
+                    console.warn('[CRM] Failed to delete contact from sync-engine:', e)
+                );
+            }
             
             return true;
         }
@@ -393,6 +643,17 @@
             this.saveData(CRM_STORAGE.COMPANIES, this.companies);
             this.logActivity('company_created', { companyId: id, name: company.name });
             
+            // Also save to sync-engine/IndexedDB for persistence
+            if (window.syncEngine) {
+                company.uuid = company.id; // Ensure uuid is set
+                window.syncEngine.saveCompany(company).catch(e => 
+                    console.warn('[CRM] Failed to save company to sync-engine:', e)
+                );
+            }
+            
+            // ALSO save directly to Supabase for cross-device sync
+            this.saveCompanyToSupabase(company);
+            
             return company;
         }
 
@@ -408,7 +669,155 @@
             this.saveData(CRM_STORAGE.COMPANIES, this.companies);
             this.logActivity('company_updated', { companyId: id });
             
+            // Also save to sync-engine/IndexedDB for persistence
+            if (window.syncEngine) {
+                const company = this.companies[id];
+                company.uuid = company.id; // Ensure uuid is set
+                window.syncEngine.saveCompany(company).catch(e => 
+                    console.warn('[CRM] Failed to update company in sync-engine:', e)
+                );
+            }
+            
+            // ALSO save directly to Supabase for cross-device sync
+            this.saveCompanyToSupabase(this.companies[id]);
+            
             return this.companies[id];
+        }
+        
+        // Save company directly to Supabase for reliable cross-device sync
+        async saveCompanyToSupabase(company) {
+            if (!window.CAVSupabase?.getClient) return;
+            
+            try {
+                const supabase = window.CAVSupabase.getClient();
+                if (!supabase) return;
+                
+                // Get user info - support both Supabase Auth and Google Sign-In
+                const supabaseUser = await supabase.auth.getUser();
+                const userId = supabaseUser?.data?.user?.id || null;
+                const userEmail = supabaseUser?.data?.user?.email || window.cavUserSession?.email;
+                
+                // Must have at least user_email to save
+                if (!userEmail) {
+                    console.warn('[CRM] No user email available, skipping Supabase save');
+                    return;
+                }
+                
+                const companyData = {
+                    uuid: company.id || company.uuid,
+                    user_email: userEmail,
+                    owner_email: userEmail,
+                    name: company.name,
+                    industry: company.industry || null,
+                    website: company.website || null,
+                    type: company.type || 'client',
+                    description: company.description || null,
+                    tags: company.tags || [],
+                    metadata: company.metadata || {},
+                    enriched_data: company.enrichedData || {},
+                    strategy_insights: company.strategyInsights || {},
+                    chat_history: company.chatHistory || [],
+                    benchmarks: company.benchmarks || [],
+                    best_practices: company.bestPractices || [],
+                    competitors: company.competitors || [],
+                    is_shared: company.sharing?.isShared || false,
+                    updated_at: new Date().toISOString()
+                };
+                
+                // Add user_id only if available (from Supabase Auth)
+                if (userId) {
+                    companyData.user_id = userId;
+                }
+                
+                console.log('[CRM] Saving company to Supabase:', companyData.name, 'uuid:', companyData.uuid);
+                
+                const { error } = await supabase
+                    .from('companies')
+                    .upsert(companyData, { onConflict: 'uuid' });
+                
+                if (error) {
+                    console.error('[CRM] Supabase save error:', error.message, error);
+                } else {
+                    console.log('[CRM] ☁️ Company saved to Supabase:', company.name);
+                }
+            } catch (e) {
+                console.warn('[CRM] Supabase sync error:', e);
+            }
+        }
+
+        // Save competitor directly to Supabase
+        async saveCompetitorToSupabase(competitor) {
+            if (!window.CAVSupabase?.saveCompetitor) return;
+            
+            try {
+                const userEmail = window.cavUserSession?.email;
+                if (!userEmail) return;
+                
+                const competitorData = {
+                    uuid: competitor.id || competitor.uuid,
+                    name: competitor.name,
+                    domain: competitor.domain || null,
+                    website: competitor.website || competitor.url || null,
+                    industry: competitor.industry || null,
+                    company_id: competitor.linkedCompanyId || null,
+                    ad_library_urls: competitor.adLibraryUrl ? [competitor.adLibraryUrl] : [],
+                    monitoring_frequency: competitor.monitoringFrequency || 'weekly',
+                    notes: competitor.notes || null,
+                    tags: competitor.tags || [],
+                    metadata: competitor.metadata || {},
+                    is_shared: false
+                };
+                
+                await window.CAVSupabase.saveCompetitor(competitorData);
+                console.log('[CRM] ☁️ Competitor saved to Supabase:', competitor.name);
+            } catch (e) {
+                console.warn('[CRM] Competitor Supabase sync error:', e);
+            }
+        }
+
+        // Save activity directly to Supabase
+        async saveActivityToSupabase(activity) {
+            if (!window.CAVSupabase?.saveActivity) return;
+            
+            try {
+                const userEmail = window.cavUserSession?.email;
+                if (!userEmail) return;
+                
+                const activityData = {
+                    uuid: activity.id || activity.uuid,
+                    action: activity.type || activity.action,
+                    entity_type: activity.entity_type || 'general',
+                    entity_id: activity.entity_id || null,
+                    metadata: activity.data || activity.metadata || {}
+                };
+                
+                await window.CAVSupabase.saveActivity(activityData);
+            } catch (e) {
+                // Don't spam console for activity sync errors
+            }
+        }
+
+        // Save tag directly to Supabase
+        async saveTagToSupabase(tag) {
+            if (!window.CAVSupabase?.saveTag) return;
+            
+            try {
+                const userEmail = window.cavUserSession?.email;
+                if (!userEmail) return;
+                
+                const tagData = {
+                    uuid: tag.id || tag.uuid,
+                    name: tag.name,
+                    color: tag.color || '#ec4899',
+                    category: tag.category || null,
+                    usage_count: tag.usage_count || 0
+                };
+                
+                await window.CAVSupabase.saveTag(tagData);
+                console.log('[CRM] ☁️ Tag saved to Supabase:', tag.name);
+            } catch (e) {
+                console.warn('[CRM] Tag Supabase sync error:', e);
+            }
         }
 
         deleteCompany(id) {
@@ -418,6 +827,13 @@
             delete this.companies[id];
             this.saveData(CRM_STORAGE.COMPANIES, this.companies);
             this.logActivity('company_deleted', { companyId: id, name: company.name });
+            
+            // Also delete from sync-engine/IndexedDB
+            if (window.syncEngine && company.uuid) {
+                window.syncEngine.deleteCompany(company.uuid).catch(e => 
+                    console.warn('[CRM] Failed to delete company from sync-engine:', e)
+                );
+            }
             
             return true;
         }
@@ -583,7 +999,7 @@
                 <div class="crm-modal-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 10000;"></div>
                 <div class="crm-modal-content" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1f2937; border-radius: 12px; padding: 2rem; max-width: 500px; width: 90%; z-index: 10001; max-height: 80vh; overflow-y: auto;">
                     <div class="crm-modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                        <h3 style="color: #fff; margin: 0;">🔗 Share "${company.name}"</h3>
+                        <h3 style="color: #fff; margin: 0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;vertical-align:middle;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Share "${company.name}"</h3>
                         <button class="crm-modal-close" style="background: none; border: none; color: #9ca3af; font-size: 1.5rem; cursor: pointer;">&times;</button>
                     </div>
                     
@@ -599,9 +1015,9 @@
                         <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; margin-bottom: 0.5rem;">
                             <span style="color: #e9d5ff;">Share level:</span>
                             <select id="share-level" style="padding: 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff;">
-                                <option value="view" ${currentSharing.shareLevel === 'view' ? 'selected' : ''}>👁️ View only</option>
-                                <option value="edit" ${currentSharing.shareLevel === 'edit' ? 'selected' : ''}>✏️ Can edit</option>
-                                <option value="admin" ${currentSharing.shareLevel === 'admin' ? 'selected' : ''}>🔐 Full access</option>
+                                <option value="view" ${currentSharing.shareLevel === 'view' ? 'selected' : ''}>View only</option>
+                                <option value="edit" ${currentSharing.shareLevel === 'edit' ? 'selected' : ''}>Can edit</option>
+                                <option value="admin" ${currentSharing.shareLevel === 'admin' ? 'selected' : ''}>Full access</option>
                             </select>
                         </div>
                     </div>
@@ -627,7 +1043,7 @@
                     
                     <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                         <button class="cancel-btn" style="padding: 0.75rem 1.5rem; background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; cursor: pointer;">Cancel</button>
-                        <button class="save-btn" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #a855f7, #6366f1); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-weight: 500;">💾 Save Sharing Settings</button>
+                        <button class="save-btn" style="padding: 0.75rem 1.5rem; background: linear-gradient(135deg, #a855f7, #6366f1); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-weight: 500;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Sharing Settings</button>
                     </div>
                 </div>
             `;
@@ -659,7 +1075,7 @@
                     shareLevel: shareLevel,
                 });
                 
-                this.showToast('success', '✅ Sharing settings saved!');
+                this.showToast('success', 'Sharing settings saved!');
                 modal.remove();
             });
         }
@@ -926,6 +1342,14 @@
             this.saveData(CRM_STORAGE.PROJECTS, this.projects);
             this.logActivity('project_created', { projectId: id, name: project.name });
             
+            // Also save to sync-engine/IndexedDB for persistence
+            if (window.syncEngine) {
+                project.uuid = project.id; // Ensure uuid is set
+                window.syncEngine.saveProject(project).catch(e => 
+                    console.warn('[CRM] Failed to save project to sync-engine:', e)
+                );
+            }
+            
             return project;
         }
         
@@ -974,9 +1398,9 @@
                         <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 1rem; margin-bottom: 0.5rem;">
                             <span style="color: #e9d5ff;">Share level:</span>
                             <select id="project-share-level" style="padding: 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff;">
-                                <option value="view" ${currentSharing.shareLevel === 'view' ? 'selected' : ''}>👁️ View only</option>
-                                <option value="edit" ${currentSharing.shareLevel === 'edit' ? 'selected' : ''}>✏️ Can edit</option>
-                                <option value="admin" ${currentSharing.shareLevel === 'admin' ? 'selected' : ''}>🔐 Full access</option>
+                                <option value="view" ${currentSharing.shareLevel === 'view' ? 'selected' : ''}>View only</option>
+                                <option value="edit" ${currentSharing.shareLevel === 'edit' ? 'selected' : ''}>Can edit</option>
+                                <option value="admin" ${currentSharing.shareLevel === 'admin' ? 'selected' : ''}>Full access</option>
                             </select>
                         </div>
                     </div>
@@ -1025,7 +1449,7 @@
                     shareLevel: shareLevel,
                 });
                 
-                this.showToast('success', '✅ Project sharing settings saved!');
+                this.showToast('success', 'Project sharing settings saved!');
                 modal.remove();
             });
         }
@@ -1042,6 +1466,15 @@
             this.saveData(CRM_STORAGE.PROJECTS, this.projects);
             this.logActivity('project_updated', { projectId: id });
             
+            // Also save to sync-engine/IndexedDB for persistence
+            if (window.syncEngine) {
+                const project = this.projects[id];
+                project.uuid = project.id; // Ensure uuid is set
+                window.syncEngine.saveProject(project).catch(e => 
+                    console.warn('[CRM] Failed to update project in sync-engine:', e)
+                );
+            }
+            
             return this.projects[id];
         }
 
@@ -1052,6 +1485,13 @@
             delete this.projects[id];
             this.saveData(CRM_STORAGE.PROJECTS, this.projects);
             this.logActivity('project_deleted', { projectId: id, name: project.name });
+            
+            // Also delete from sync-engine/IndexedDB
+            if (window.syncEngine && project.uuid) {
+                window.syncEngine.deleteProject(project.uuid).catch(e => 
+                    console.warn('[CRM] Failed to delete project from sync-engine:', e)
+                );
+            }
             
             return true;
         }
@@ -1283,7 +1723,7 @@
             modal.innerHTML = `
                 <div class="crm-modal-content" style="max-width: 500px;">
                     <div class="crm-modal-header">
-                        <h3>📁 Assign to Brand</h3>
+                        <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;vertical-align:middle;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Assign to Brand</h3>
                         <button class="crm-modal-close">&times;</button>
                     </div>
                     <div class="crm-modal-body">
@@ -1314,7 +1754,7 @@
                     <div class="crm-modal-footer">
                         <button class="crm-btn crm-btn-cancel">Cancel</button>
                         <button class="crm-btn crm-btn-primary" id="assign-brand-submit">
-                            ✅ Assign to Brand
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;"><polyline points="20 6 9 17 4 12"/></svg> Assign to Brand
                         </button>
                     </div>
                 </div>
@@ -1358,7 +1798,7 @@
                     const result = await this.assignAssetToBrand(assetId, brandInfo);
                     
                     // Show success message
-                    alert(`✅ Asset assigned to ${result.company.name}!`);
+                    alert(`Asset assigned to ${result.company.name}!`);
                     close();
                     
                     // Refresh displays
@@ -1366,7 +1806,7 @@
                     
                 } catch (error) {
                     console.error('[CRM] Assignment failed:', error);
-                    alert(`❌ Failed to assign: ${error.message}`);
+                    alert(`Failed to assign: ${error.message}`);
                 }
             });
         }
@@ -1463,6 +1903,110 @@
         }
 
         // ----------------------------------------
+        // BRIEFS (Enhanced Deals with Documents)
+        // ----------------------------------------
+        createBrief(data) {
+            const id = this.generateId();
+            const uuid = 'brief_' + id;
+            
+            const brief = {
+                id,
+                uuid,
+                name: data.name || '',
+                company: data.company || '',
+                project: data.project || '',
+                type: data.type || 'creative', // creative, campaign, brand, strategy, research, other
+                description: data.description || '',
+                tags: data.tags || [],
+                aiOptions: data.aiOptions || {},
+                files: [], // File references (stored separately)
+                analyses: [], // AI analysis results
+                extractedData: {}, // Data extracted by AI
+                recommendations: [], // AI-generated recommendations
+                status: 'active', // active, archived, completed
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                createdBy: data.createdBy || window.cavUserSession?.email || 'system',
+            };
+            
+            // Store file metadata (not the actual files)
+            if (data.files && data.files.length > 0) {
+                brief.files = data.files.map(f => ({
+                    name: f.name,
+                    type: f.type,
+                    size: f.size,
+                    uploadedAt: new Date().toISOString()
+                }));
+            }
+
+            this.deals[id] = brief;
+            this.saveData(CRM_STORAGE.DEALS, this.deals);
+            this.logActivity('brief_created', { briefId: id, name: brief.name, fileCount: brief.files.length });
+            
+            // Sync to backend
+            if (window.syncEngine) {
+                const syncData = { ...brief, uuid, entity_type: 'deals' };
+                window.syncEngine.saveDeal(syncData).catch(e => console.error('[CRM] Brief sync error:', e));
+            }
+            
+            return brief;
+        }
+        
+        addBriefAnalysis(briefId, analysis) {
+            if (!this.deals[briefId]) return null;
+            
+            if (!this.deals[briefId].analyses) {
+                this.deals[briefId].analyses = [];
+            }
+            
+            this.deals[briefId].analyses.push({
+                ...analysis,
+                analyzedAt: new Date().toISOString()
+            });
+            
+            this.deals[briefId].updatedAt = new Date().toISOString();
+            this.saveData(CRM_STORAGE.DEALS, this.deals);
+            
+            this.logActivity('brief_analysis_added', { briefId, fileName: analysis.fileName });
+            
+            return this.deals[briefId];
+        }
+        
+        updateBriefExtractedData(briefId, extractedData) {
+            if (!this.deals[briefId]) return null;
+            
+            this.deals[briefId].extractedData = {
+                ...this.deals[briefId].extractedData,
+                ...extractedData
+            };
+            
+            this.deals[briefId].updatedAt = new Date().toISOString();
+            this.saveData(CRM_STORAGE.DEALS, this.deals);
+            
+            return this.deals[briefId];
+        }
+        
+        getAllBriefs(filters = {}) {
+            // Briefs are stored in deals but have type field
+            let results = Object.values(this.deals).filter(d => 
+                d.type && ['creative', 'campaign', 'brand', 'strategy', 'research', 'other'].includes(d.type)
+            );
+            
+            if (filters.status) {
+                results = results.filter(b => b.status === filters.status);
+            }
+            if (filters.company) {
+                results = results.filter(b => b.company === filters.company);
+            }
+            if (filters.project) {
+                results = results.filter(b => b.project === filters.project);
+            }
+            
+            results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            return results;
+        }
+
+        // ----------------------------------------
         // ACTIVITY LOGGING
         // ----------------------------------------
         logActivity(type, data) {
@@ -1470,8 +2014,13 @@
 
             const activity = {
                 id: this.generateId(),
+                uuid: this.generateId(),
                 type,
+                action: type,
                 data,
+                metadata: data,
+                entity_type: data?.companyId ? 'company' : data?.contactId ? 'contact' : data?.projectId ? 'project' : 'general',
+                entity_id: data?.companyId || data?.contactId || data?.projectId || null,
                 user: window.cavUserSession?.email || 'system',
                 userName: window.cavUserSession?.name || 'System',
                 timestamp: new Date().toISOString(),
@@ -1485,6 +2034,9 @@
             }
             
             this.saveData(CRM_STORAGE.ACTIVITIES, this.activities);
+            
+            // Sync to Supabase
+            this.saveActivityToSupabase(activity);
         }
 
         getActivities(filters = {}) {
@@ -1513,14 +2065,21 @@
         // TAGS
         // ----------------------------------------
         createTag(name, color = '#a855f7') {
+            const id = this.generateId();
             const tag = {
-                id: this.generateId(),
+                id,
+                uuid: id,
                 name,
                 color,
+                usage_count: 0,
                 createdAt: new Date().toISOString(),
             };
             this.tags.push(tag);
             this.saveData(CRM_STORAGE.TAGS, this.tags);
+            
+            // Sync to Supabase
+            this.saveTagToSupabase(tag);
+            
             return tag;
         }
 
@@ -1529,8 +2088,16 @@
         }
 
         deleteTag(id) {
+            const tag = this.tags.find(t => t.id === id);
             this.tags = this.tags.filter(t => t.id !== id);
             this.saveData(CRM_STORAGE.TAGS, this.tags);
+            
+            // Delete from Supabase
+            if (tag && window.CAVSupabase?.deleteTag) {
+                window.CAVSupabase.deleteTag(tag.uuid || id).catch(e => 
+                    console.warn('[CRM] Failed to delete tag from Supabase:', e)
+                );
+            }
         }
 
         // ----------------------------------------
@@ -2026,9 +2593,11 @@
             if (e.target === form) form.remove();
         });
 
-        // Save button
-        form.querySelector('.crm-modal-save')?.addEventListener('click', () => {
+        // Save button - with enhanced feedback
+        const saveBtn = form.querySelector('.crm-modal-save');
+        saveBtn?.addEventListener('click', async () => {
             const data = {};
+            const entityNames = { contact: 'Contact', company: 'Company', project: 'Project' };
             
             if (type === 'contact') {
                 data.firstName = form.querySelector('#contact-firstName')?.value;
@@ -2039,6 +2608,14 @@
                 data.title = form.querySelector('#contact-title')?.value;
                 data.type = form.querySelector('#contact-type')?.value;
                 data.notes = form.querySelector('#contact-notes')?.value;
+                
+                // Validation
+                if (!data.firstName && !data.lastName) {
+                    if (window.PersistenceUI) {
+                        window.PersistenceUI.showError('Validation Error', 'Please enter a name for the contact');
+                    }
+                    return;
+                }
             } else if (type === 'company') {
                 data.name = form.querySelector('#company-name')?.value;
                 data.industry = form.querySelector('#company-industry')?.value;
@@ -2050,6 +2627,14 @@
                 data.description = form.querySelector('#company-description')?.value;
                 data.tags = form.querySelector('#company-tags')?.value.split(',').map(t => t.trim()).filter(Boolean);
                 data.notes = form.querySelector('#company-notes')?.value;
+                
+                // Validation
+                if (!data.name) {
+                    if (window.PersistenceUI) {
+                        window.PersistenceUI.showError('Validation Error', 'Please enter a company name');
+                    }
+                    return;
+                }
             } else if (type === 'project') {
                 data.name = form.querySelector('#project-name')?.value;
                 data.client = form.querySelector('#project-client')?.value;
@@ -2062,10 +2647,40 @@
                 data.priority = form.querySelector('#project-priority')?.value;
                 data.description = form.querySelector('#project-description')?.value;
                 data.tags = form.querySelector('#project-tags')?.value.split(',').map(t => t.trim()).filter(Boolean);
+                
+                // Validation
+                if (!data.name) {
+                    if (window.PersistenceUI) {
+                        window.PersistenceUI.showError('Validation Error', 'Please enter a project name');
+                    }
+                    return;
+                }
             }
 
-            if (onSave) onSave(data);
-            form.remove();
+            // Show saving state
+            const originalText = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="crm-spinner"></span> Saving...';
+            
+            try {
+                if (onSave) await onSave(data);
+                
+                // Show success feedback
+                if (window.PersistenceUI) {
+                    const name = data.name || `${data.firstName || ''} ${data.lastName || ''}`.trim() || entityNames[type];
+                    window.PersistenceUI.showSuccess(`${entityNames[type]} Saved`, `"${name}" has been saved successfully`);
+                }
+                
+                form.remove();
+            } catch (error) {
+                console.error('[CRM] Save error:', error);
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
+                
+                if (window.PersistenceUI) {
+                    window.PersistenceUI.showError('Save Failed', error.message || 'Could not save data');
+                }
+            }
         });
     }
 
@@ -2111,15 +2726,15 @@
                             </div>
                             <div class="crm-list-meta">
                                 <span class="crm-badge crm-badge-${c.status || 'active'}">${c.status || 'active'}</span>
-                                ${c.linkedAssets?.length ? `<span class="crm-badge crm-badge-info">📷 ${c.linkedAssets.length} assets</span>` : ''}
+                                ${c.linkedAssets?.length ? `<span class="crm-badge crm-badge-info"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> ${c.linkedAssets.length} assets</span>` : ''}
                                 ${c.linkedProjects?.length ? `<span class="crm-badge crm-badge-project"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> ${c.linkedProjects.length} projects</span>` : ''}
                                 ${c.analyses?.length ? `<span class="crm-badge crm-badge-analysis"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> ${c.analyses.length} analyses</span>` : ''}
                             </div>
                             <div class="crm-list-actions">
-                                <button class="crm-btn-small crm-btn-share" data-action="share-company" data-id="${c.id}" title="Share with Team">${c.sharing?.isShared ? '🔗' : '🔒'}</button>
-                                <button class="crm-btn-small crm-btn-view" data-action="view-company" data-id="${c.id}" title="View Details">👁️</button>
-                                <button class="crm-btn-small" data-action="edit-company" data-id="${c.id}" title="Edit">✏️</button>
-                                <button class="crm-btn-small crm-btn-danger" data-action="delete-company" data-id="${c.id}" title="Delete">🗑️</button>
+                                <button class="crm-btn-small crm-btn-share" data-action="share-company" data-id="${c.id}" title="Share with Team">${c.sharing?.isShared ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'}</button>
+                                <button class="crm-btn-small crm-btn-view" data-action="view-company" data-id="${c.id}" title="View Details"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                                <button class="crm-btn-small" data-action="edit-company" data-id="${c.id}" title="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                                <button class="crm-btn-small crm-btn-danger" data-action="delete-company" data-id="${c.id}" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                             </div>
                         </div>
                     `).join('');
@@ -2169,9 +2784,9 @@
                                 ${p.deadline ? `<span class="crm-deadline">Due: ${new Date(p.deadline).toLocaleDateString()}</span>` : ''}
                             </div>
                             <div class="crm-list-actions">
-                                <button class="crm-btn-small crm-btn-share" data-action="share-project" data-id="${p.id}" title="Share with Team">${p.sharing?.isShared ? '🔗' : '🔒'}</button>
-                                <button class="crm-btn-small" data-action="edit-project" data-id="${p.id}">✏️</button>
-                                <button class="crm-btn-small crm-btn-danger" data-action="delete-project" data-id="${p.id}">🗑️</button>
+                                <button class="crm-btn-small crm-btn-share" data-action="share-project" data-id="${p.id}" title="Share with Team">${p.sharing?.isShared ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'}</button>
+                                <button class="crm-btn-small" data-action="edit-project" data-id="${p.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                                <button class="crm-btn-small crm-btn-danger" data-action="delete-project" data-id="${p.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                             </div>
                         </div>
                     `).join('');
@@ -2239,11 +2854,11 @@
                 <!-- Tabs Navigation -->
                 <div class="crm-detail-tabs" style="display: flex; gap: 0; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.1);">
                     <button class="crm-detail-tab active" data-tab="overview" style="padding: 1rem 1.5rem; border: none; background: rgba(168,85,247,0.2); color: #fff; cursor: pointer; border-bottom: 2px solid #a855f7;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Overview</button>
-                    <button class="crm-detail-tab" data-tab="assets" style="padding: 1rem 1.5rem; border: none; background: transparent; color: #9ca3af; cursor: pointer;">📷 Assets (${assets.length})</button>
+                    <button class="crm-detail-tab" data-tab="assets" style="padding: 1rem 1.5rem; border: none; background: transparent; color: #9ca3af; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Assets (${assets.length})</button>
                     <button class="crm-detail-tab" data-tab="analyses" style="padding: 1rem 1.5rem; border: none; background: transparent; color: #9ca3af; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>Analyses (${analyses.length})</button>
                     <button class="crm-detail-tab" data-tab="strategy" style="padding: 1rem 1.5rem; border: none; background: transparent; color: #9ca3af; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Strategy</button>
-                    <button class="crm-detail-tab" data-tab="competitors" style="padding: 1rem 1.5rem; border: none; background: transparent; color: #9ca3af; cursor: pointer;">👀 Competitors (${competitors.length})</button>
-                    <button class="crm-detail-tab" data-tab="ai-chat" style="padding: 1rem 1.5rem; border: none; background: transparent; color: #9ca3af; cursor: pointer;">🤖 AI Chat</button>
+                    <button class="crm-detail-tab" data-tab="competitors" style="padding: 1rem 1.5rem; border: none; background: transparent; color: #9ca3af; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Competitors (${competitors.length})</button>
+                    <button class="crm-detail-tab" data-tab="ai-chat" style="padding: 1rem 1.5rem; border: none; background: transparent; color: #9ca3af; cursor: pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.95 16.95l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.95 7.05l2.83-2.83"/></svg> AI Chat</button>
                 </div>
                 
                 <div class="crm-detail-body" style="overflow-y: auto; max-height: calc(95vh - 150px); padding: 0;">
@@ -2268,7 +2883,7 @@
                                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                                     <button class="crm-btn-primary" data-action="edit-this-company" style="width: 100%;">✏️ Edit Company</button>
                                     <button class="crm-btn-secondary" data-action="add-project-for-company" style="width: 100%;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Add Project</button>
-                                    <button class="crm-btn-ai" data-action="ai-analyze-company" style="width: 100%;">🤖 Full AI Analysis</button>
+                                    <button class="crm-btn-ai" data-action="ai-analyze-company" style="width: 100%;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.95 16.95l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.95 7.05l2.83-2.83"/></svg> Full AI Analysis</button>
                                 </div>
                             </div>
                             
@@ -2340,14 +2955,14 @@
                     
                     <!-- Assets Tab -->
                     <div class="crm-tab-content" id="tab-assets" style="display: none; padding: 1.5rem;">
-                        <h3 style="margin: 0 0 1rem; color: #fff;">📷 Linked Assets (${assets.length})</h3>
+                        <h3 style="margin: 0 0 1rem; color: #fff;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;vertical-align:middle;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Linked Assets (${assets.length})</h3>
                         ${assets.length === 0 ? '<p style="color: #6b7280; text-align: center; padding: 2rem;">No assets linked yet. Analyze creatives to link them to this company.</p>' : `
                             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
                                 ${assets.map(a => `
                                     <div style="background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden;">
                                         ${a.thumbnail_url || a.thumbnail || a.dataUrl ? 
                                           `<img src="${a.thumbnail_url || a.thumbnail || a.dataUrl}" style="width: 100%; height: 120px; object-fit: cover;">` : 
-                                          `<div style="width: 100%; height: 120px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); font-size: 3rem;">${a.file_type === 'video' ? '🎬' : '📷'}</div>`}
+                                          `<div style="width: 100%; height: 120px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2);"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.5;">${a.file_type === 'video' ? '<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>' : '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>'}</svg></div>`}
                                         <div style="padding: 0.75rem;">
                                             <p style="margin: 0 0 0.25rem; font-size: 0.85rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${a.filename || 'Unknown'}</p>
                                             <p style="margin: 0; font-size: 0.75rem; color: #6b7280;">${a.width || '?'}×${a.height || '?'}</p>
@@ -2433,7 +3048,7 @@
                     
                     <!-- Competitors Tab -->
                     <div class="crm-tab-content" id="tab-competitors" style="display: none; padding: 1.5rem;">
-                        <h3 style="margin: 0 0 1rem; color: #fff;">👀 Competitors (${competitors.length})</h3>
+                        <h3 style="margin: 0 0 1rem; color: #fff;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;vertical-align:middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Competitors (${competitors.length})</h3>
                         ${competitors.length === 0 ? '<p style="color: #6b7280; text-align: center; padding: 2rem;">No competitors tracked yet. Use URL analysis or AI to detect competitors.</p>' : `
                             <div style="display: flex; flex-direction: column; gap: 1rem;">
                                 ${competitors.map(c => `
@@ -2462,12 +3077,12 @@
                     
                     <!-- AI Chat Tab -->
                     <div class="crm-tab-content" id="tab-ai-chat" style="display: none; padding: 1.5rem;">
-                        <h3 style="margin: 0 0 1rem; color: #fff;">🤖 AI Strategy Chat</h3>
+                        <h3 style="margin: 0 0 1rem; color: #fff;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;vertical-align:middle;"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.95 16.95l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.95 7.05l2.83-2.83"/></svg> AI Strategy Chat</h3>
                         <p style="color: #9ca3af; margin-bottom: 1rem;">Ask Claude or GPT questions about this company's creative strategy, competitive positioning, or media planning.</p>
                         
                         <div id="ai-chat-messages" style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1rem; min-height: 300px; max-height: 400px; overflow-y: auto; margin-bottom: 1rem;">
                             <div style="text-align: center; color: #6b7280; padding: 2rem;">
-                                <p style="font-size: 2rem; margin: 0;">🤖</p>
+                                <p style="font-size: 2rem; margin: 0;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.6;"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.95 16.95l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.95 7.05l2.83-2.83"/></svg></p>
                                 <p>Start a conversation about ${company.name}</p>
                             </div>
                         </div>
@@ -2480,7 +3095,7 @@
                         <div style="display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;">
                             <button class="crm-chat-suggestion" data-prompt="What are the key creative strengths of ${company.name}?" style="padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid rgba(168,85,247,0.3); background: rgba(168,85,247,0.1); color: #c4b5fd; cursor: pointer; font-size: 0.8rem;">💪 Creative Strengths</button>
                             <button class="crm-chat-suggestion" data-prompt="Suggest a paid media strategy for ${company.name}" style="padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid rgba(59,130,246,0.3); background: rgba(59,130,246,0.1); color: #93c5fd; cursor: pointer; font-size: 0.8rem;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Media Strategy</button>
-                            <button class="crm-chat-suggestion" data-prompt="How should ${company.name} position against competitors?" style="padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid rgba(249,115,22,0.3); background: rgba(249,115,22,0.1); color: #fb923c; cursor: pointer; font-size: 0.8rem;">👀 Competitive Position</button>
+                            <button class="crm-chat-suggestion" data-prompt="How should ${company.name} position against competitors?" style="padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid rgba(249,115,22,0.3); background: rgba(249,115,22,0.1); color: #fb923c; cursor: pointer; font-size: 0.8rem;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Competitive Position</button>
                             <button class="crm-chat-suggestion" data-prompt="What creative formats should ${company.name} prioritize?" style="padding: 0.5rem 1rem; border-radius: 999px; border: 1px solid rgba(34,197,94,0.3); background: rgba(34,197,94,0.1); color: #86efac; cursor: pointer; font-size: 0.8rem;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Creative Formats</button>
                         </div>
                     </div>
@@ -2552,7 +3167,7 @@
         detailView.querySelector('#fetch-competitors-btn')?.addEventListener('click', async () => {
             const btn = detailView.querySelector('#fetch-competitors-btn');
             btn.disabled = true;
-            btn.textContent = '⏳ Detecting...';
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;animation:spin 1s linear infinite;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Detecting...';
             
             try {
                 if (window.CAVLearn?.autoFetchCompetitors) {
@@ -2600,7 +3215,7 @@
             chatMessages.innerHTML += `
                 <div id="${loadingId}" style="display: flex; margin-bottom: 0.75rem;">
                     <div style="background: rgba(59,130,246,0.2); padding: 0.75rem 1rem; border-radius: 12px 12px 12px 0; max-width: 70%;">
-                        <p style="margin: 0; color: #9ca3af;">🤖 Thinking...</p>
+                        <p style="margin: 0; color: #9ca3af;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;animation:spin 1s linear infinite;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Thinking...</p>
                     </div>
                 </div>
             `;
@@ -2629,7 +3244,7 @@ Provide a helpful, actionable response focused on creative strategy and paid med
                 } else if (window.CAVSettings?.getAPIKey('gemini')) {
                     const apiKey = window.CAVSettings.getAPIKey('gemini');
                     const res = await fetch(
-                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+                        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
                         {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -2685,7 +3300,7 @@ Provide a helpful, actionable response focused on creative strategy and paid med
     async function autoPopulateCompanyFields(crm, company, detailView) {
         const btn = detailView.querySelector('#auto-populate-btn');
         btn.disabled = true;
-        btn.textContent = '⏳ Searching...';
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;animation:spin 1s linear infinite;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Searching...';
         
         try {
             let updates = {};
@@ -2752,7 +3367,7 @@ Return ONLY a JSON object with these fields (leave blank if not found):
         loadingDiv.innerHTML = `
             <div class="crm-ai-loading-content">
                 <div class="crm-spinner"></div>
-                <h4>🤖 Running AI Analysis...</h4>
+                <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;animation:spin 1s linear infinite;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Running AI Analysis...</h4>
                 <p>Analyzing ${company.name}'s creative assets, landing pages, and market position...</p>
             </div>
         `;
@@ -2879,7 +3494,7 @@ Respond ONLY with the JSON object, no additional text.`;
     
     async function runGeminiAnalysis(prompt, apiKey) {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2900,10 +3515,31 @@ Respond ONLY with the JSON object, no additional text.`;
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
         
-        // Parse JSON from response
+        // Parse JSON from response - sanitize control characters first
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
+            // Remove control characters that break JSON parsing
+            const sanitized = jsonMatch[0]
+                .replace(/[\x00-\x1F\x7F]/g, (char) => {
+                    // Keep newlines and tabs but escape them properly
+                    if (char === '\n') return '\\n';
+                    if (char === '\r') return '\\r';
+                    if (char === '\t') return '\\t';
+                    return ''; // Remove other control characters
+                })
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t');
+            
+            try {
+                return JSON.parse(sanitized);
+            } catch (e) {
+                // Try parsing with more aggressive sanitization
+                const aggressive = jsonMatch[0]
+                    .replace(/[\x00-\x1F\x7F]/g, ' ')
+                    .replace(/\s+/g, ' ');
+                return JSON.parse(aggressive);
+            }
         }
         
         throw new Error('Failed to parse AI response');
@@ -2916,6 +3552,7 @@ Respond ONLY with the JSON object, no additional text.`;
                 'Content-Type': 'application/json',
                 'x-api-key': apiKey,
                 'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
             },
             body: JSON.stringify({
                 model: 'claude-sonnet-4-5-20250929',
@@ -2932,10 +3569,31 @@ Respond ONLY with the JSON object, no additional text.`;
         const data = await response.json();
         const text = data.content?.[0]?.text || '';
         
-        // Parse JSON from response
+        // Parse JSON from response - sanitize control characters first
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
+            // Remove control characters that break JSON parsing
+            const sanitized = jsonMatch[0]
+                .replace(/[\x00-\x1F\x7F]/g, (char) => {
+                    // Keep newlines and tabs but escape them properly
+                    if (char === '\n') return '\\n';
+                    if (char === '\r') return '\\r';
+                    if (char === '\t') return '\\t';
+                    return ''; // Remove other control characters
+                })
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t');
+            
+            try {
+                return JSON.parse(sanitized);
+            } catch (e) {
+                // Try parsing with more aggressive sanitization
+                const aggressive = jsonMatch[0]
+                    .replace(/[\x00-\x1F\x7F]/g, ' ')
+                    .replace(/\s+/g, ' ');
+                return JSON.parse(aggressive);
+            }
         }
         
         throw new Error('Failed to parse Claude response');
@@ -2946,7 +3604,7 @@ Respond ONLY with the JSON object, no additional text.`;
         resultsDiv.className = 'crm-ai-results';
         resultsDiv.innerHTML = `
             <div class="crm-ai-header">
-                <h4>🤖 AI Strategy Analysis for ${company.name}</h4>
+                <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.95 16.95l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.95 7.05l2.83-2.83"/></svg> AI Strategy Analysis for ${company.name}</h4>
                 <span class="crm-ai-score">Score: ${analysis.overallScore || 'N/A'}/100</span>
                 <span class="crm-ai-confidence">${analysis.confidenceLevel || 'medium'} confidence</span>
             </div>
@@ -2988,7 +3646,7 @@ Respond ONLY with the JSON object, no additional text.`;
                     ` : ''}
                     ${analysis.paidMediaStrategy?.socialAds ? `
                         <div class="crm-ai-media-card">
-                            <h6>📱 Social Ads</h6>
+                            <h6><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> Social Ads</h6>
                             <p><strong>Platforms:</strong> ${(analysis.paidMediaStrategy.socialAds.recommended_platforms || []).join(', ')}</p>
                             <p><strong>Budget:</strong> ${analysis.paidMediaStrategy.socialAds.budget_allocation}</p>
                             <p><strong>Formats:</strong> ${(analysis.paidMediaStrategy.socialAds.creative_formats || []).join(', ')}</p>
@@ -3107,15 +3765,54 @@ Respond ONLY with the JSON object, no additional text.`;
             });
         });
 
-        // Delete buttons
+        // Delete buttons - with enhanced confirmation
         list.querySelectorAll(`[data-action="delete-${type}"]`).forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                if (confirm(`Delete this ${type}?`)) {
-                    const id = e.target.dataset.id;
-                    if (type === 'contact') crm.deleteContact(id);
-                    else if (type === 'company') crm.deleteCompany(id);
-                    else if (type === 'project') crm.deleteProject(id);
-                    refreshCRMList(container, crm, type + 's');
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const id = e.target.closest('[data-id]')?.dataset.id || e.target.dataset.id;
+                const entityNames = { contact: 'Contact', company: 'Company', project: 'Project' };
+                
+                // Get the item name for the confirmation message
+                let itemName = type;
+                if (type === 'contact') {
+                    const contact = crm.contacts[id];
+                    itemName = contact ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'this contact' : 'this contact';
+                } else if (type === 'company') {
+                    const company = crm.companies[id];
+                    itemName = company?.name || 'this company';
+                } else if (type === 'project') {
+                    const project = crm.projects[id];
+                    itemName = project?.name || 'this project';
+                }
+                
+                // Use PersistenceUI for nice confirm dialog, fall back to confirm()
+                const confirmed = window.PersistenceUI 
+                    ? await window.PersistenceUI.confirm({
+                        title: `Delete ${entityNames[type]}?`,
+                        message: `Are you sure you want to delete "${itemName}"? This action cannot be undone.`,
+                        confirmText: 'Delete',
+                        cancelText: 'Cancel'
+                    })
+                    : confirm(`Delete ${itemName}?`);
+                
+                if (confirmed) {
+                    try {
+                        if (type === 'contact') crm.deleteContact(id);
+                        else if (type === 'company') crm.deleteCompany(id);
+                        else if (type === 'project') crm.deleteProject(id);
+                        
+                        refreshCRMList(container, crm, type + 's');
+                        
+                        // Show success feedback
+                        if (window.PersistenceUI) {
+                            window.PersistenceUI.showSuccess(`${entityNames[type]} Deleted`, `"${itemName}" has been removed`);
+                        }
+                    } catch (error) {
+                        console.error('[CRM] Delete error:', error);
+                        if (window.PersistenceUI) {
+                            window.PersistenceUI.showError('Delete Failed', error.message || 'Could not delete item');
+                        }
+                    }
                 }
             });
         });
@@ -4144,8 +4841,8 @@ Respond ONLY with the JSON object, no additional text.`;
     window.cavCRM.showCompanyDetail = showCompanyDetail;
     window.cavCRM.getCompanyAssets = getCompanyAssets;
 
-    console.log('Internal CRM Module loaded - Version 3.1.0');
-    console.log('   NEW: AI-powered company analysis, clickable details, robust CRM integration');
+    console.log('Internal CRM Module loaded - Version 5.11.1 (January 17, 2026)');
+    console.log('   ✅ Full sync with MySQL backend, Briefs with document upload, AI analysis');
 
 })();
 

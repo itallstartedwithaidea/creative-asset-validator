@@ -1,7 +1,7 @@
 /**
  * AI Library Integration - Asset Cards with AI Features
  * ======================================================
- * Version 3.0.0 - Brand Icons + Display Ad Sizes
+ * Version 5.11.0 - API Key Sharing Fix (January 16, 2026)
  * 
  * Based on official Google Gemini API documentation:
  * - https://ai.google.dev/gemini-api/docs/imagen
@@ -12,6 +12,11 @@
  * - gemini-2.5-flash-image (Nano Banana) - Fast image generation
  * - gemini-3-pro-image-preview (Nano Banana Pro) - Advanced 4K images with thinking
  * - veo-3.1-generate-preview (Veo 3.1) - Video with native audio
+ * 
+ * Changes in 5.11.0 (January 16, 2026):
+ * - FIXED: API Key Sharing now works with platform credentials
+ * - FIXED: getApiKey() now checks CAVSettings first for shared keys
+ * - FIXED: Team members can now use admin's shared Gemini keys
  * 
  * Changes in 3.0.0:
  * - UPDATED: All channel icons now use proper SVG brand logos
@@ -107,22 +112,148 @@
     }
 
     // ============================================
-    // CHANNEL SPECIFICATIONS
+    // CHANNEL SPECIFICATIONS (Updated January 2026)
+    // All aspectRatios use Gemini API-compatible ratios:
+    // Valid: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9
     // ============================================
     const CHANNEL_SPECS = {
-        // === SOCIAL MEDIA CHANNELS ===
+        // === FACEBOOK ===
+        'Facebook Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '180x180', icon: 'meta', category: 'social', notes: 'Displays as circle, store at 320x320' },
+        'Facebook Cover Desktop': { type: 'image', aspectRatios: ['3:2'], recommendedSize: '851x315', icon: 'meta', category: 'social', notes: 'Mobile crops to 640x360' },
+        'Facebook Cover Mobile': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '640x360', icon: 'meta', category: 'social' },
+        'Facebook Feed Square': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1080x1080', icon: 'meta', category: 'social', notes: 'Best for engagement' },
+        'Facebook Feed Landscape': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x630', icon: 'meta', category: 'social', notes: 'Link preview default' },
+        'Facebook Feed Portrait': { type: 'image', aspectRatios: ['4:5'], recommendedSize: '1080x1350', icon: 'meta', category: 'social' },
+        'Facebook Stories': { type: 'both', aspectRatios: ['9:16'], recommendedSize: '1080x1920', minDuration: 1, maxDuration: 120, icon: 'meta', category: 'social', notes: 'Full screen vertical' },
+        'Facebook Carousel': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1080x1080', icon: 'meta', category: 'social', notes: '2-10 images' },
+        'Facebook Event Cover': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1920x1005', icon: 'meta', category: 'social' },
+        'Facebook Group Cover': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1640x856', icon: 'meta', category: 'social' },
+        'Facebook Ad Feed': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1080x1080', icon: 'meta', category: 'social', notes: 'Also supports 4:5' },
+        'Facebook Ad Stories': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'meta', category: 'social' },
+        
+        // === INSTAGRAM ===
+        'Instagram Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '320x320', icon: 'instagram', category: 'social', notes: 'Displays as circle' },
+        'Instagram Feed Square': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1080x1080', icon: 'instagram', category: 'social', notes: 'Grid preview: 3:4' },
+        'Instagram Feed Portrait': { type: 'image', aspectRatios: ['4:5'], recommendedSize: '1080x1350', icon: 'instagram', category: 'social', notes: 'RECOMMENDED for grid' },
+        'Instagram Feed Tall': { type: 'image', aspectRatios: ['3:4'], recommendedSize: '1080x1440', icon: 'instagram', category: 'social', notes: 'NEW 2025 grid format' },
+        'Instagram Feed Landscape': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1080x566', icon: 'instagram', category: 'social', notes: 'Safe zone: 1080x1420' },
+        'Instagram Stories': { type: 'both', aspectRatios: ['9:16'], recommendedSize: '1080x1920', minDuration: 3, maxDuration: 60, icon: 'instagram', category: 'social' },
+        'Instagram Reels Cover': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'instagram', category: 'social', notes: 'Grid shows 3:4 crop' },
+        'Instagram Carousel': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1080x1080', icon: 'instagram', category: 'social', notes: 'Also 4:5, 16:9' },
+        'Instagram Ad Feed': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1080x1080', icon: 'instagram', category: 'social' },
+        'Instagram Ad Stories': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'instagram', category: 'social' },
+        'Instagram Reels': { type: 'video', aspectRatios: ['9:16'], recommendedSize: '1080x1920', minDuration: 3, maxDuration: 90, icon: 'instagram', category: 'social' },
+        
+        // === THREADS ===
+        'Threads Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '320x320', icon: 'threads', category: 'social', notes: 'Syncs with Instagram' },
+        'Threads Post Square': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1080x1080', icon: 'threads', category: 'social', notes: 'Flexible dimensions' },
+        'Threads Post Portrait': { type: 'image', aspectRatios: ['4:5'], recommendedSize: '1080x1350', icon: 'threads', category: 'social' },
+        'Threads Post Landscape': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x627', icon: 'threads', category: 'social' },
+        'Threads Post Vertical': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'threads', category: 'social', notes: 'Left-aligned in feed' },
+        
+        // === X (TWITTER) ===
+        'X Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '400x400', icon: 'twitter', category: 'social', notes: 'Displays as circle' },
+        'X Header Banner': { type: 'image', aspectRatios: ['3:2'], recommendedSize: '1500x500', icon: 'twitter', category: 'social', notes: '60px crop top/bottom' },
+        'X In-Stream Image': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1600x900', icon: 'twitter', category: 'social' },
+        'X Card Image': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x628', icon: 'twitter', category: 'social', notes: 'Link preview' },
+        'X Ad Landscape': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '800x418', icon: 'twitter', category: 'social' },
+        'X Ad Square': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '800x800', icon: 'twitter', category: 'social' },
+        
+        // === LINKEDIN ===
+        'LinkedIn Profile': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '400x400', icon: 'linkedin', category: 'social', notes: 'Displays as circle' },
+        'LinkedIn Personal Cover': { type: 'image', aspectRatios: ['4:3'], recommendedSize: '1584x396', icon: 'linkedin', category: 'social' },
+        'LinkedIn Company Logo': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '300x300', icon: 'linkedin', category: 'social' },
+        'LinkedIn Company Cover': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1128x191', icon: 'linkedin', category: 'social' },
+        'LinkedIn Post/Link': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x627', icon: 'linkedin', category: 'social' },
+        'LinkedIn Post Square': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1200x1200', icon: 'linkedin', category: 'social' },
+        'LinkedIn Post Vertical': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '628x1200', icon: 'linkedin', category: 'social' },
+        'LinkedIn Ad Horizontal': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x628', icon: 'linkedin', category: 'social' },
+        'LinkedIn Ad Square': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1200x1200', icon: 'linkedin', category: 'social' },
+        'LinkedIn Ad Vertical': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '628x1200', icon: 'linkedin', category: 'social' },
+        
+        // === YOUTUBE ===
+        'YouTube Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '800x800', icon: 'youtube', category: 'social', notes: 'Displays at 98x98' },
+        'YouTube Channel Banner': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '2560x1440', icon: 'youtube', category: 'social', notes: 'Safe: 1546x423' },
+        'YouTube Video Thumbnail': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1280x720', icon: 'youtube', category: 'social' },
+        'YouTube Shorts Thumbnail': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'youtube', category: 'social' },
         'YouTube Standard': { type: 'video', aspectRatios: ['16:9'], minDuration: 6, maxDuration: null, icon: 'youtube', category: 'social' },
         'YouTube Shorts': { type: 'video', aspectRatios: ['9:16'], minDuration: null, maxDuration: 60, icon: 'youtube', category: 'social' },
-        'Meta Feed': { type: 'both', aspectRatios: ['1:1', '4:5', '16:9'], minDuration: 1, maxDuration: 241, icon: 'meta', category: 'social' },
-        'Meta Stories': { type: 'both', aspectRatios: ['9:16'], minDuration: 1, maxDuration: 120, icon: 'meta', category: 'social' },
-        'Meta Reels': { type: 'video', aspectRatios: ['9:16'], minDuration: 3, maxDuration: 90, icon: 'meta', category: 'social' },
-        'TikTok': { type: 'video', aspectRatios: ['9:16'], minDuration: 5, maxDuration: 60, icon: 'tiktok', category: 'social' },
-        'Instagram Feed': { type: 'both', aspectRatios: ['1:1', '4:5', '1.91:1'], minDuration: 3, maxDuration: 60, icon: 'instagram', category: 'social' },
-        'Instagram Stories': { type: 'both', aspectRatios: ['9:16'], minDuration: 3, maxDuration: 60, icon: 'instagram', category: 'social' },
-        'Instagram Reels': { type: 'video', aspectRatios: ['9:16'], minDuration: 3, maxDuration: 90, icon: 'instagram', category: 'social' },
-        'LinkedIn Feed': { type: 'both', aspectRatios: ['1.91:1', '1:1', '4:5'], minDuration: 3, maxDuration: 600, icon: 'linkedin', category: 'social' },
-        'X (Twitter)': { type: 'both', aspectRatios: ['16:9', '1:1', '9:16'], minDuration: null, maxDuration: 140, icon: 'twitter', category: 'social' },
-        'Pinterest': { type: 'both', aspectRatios: ['2:3', '9:16', '1:1'], minDuration: null, maxDuration: null, icon: 'pinterest', category: 'social' },
+        
+        // === TIKTOK ===
+        'TikTok Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '200x200', icon: 'tiktok', category: 'social', notes: 'Upload higher quality' },
+        'TikTok Video/Stories': { type: 'video', aspectRatios: ['9:16'], recommendedSize: '1080x1920', minDuration: 5, maxDuration: 60, icon: 'tiktok', category: 'social' },
+        'TikTok Carousel': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'tiktok', category: 'social', notes: 'Also 1:1, 4:5' },
+        'TikTok Ad': { type: 'video', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'tiktok', category: 'social' },
+        
+        // === PINTEREST ===
+        'Pinterest Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '165x165', icon: 'pinterest', category: 'social', notes: 'Displays as circle' },
+        'Pinterest Profile Cover': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1920x1080', icon: 'pinterest', category: 'social' },
+        'Pinterest Standard Pin': { type: 'image', aspectRatios: ['2:3'], recommendedSize: '1000x1500', icon: 'pinterest', category: 'social', notes: 'RECOMMENDED' },
+        'Pinterest Square Pin': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1000x1000', icon: 'pinterest', category: 'social' },
+        'Pinterest Story Pin': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'pinterest', category: 'social' },
+        'Pinterest Carousel': { type: 'image', aspectRatios: ['2:3'], recommendedSize: '1000x1500', icon: 'pinterest', category: 'social', notes: '2-5 images' },
+        'Pinterest Ad': { type: 'image', aspectRatios: ['2:3'], recommendedSize: '1000x1500', icon: 'pinterest', category: 'social' },
+        
+        // === BLUESKY ===
+        'Bluesky Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '400x400', icon: 'bluesky', category: 'social', notes: 'Displays as circle' },
+        'Bluesky Banner/Header': { type: 'image', aspectRatios: ['3:2'], recommendedSize: '1500x500', icon: 'bluesky', category: 'social', notes: 'Mobile crops to 4:1' },
+        'Bluesky Post Square': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1080x1080', icon: 'bluesky', category: 'social', notes: 'Max 2000x2000' },
+        'Bluesky Post Portrait': { type: 'image', aspectRatios: ['4:5'], recommendedSize: '1080x1350', icon: 'bluesky', category: 'social' },
+        'Bluesky Post Landscape': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x627', icon: 'bluesky', category: 'social' },
+        'Bluesky Post Vertical': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'bluesky', category: 'social' },
+        'Bluesky Link Preview': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x627', icon: 'bluesky', category: 'social' },
+        
+        // === REDDIT ===
+        'Reddit Profile Avatar': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '256x256', icon: 'reddit', category: 'social', notes: 'Displays as circle' },
+        'Reddit Profile Banner': { type: 'image', aspectRatios: ['4:3'], recommendedSize: '1920x384', icon: 'reddit', category: 'social', notes: 'Safe zone center' },
+        'Reddit Subreddit Banner Large': { type: 'image', aspectRatios: ['4:3'], recommendedSize: '1920x384', icon: 'reddit', category: 'social' },
+        'Reddit Subreddit Banner Medium': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1920x256', icon: 'reddit', category: 'social' },
+        'Reddit Subreddit Banner Small': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1920x128', icon: 'reddit', category: 'social' },
+        'Reddit Community Icon': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '256x256', icon: 'reddit', category: 'social' },
+        'Reddit Post Image': { type: 'image', aspectRatios: ['4:3'], recommendedSize: '1200x900', icon: 'reddit', category: 'social', notes: 'Best for feed display' },
+        'Reddit Post Background': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '4000x4000', icon: 'reddit', category: 'social', notes: 'Tiling recommended' },
+        
+        // === SNAPCHAT ===
+        'Snapchat Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '320x320', icon: 'snapchat', category: 'social' },
+        'Snapchat Snap/Story': { type: 'both', aspectRatios: ['9:16'], recommendedSize: '1080x1920', minDuration: null, maxDuration: 60, icon: 'snapchat', category: 'social', notes: 'Full screen' },
+        'Snapchat Geofilter': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'snapchat', category: 'social', notes: 'Transparent BG, 50%+ transparent' },
+        'Snapchat Geofilter Alt': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x2340', icon: 'snapchat', category: 'social', notes: 'For newer phones' },
+        'Snapchat Snap Ad': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'snapchat', category: 'social' },
+        'Snapchat Story Ad': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'snapchat', category: 'social' },
+        'Snapchat Collection Ad': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'snapchat', category: 'social' },
+        
+        // === WHATSAPP ===
+        'WhatsApp Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '500x500', icon: 'whatsapp', category: 'social', notes: 'Displays as circle' },
+        'WhatsApp Profile Picture HD': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '640x640', icon: 'whatsapp', category: 'social', notes: 'Recommended' },
+        'WhatsApp Status Image': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'whatsapp', category: 'social', notes: 'Full screen vertical' },
+        'WhatsApp Channel Cover': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '1080x1920', icon: 'whatsapp', category: 'social' },
+        
+        // === GOOGLE BUSINESS ===
+        'Google Business Logo': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '720x720', icon: 'google', category: 'social' },
+        'Google Business Cover': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1024x576', icon: 'google', category: 'social' },
+        'Google Business Post': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '720x720', icon: 'google', category: 'social' },
+        
+        // === QUORA ===
+        'Quora Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '400x400', icon: 'quora', category: 'social', notes: 'Displays as circle' },
+        'Quora Post/Answer Image': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x675', icon: 'quora', category: 'social' },
+        'Quora Space Cover': { type: 'image', aspectRatios: ['4:3'], recommendedSize: '1400x350', icon: 'quora', category: 'social' },
+        
+        // === DISCORD ===
+        'Discord Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '512x512', icon: 'discord', category: 'social', notes: 'Animated allowed with Nitro' },
+        'Discord Server Icon': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '512x512', icon: 'discord', category: 'social' },
+        'Discord Server Banner': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '960x540', icon: 'discord', category: 'social' },
+        'Discord Server Invite BG': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1920x1080', icon: 'discord', category: 'social', notes: 'Nitro required' },
+        
+        // === TWITCH ===
+        'Twitch Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '800x800', icon: 'twitch', category: 'social' },
+        'Twitch Profile Banner': { type: 'image', aspectRatios: ['3:2'], recommendedSize: '1200x480', icon: 'twitch', category: 'social' },
+        'Twitch Video Player Banner': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1920x1080', icon: 'twitch', category: 'social' },
+        'Twitch Stream Thumbnail': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1280x720', icon: 'twitch', category: 'social' },
+        
+        // === TELEGRAM ===
+        'Telegram Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '512x512', icon: 'telegram', category: 'social' },
+        'Telegram Channel Photo': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '512x512', icon: 'telegram', category: 'social' },
+        'Telegram Sticker': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '512x512', icon: 'telegram', category: 'social', notes: 'Transparent BG' },
         
         // === GOOGLE DISPLAY NETWORK (GDN) - Desktop ===
         'GDN Medium Rectangle': { type: 'image', exactSize: { width: 300, height: 250 }, aspectRatios: ['6:5'], icon: 'google', category: 'gdn', platform: 'GDN', popular: true },
@@ -172,9 +303,88 @@
         'CTV Standard': { type: 'video', aspectRatios: ['16:9'], minDuration: 15, maxDuration: 120, icon: 'ctv', category: 'ctv', platform: 'CTV' },
         
         // === LEGACY GOOGLE ADS ===
-        'Google Ads Display': { type: 'image', aspectRatios: ['1.91:1', '1:1'], icon: 'google', category: 'gdn', platform: 'GDN' },
+        'Google Ads Display': { type: 'image', aspectRatios: ['16:9', '1:1'], icon: 'google', category: 'gdn', platform: 'GDN' },
         'Google Ads Video': { type: 'video', aspectRatios: ['16:9', '1:1', '9:16'], minDuration: 10, icon: 'google', category: 'gdn', platform: 'GDN' },
     };
+    
+    // ============================================
+    // SOCIAL MEDIA PACKAGES (Quick Select)
+    // ============================================
+    const SOCIAL_MEDIA_PACKAGES = {
+        'Instagram Complete': {
+            name: 'Instagram Complete Package',
+            description: 'All Instagram image formats',
+            sizes: ['Instagram Feed Square', 'Instagram Feed Portrait', 'Instagram Feed Tall', 'Instagram Stories', 'Instagram Reels Cover'],
+            icon: 'instagram',
+            category: 'social'
+        },
+        'Facebook Complete': {
+            name: 'Facebook Complete Package',
+            description: 'All Facebook image formats',
+            sizes: ['Facebook Feed Square', 'Facebook Feed Landscape', 'Facebook Feed Portrait', 'Facebook Stories'],
+            icon: 'meta',
+            category: 'social'
+        },
+        'LinkedIn Complete': {
+            name: 'LinkedIn Complete Package',
+            description: 'All LinkedIn image formats',
+            sizes: ['LinkedIn Post/Link', 'LinkedIn Post Square', 'LinkedIn Post Vertical', 'LinkedIn Ad Horizontal'],
+            icon: 'linkedin',
+            category: 'social'
+        },
+        'TikTok/Reels': {
+            name: 'TikTok & Reels Package',
+            description: 'Vertical video content formats',
+            sizes: ['TikTok Video/Stories', 'Instagram Reels', 'YouTube Shorts', 'Facebook Stories'],
+            icon: 'tiktok',
+            category: 'social'
+        },
+        'Pinterest Complete': {
+            name: 'Pinterest Complete Package',
+            description: 'All Pinterest pin formats',
+            sizes: ['Pinterest Standard Pin', 'Pinterest Square Pin', 'Pinterest Story Pin'],
+            icon: 'pinterest',
+            category: 'social'
+        },
+        'YouTube Complete': {
+            name: 'YouTube Complete Package',
+            description: 'YouTube thumbnails and formats',
+            sizes: ['YouTube Video Thumbnail', 'YouTube Shorts Thumbnail', 'YouTube Channel Banner'],
+            icon: 'youtube',
+            category: 'social'
+        },
+        'X (Twitter) Complete': {
+            name: 'X (Twitter) Complete Package',
+            description: 'All X post formats',
+            sizes: ['X In-Stream Image', 'X Card Image', 'X Ad Square', 'X Header Banner'],
+            icon: 'twitter',
+            category: 'social'
+        },
+        'Multi-Platform Essential': {
+            name: 'Multi-Platform Essential',
+            description: 'Core formats for all major platforms',
+            sizes: ['Instagram Feed Square', 'Instagram Feed Portrait', 'Instagram Stories', 'Facebook Feed Square', 'LinkedIn Post/Link', 'X In-Stream Image', 'Pinterest Standard Pin'],
+            icon: '🌐',
+            category: 'social'
+        },
+        'Stories & Reels': {
+            name: 'Stories & Reels Package',
+            description: 'All vertical 9:16 formats',
+            sizes: ['Instagram Stories', 'Facebook Stories', 'TikTok Video/Stories', 'Pinterest Story Pin', 'Snapchat Snap/Story', 'YouTube Shorts Thumbnail'],
+            icon: '📱',
+            category: 'social'
+        },
+        'Profile Pictures': {
+            name: 'Profile Pictures Package',
+            description: 'Profile pictures for all platforms',
+            sizes: ['Instagram Profile Picture', 'Facebook Profile Picture', 'LinkedIn Profile', 'X Profile Picture', 'YouTube Profile Picture', 'TikTok Profile Picture'],
+            icon: '👤',
+            category: 'social'
+        }
+    };
+    
+    // Export for use in AI Fix panel
+    window.SOCIAL_MEDIA_PACKAGES = SOCIAL_MEDIA_PACKAGES;
     
     // ============================================
     // DISPLAY AD PACKAGES
@@ -494,51 +704,51 @@
         // MAIN ACTION BUTTONS ROW
         html += '<div class="ai-action-row main-actions">';
         
-        // AI Fix button - ALWAYS show if there are off-size channels for images
+        // AI Fix button - ALWAYS show if there are off-size channels for images (Orange/amber)
         if (analysis.isImage && analysis.offSizeChannels.length > 0) {
             html += `
                 <button class="ai-btn ai-btn-fix" data-action="ai-fix-all" data-id="${asset.id}" title="Fix all ${analysis.offSizeChannels.length} off-size channels">
-                    <span class="ai-btn-icon">🔧</span>
-                    <span class="ai-btn-text">AI Fix All</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                    <span>AI Fix All</span>
                     <span class="ai-btn-count">${analysis.offSizeChannels.length}</span>
                 </button>
             `;
         }
         
-        // Animate button for images
+        // Animate button for images (Purple)
         if (analysis.isImage) {
             html += `
                 <button class="ai-btn ai-btn-animate" data-action="ai-animate" data-id="${asset.id}" title="Create animated video">
-                    <span class="ai-btn-icon">🎬</span>
-                    <span class="ai-btn-text">Animate</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2" ry="2"/></svg>
+                    <span>Animate</span>
                 </button>
             `;
         }
         
         // Video actions
         if (analysis.isVideo) {
-            // Resize Video button (uses Cloudinary)
+            // Resize Video button (uses Cloudinary) - Orange/coral with crop icon
             html += `
                 <button class="ai-btn ai-btn-resize-video" data-action="ai-resize-video" data-id="${asset.id}" title="Resize video for different platforms">
-                    <span class="ai-btn-icon">📐</span>
-                    <span class="ai-btn-text">Resize Video</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+                    <span>Resize Video</span>
                 </button>
             `;
             
-            // Extract Still button
+            // Extract Still button - Teal with camera icon
             html += `
                 <button class="ai-btn ai-btn-still" data-action="ai-extract-still" data-id="${asset.id}" title="Extract best frame">
-                    <span class="ai-btn-icon">📸</span>
-                    <span class="ai-btn-text">Extract Still</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                    <span>Extract Still</span>
                 </button>
             `;
         }
         
-        // AI Studio
+        // AI Studio - Green with sparkles icon
         html += `
             <button class="ai-btn ai-btn-studio" data-action="ai-studio" data-id="${asset.id}" title="Open AI Studio">
-                <span class="ai-btn-icon">🤖</span>
-                <span class="ai-btn-text">AI Studio</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+                <span>AI Studio</span>
             </button>
         `;
         
@@ -710,22 +920,53 @@
         
         let key = null;
         
-        // 1. PRIMARY: Check v3.0 Settings structure (from Settings module)
-        try {
-            const v3Settings = localStorage.getItem('cav_v3_settings');
-            if (v3Settings) {
-                const settings = JSON.parse(v3Settings);
-                const geminiKey = settings?.apiKeys?.gemini?.key;
-                if (isValidKey(geminiKey)) {
-                    key = geminiKey;
-                    console.log('🔑 API Key found in v3.0 Settings');
+        // 0. FIRST: Check CAVSettings (includes shared keys!) - v5.11.0 fix
+        if (!key && window.CAVSettings?.getAPIKey) {
+            try {
+                const settingsKey = window.CAVSettings.getAPIKey('gemini');
+                if (isValidKey(settingsKey)) {
+                    key = settingsKey;
+                    console.log('🔑 [v5.11.0] API Key found via CAVSettings (includes shared keys)');
                 }
+            } catch (e) {
+                console.warn('⚠️ Error getting key from CAVSettings:', e);
             }
-        } catch (e) {
-            console.warn('⚠️ Error reading v3.0 settings:', e);
         }
         
-        // 2. SECONDARY: Check legacy storage locations
+        // 1. Check platform credentials for shared gemini key
+        if (!key) {
+            try {
+                const platformCreds = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+                if (platformCreds.sharing?.enabled) {
+                    const sharedKey = platformCreds.sharedKeys?.gemini;
+                    if (isValidKey(sharedKey)) {
+                        key = sharedKey;
+                        console.log('🔑 [v5.11.0] API Key found in platform shared keys');
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ Error reading platform credentials:', e);
+            }
+        }
+        
+        // 2. Check v3.0 Settings structure (user's own key)
+        if (!key) {
+            try {
+                const v3Settings = localStorage.getItem('cav_v3_settings');
+                if (v3Settings) {
+                    const settings = JSON.parse(v3Settings);
+                    const geminiKey = settings?.apiKeys?.gemini?.key;
+                    if (isValidKey(geminiKey)) {
+                        key = geminiKey;
+                        console.log('🔑 API Key found in v3.0 Settings');
+                    }
+                }
+            } catch (e) {
+                console.warn('⚠️ Error reading v3.0 settings:', e);
+            }
+        }
+        
+        // 3. Check legacy storage locations
         if (!key) {
             key = localStorage.getItem('cav_ai_api_key');
             if (!isValidKey(key)) {
@@ -734,7 +975,7 @@
             }
         }
         
-        // 3. TERTIARY: Check cav_gemini_api_key (used by AI Adapter)
+        // 4. Check cav_gemini_api_key (used by AI Adapter)
         if (!key) {
             key = localStorage.getItem('cav_gemini_api_key');
             if (!isValidKey(key)) {
@@ -743,7 +984,7 @@
             }
         }
         
-        // 4. Check AI Studio instance
+        // 5. Check AI Studio instance
         if (!key && window.cavAIStudio?.apiKey) {
             const studioKey = window.cavAIStudio.apiKey;
             if (isValidKey(studioKey)) {
@@ -751,7 +992,7 @@
             }
         }
         
-        // 5. Try to get from AI Studio's getApiKey method
+        // 6. Try to get from AI Studio's getApiKey method
         if (!key && window.cavAIStudio?.getApiKey) {
             const methodKey = window.cavAIStudio.getApiKey();
             if (isValidKey(methodKey)) {
@@ -759,7 +1000,7 @@
             }
         }
         
-        // 6. Try Settings Manager global instance
+        // 7. Try Settings Manager global instance (fallback)
         if (!key && window.cavSettings?.getAPIKey) {
             const settingsKey = window.cavSettings.getAPIKey('gemini');
             if (isValidKey(settingsKey)) {
@@ -780,7 +1021,7 @@
             return key;
         }
         
-        console.log('🔑 API Key: Not found or invalid');
+        console.log('🔑 API Key: Not found or invalid - check Settings → API Sharing');
         return '';
     }
 
@@ -907,7 +1148,7 @@
 
             // Use Gemini 2.0 Flash for analysis (it sees the image!)
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1487,8 +1728,8 @@ If you don't know, use empty strings. Be concise.`
                     </div>
                     
                     <div class="ai-option">
-                        <label>Custom Instructions (optional)</label>
-                        <textarea id="single-fix-prompt" placeholder="e.g., 'Extend with similar pattern' or 'Add subtle gradient'"></textarea>
+                        <label>Custom Instructions (AI Constraints)</label>
+                        <textarea id="single-fix-prompt" rows="6" style="font-size: 11px; line-height: 1.4;">${getDefaultAIInstructions()}</textarea>
                     </div>
                     
                     <div class="ai-info-box">
@@ -1605,6 +1846,53 @@ If you don't know, use empty strings. Be concise.`
     }
 
     // ============================================
+    // DEFAULT AI INSTRUCTIONS FOR IMAGE RESIZING/GENERATION
+    // These constraints ensure high-quality, artifact-free output
+    // Updated: January 2026 - Comprehensive v2.0
+    // ============================================
+    
+    function getDefaultAIInstructions() {
+        return `CONSTRAINT: scale_x must equal scale_y. All pixels scale uniformly. Non-uniform scaling is prohibited under any circumstance.
+
+OUTPUT IDENTITY RULE: The output must be a transformed version of the source image, not a new image that contains the source. Every pixel in the output must trace back to either: original source pixels (cropped/scaled) or environment-only fill pixels (sky, ground, texture continuation with no objects). If the output contains ANY element that cannot trace to source, reject it. The source image is the final product being resized—it is not an element to be placed within a larger generated scene.
+
+DETECTION (run first): Detect all people, interactions, activities, key objects, text, logos. Count total subjects. Map which edges contain subjects (CONTENT) vs empty space (ENVIRONMENT). Determine content orientation: vertical (subjects stacked), horizontal (subjects spread side-by-side), centered (subjects clustered in middle), or dispersed (subjects scattered throughout).
+
+CONTENT PRESERVATION THRESHOLD: Never output an image that removes more than 50% of detected subjects. Calculate preservation_ratio = subjects_in_output / subjects_in_source. If below 0.5, stop auto-resize and use fallback options.
+
+SUBJECT PRIORITY: Narrative/activity > interactions > faces > full bodies > active objects > text/logos > products > setting > empty background. Never sacrifice higher priority for lower. Never keep a building while deleting people.
+
+RATIO CHANGE CLASSIFICATION:
+- MINOR: Aspect shift ≤25% (e.g., 16:9 to 4:3). Auto-process with safeguards.
+- MAJOR: Aspect shift >25% (e.g., 16:9 to 1:1). Requires content check before proceeding.
+- EXTREME: Orientation flip (landscape to portrait or reverse, e.g., 16:9 to 9:16). Treat as recomposition, not resize.
+- BANNER: Target ratio wider than 3:1 (e.g., 4:1, 5:1, 15:1). Special handling required.
+
+CONTENT-TO-RATIO COMPATIBILITY CHECK: Before any resize, evaluate whether source content orientation matches target ratio. Horizontal content (subjects spread wide) is compatible with landscape/banner ratios, incompatible with portrait ratios. Vertical content (subjects stacked tall) is compatible with portrait ratios, incompatible with landscape/banner ratios. Centered content (clustered middle) is adaptable to most ratios via crop or extend. Dispersed content (scattered throughout) is incompatible with major ratio changes. If incompatible, skip auto-resize and proceed to fallback.
+
+RESOLUTION HIERARCHY: 1) Crop only from ENVIRONMENT edges, never into CONTENT, never bisect subjects. 2) If crop insufficient, extend from ENVIRONMENT edges using natural fill. 3) If both fail, use fallback.
+
+NATURAL FILL RULES: Extend ENVIRONMENT only, never replicate CONTENT. Fill must be semantically empty with no identifiable objects. Fill must continue existing color, texture, gradient, or pattern. Fill must be visually indistinguishable from original. No echo, ghost, mirror, duplicate, or hallucinated objects. No visible seams or generation artifacts. Fill must match lighting, color temperature, texture density, noise profile, sharpness, and perspective of source. Fill must match sharpness of adjacent source edge exactly. Sharp source edge requires sharp fill. Blurred/bokeh source edge allows matching blur in fill. Sharp center with blurry fill sides is prohibited—this is disguised letterboxing, not natural fill. Depth of field must be consistent: fill must match foreground blur level, background blur level, and focal plane position of source. If fill sharpness or DOF does not match source, reject fill. Blur-based fill is only acceptable when source edge already contains matching blur or bokeh. If blur is the only available fill method against sharp content, classify output as letterbox, not as resized image, and label accordingly. Test: Could this filled area exist as empty background? Can a human detect where original ends and fill begins? Is there a visible sharpness transition at the fill boundary? If any answer is unfavorable, reject fill.
+
+EXTREME RATIO CHANGES (orientation flip): This is recomposition, not resize. Do not auto-crop. Do not silently delete subjects. If content spread conflicts with target orientation, auto-crop will fail. Options in order: letterbox/pillarbox, split into multiple crops focusing on different subject clusters, flag for manual review, recommend keeping original ratio.
+
+BANNER RATIO HANDLING (targets wider than 3:1 such as 4:1, 5:1, 7.5:1, 15:1): Standard images cannot become extreme banners without major content loss. If source is already banner-shaped (wider than 3:1), process normally. If source is standard ratio, do not auto-convert to banner. Options: extract horizontal slice where subjects align naturally, letterbox with blur/gradient/color fill above and below, flag for dedicated banner asset creation, recommend compatible ratio instead.
+
+MINIMUM RESOLUTION ENFORCEMENT: Before output, verify dimensions meet platform minimums. Instagram/Facebook Feed: 600x600 minimum. Stories/Reels/TikTok: 600x1067 minimum. Pinterest Pin: 600x900 minimum. YouTube Thumbnail: 640x360 minimum. LinkedIn Post: 552x289 minimum. If resize would drop below platform minimum, upscale uniformly to meet minimum or flag as resolution-incompatible.
+
+FILE SIZE HANDLING: If output exceeds platform maximum file size, compress quality first before reducing resolution. Never sacrifice resolution to meet file size limits if quality compression is available. If compression insufficient, flag for manual optimization.
+
+FALLBACK HIERARCHY: 1) Letterbox/pillarbox preserving 100% content with gaussian blur of edges, dominant color, or gradient fill—clearly labeled as letterbox, not as natural resize. 2) Multiple output versions each focusing on different subject clusters, clearly labeled. 3) Flag for manual review with warning explaining incompatibility. 4) Recommend optimal ratio based on content spread and orientation. 5) Output original with ratio mismatch warning rather than destroying content.
+
+PROHIBITED: Independent X/Y scaling, stretching, compression, removing more than 50% of subjects, bisecting subjects, separating interacting subjects, echo/ghost/mirror artifacts, visible seams, hallucinated objects in fill, tiled repetition, prioritizing background over subjects, prioritizing setting over people, outputting obvious AI-generated fill, silently deleting content, auto-converting standard images to extreme banner ratios, dropping below platform minimum resolution, sharp-to-blur transitions at fill boundaries, mismatched depth of field in fill, disguising letterbox as natural fill, blur-based fill against sharp source edges, embedding source image inside generated mockups or device frames, creating new compositions around the source image, adding objects or people or hands or devices or furniture or environmental elements that did not exist in source, treating source image as element within larger generated scene, generating any content that did not originate from source pixels or environment-only fill.
+
+VALIDATION: Confirm scale_x equals scale_y. Confirm preservation_ratio at or above 0.5. Confirm no subjects bisected. Confirm no interactions separated. Confirm no visible artifacts. Confirm fill matches source quality including sharpness and depth of field. Confirm no sharpness transition at fill boundaries. Confirm narrative intact. Confirm output meets platform minimum resolution. Confirm letterbox outputs are labeled as letterbox. Confirm output contains ONLY pixels derived from source image via crop, scale, or environment-only fill. Confirm no new objects, people, hands, devices, or scene elements were added. Confirm source image was not embedded within generated mockup, device frame, or fabricated scene. Always output best available option. Never fail silently. Log all decisions and fallbacks applied.`;
+    }
+    
+    // Make available globally for other modules
+    window.getDefaultAIInstructions = getDefaultAIInstructions;
+
+    // ============================================
     // AI GENERATION - NO FALLBACKS (Official Google API Dec 2025)
     // Based on: https://ai.google.dev/gemini-api/docs/imagen
     //           https://ai.google.dev/gemini-api/docs/video
@@ -1633,10 +1921,10 @@ If you don't know, use empty strings. Be concise.`
             endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict',
             editEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-capability-001:predict'
         },
-        // Gemini 2.0 Flash for analysis
+        // Gemini 3 Flash for analysis and image generation
         geminiFlash: {
-            name: 'Gemini 2.0 Flash',
-            endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent'
+            name: 'Gemini 3 Flash',
+            endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent'
         },
         // Veo 3.1 for video generation with native audio
         veo: {
@@ -1653,27 +1941,26 @@ If you don't know, use empty strings. Be concise.`
         }
     };
 
-    // Helper function to convert pixel dimensions to valid API aspect ratio
-    function getValidApiAspectRatio(width, height) {
-        // Valid aspect ratios for Gemini API
-        const validRatios = {
-            '1:1': 1,
-            '2:3': 2/3,
-            '3:2': 3/2,
-            '3:4': 3/4,
-            '4:3': 4/3,
-            '4:5': 4/5,
-            '5:4': 5/4,
-            '9:16': 9/16,
-            '16:9': 16/9,
-            '21:9': 21/9
-        };
-        
-        const targetRatio = width / height;
+    // Valid aspect ratios for Gemini image generation API
+    const VALID_API_ASPECT_RATIOS = {
+        '1:1': 1,
+        '2:3': 2/3,
+        '3:2': 3/2,
+        '3:4': 3/4,
+        '4:3': 4/3,
+        '4:5': 4/5,
+        '5:4': 5/4,
+        '9:16': 9/16,
+        '16:9': 16/9,
+        '21:9': 21/9
+    };
+
+    // Helper function to find the closest valid API aspect ratio from a numeric ratio
+    function findClosestValidRatio(targetRatio) {
         let closest = '1:1';
         let closestDiff = Math.abs(targetRatio - 1);
         
-        for (const [name, ratio] of Object.entries(validRatios)) {
+        for (const [name, ratio] of Object.entries(VALID_API_ASPECT_RATIOS)) {
             const diff = Math.abs(targetRatio - ratio);
             if (diff < closestDiff) {
                 closestDiff = diff;
@@ -1681,29 +1968,62 @@ If you don't know, use empty strings. Be concise.`
             }
         }
         
+        return closest;
+    }
+
+    // Helper function to convert pixel dimensions to valid API aspect ratio
+    function getValidApiAspectRatio(width, height) {
+        const targetRatio = width / height;
+        const closest = findClosestValidRatio(targetRatio);
         console.log(`📐 Mapped ${width}x${height} (ratio ${targetRatio.toFixed(3)}) to API aspect ratio: ${closest}`);
         return closest;
+    }
+
+    // Helper function to convert any aspect ratio string to a valid API ratio
+    function normalizeAspectRatioForApi(ratioStr) {
+        // If it's already a valid ratio, return it
+        if (VALID_API_ASPECT_RATIOS.hasOwnProperty(ratioStr)) {
+            return ratioStr;
+        }
+        
+        // Try to parse ratio string like "1.91:1" or "16:9"
+        if (ratioStr && ratioStr.includes(':')) {
+            const parts = ratioStr.split(':').map(p => parseFloat(p.trim()));
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[1] !== 0) {
+                const numericRatio = parts[0] / parts[1];
+                const closest = findClosestValidRatio(numericRatio);
+                if (ratioStr !== closest) {
+                    console.log(`📐 Converted non-standard ratio "${ratioStr}" (${numericRatio.toFixed(3)}) to API-valid: ${closest}`);
+                }
+                return closest;
+            }
+        }
+        
+        // Try to parse dimension format "300x250"
+        if (ratioStr && ratioStr.includes('x')) {
+            const parts = ratioStr.split('x').map(Number);
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[1] !== 0) {
+                return getValidApiAspectRatio(parts[0], parts[1]);
+            }
+        }
+        
+        // Default fallback
+        console.log(`📐 Could not parse ratio "${ratioStr}", defaulting to 1:1`);
+        return '1:1';
     }
     
     async function generateImageWithNanoBanana(sourceImageBase64, prompt, targetAspectRatio, apiKey, options = {}) {
         const { targetWidth, targetHeight } = options;
         const isExactSize = targetWidth && targetHeight;
         
-        // Convert pixel dimensions or dimension strings to valid API aspect ratios
-        let apiAspectRatio = targetAspectRatio;
+        // Convert to valid API aspect ratio
+        let apiAspectRatio;
         if (isExactSize) {
+            // Use exact dimensions if provided
             apiAspectRatio = getValidApiAspectRatio(targetWidth, targetHeight);
-        } else if (targetAspectRatio && targetAspectRatio.includes('x')) {
-            // Handle "300x250" format
-            const parts = targetAspectRatio.split('x').map(Number);
-            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                apiAspectRatio = getValidApiAspectRatio(parts[0], parts[1]);
-            }
-        }
-        
-        // Ensure we have a valid ratio
-        if (!apiAspectRatio || apiAspectRatio.includes('x')) {
-            apiAspectRatio = '1:1'; // Safe fallback
+        } else {
+            // Normalize any ratio string (handles "1.91:1", "16:9", "300x250", etc.)
+            apiAspectRatio = normalizeAspectRatioForApi(targetAspectRatio);
         }
         
         console.log('🖼️ Generating image with Nano Banana...');
@@ -1827,7 +2147,7 @@ If you don't know, use empty strings. Be concise.`
         console.log('⚡ Trying Gemini 2.0 Flash Experimental (fallback)...');
         try {
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1910,18 +2230,22 @@ If you don't know, use empty strings. Be concise.`
             console.log('Imagen 3 attempt failed:', error.message);
         }
 
-        // Method 4: Try Gemini 1.5 Pro with image generation (older model, might be more accessible)
-        console.log('🔄 Trying Gemini 1.5 Pro...');
+        // Method 4: Try Gemini 3 Flash with image output (newer model with multimodal output)
+        console.log('🔄 Trying Gemini 3 Flash (multimodal output)...');
         try {
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
                             parts: [
-                                { text: `You are an image editing AI. ${prompt}. Please generate the modified image.` },
+                                { 
+                                    text: `You are an expert image editor. Based on the source image provided, create a new edited version that: ${prompt}. 
+                                    
+Generate the modified image directly.`
+                                },
                                 { 
                                     inlineData: {
                                         mimeType: mimeType,
@@ -1931,30 +2255,33 @@ If you don't know, use empty strings. Be concise.`
                             ]
                         }],
                         generationConfig: {
-                            temperature: 0.9
+                            responseModalities: ['IMAGE', 'TEXT'],
+                            imageConfig: {
+                                imageSize: '1K'
+                            }
                         }
                     })
                 }
             );
 
             const data = await response.json();
-            console.log('Gemini 1.5 Pro response status:', response.status);
+            console.log('Gemini 3 Flash response status:', response.status);
             
             if (response.ok && data.candidates?.[0]?.content?.parts) {
                 const parts = data.candidates[0].content.parts;
                 for (const part of parts) {
                     if (part.inlineData?.mimeType?.startsWith('image/')) {
-                        console.log('✅ Gemini 1.5 Pro image generation successful!');
+                        console.log('✅ Gemini 3 Flash image generation successful!');
                         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
                     }
                 }
             } else {
                 lastError = data.error?.message || `Status ${response.status}`;
-                console.log('Gemini 1.5 Pro error:', lastError);
+                console.log('Gemini 3 Flash error:', lastError);
             }
         } catch (error) {
             lastError = error.message;
-            console.log('Gemini 1.5 Pro attempt failed:', error.message);
+            console.log('Gemini 3 Flash attempt failed:', error.message);
         }
 
         // If all methods fail, provide detailed error
@@ -2638,8 +2965,8 @@ If you don't know, use empty strings. Be concise.`
                     ` : ''}
                     
                     <div class="ai-option" style="margin-top: 1.5rem;">
-                        <label>Custom Instructions (optional)</label>
-                        <textarea id="fix-all-prompt" placeholder="e.g., 'Match the existing gradient style' or 'Keep focus on the product'"></textarea>
+                        <label>Custom Instructions (AI Constraints)</label>
+                        <textarea id="fix-all-prompt" rows="6" style="font-size: 11px; line-height: 1.4;">${getDefaultAIInstructions()}</textarea>
                     </div>
                 </div>
                 
@@ -3888,12 +4215,21 @@ If you don't know, use empty strings. Be concise.`
         }
 
         .ai-btn-still {
-            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
             color: #fff;
         }
         .ai-btn-still:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+        }
+
+        .ai-btn-resize-video {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: #fff;
+        }
+        .ai-btn-resize-video:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
         }
 
         .ai-btn-studio {
@@ -4710,8 +5046,8 @@ If you don't know, use empty strings. Be concise.`
     // Setup event handlers
     setupEventHandlers();
 
-    console.log('🔗 AI Library Integration v3.0.0 - VIDEO RESIZE');
-    console.log('   ✅ AI Fix button fixed for off-size images');
+    console.log('🔗 AI Library Integration v5.11.0 - January 16, 2026');
+    console.log('   ✅ API Key Sharing fix - Team members now auto-use admin keys');
     console.log('   ✅ Individual resize buttons per channel');
     console.log('   ✅ Background generation queue');
     console.log('   ✅ VIDEO RESIZE with Cloudinary');

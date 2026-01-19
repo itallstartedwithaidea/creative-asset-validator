@@ -106,15 +106,6 @@ window.AUTH_CONFIG = {
 };
 ```
 
-### 2.2 (Optional) Configure AI Providers
-
-Users can add their own API keys in Settings, or you can pre-configure shared keys:
-
-```javascript
-// In settings-module.js or via admin panel
-// These are entered through the UI, not hardcoded
-```
-
 ---
 
 ## 🔧 Step 3: Upload Files
@@ -147,61 +138,6 @@ Users can add their own API keys in Settings, or you can pre-configure shared ke
 └── data-models.js
 ```
 
-### Upload Methods
-
-**Via FTP/SFTP:**
-1. Connect to your server
-2. Navigate to public_html or www folder
-3. Create subfolder (e.g., `/creative-validator/`)
-4. Upload all files
-
-**Via cPanel/Plesk:**
-1. Open File Manager
-2. Navigate to public_html
-3. Create new folder
-4. Upload all files
-
-**Via Git (if supported):**
-```bash
-git clone your-repo
-cd your-repo
-# Files are ready
-```
-
----
-
-## 🔧 Step 4: Test Deployment
-
-### 4.1 Verify File Access
-
-Visit in browser:
-- `https://yourdomain.com/creative-validator/index.html`
-
-### 4.2 Check Console for Errors
-
-1. Open browser DevTools (F12)
-2. Go to Console tab
-3. Look for red error messages
-4. Common issues:
-   - "Mixed content" = Use HTTPS
-   - "CORS error" = Check OAuth origins
-   - "File not found" = Verify upload
-
-### 4.3 Test Sign-In
-
-1. Click "Sign in with Google"
-2. Complete OAuth flow
-3. Verify you're logged in
-4. Check role assignment (Admin/Editor/Viewer)
-
-### 4.4 Test Core Features
-
-- [ ] Upload an image
-- [ ] Run AI Analysis
-- [ ] Create a CRM company
-- [ ] Connect Google Drive
-- [ ] Generate Brand Kit
-
 ---
 
 ## 🔒 Security Recommendations
@@ -220,85 +156,6 @@ PERSONAL_USERS_ENABLED: false,  // Block Gmail, Yahoo, etc.
 
 OAuth only works on HTTPS. Ensure your SSL certificate is valid.
 
-### Content Security Policy (Optional)
-
-Add to your server configuration or HTML:
-
-```html
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://generativelanguage.googleapis.com;
-  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-  font-src 'self' https://fonts.gstatic.com;
-  img-src 'self' data: blob: https:;
-  connect-src 'self' https://www.googleapis.com https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com;
-">
-```
-
----
-
-## 📊 Monitoring & Analytics
-
-### Built-in Activity Logging
-
-The app logs all user activity locally. View in Admin Dashboard.
-
-### Add Google Analytics (Optional)
-
-Add to index.html before closing `</head>`:
-
-```html
-<!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=YOUR_GA_ID"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'YOUR_GA_ID');
-</script>
-```
-
----
-
-## 🔄 Updates
-
-To update the application:
-
-1. Backup current files
-2. Upload new files (overwrite)
-3. Clear browser cache or use incognito
-4. Test core functionality
-
----
-
-## 🆘 Troubleshooting
-
-### "Sign-in popup blocked"
-- Allow popups for your domain
-- Use Chrome or Firefox
-
-### "OAuth redirect mismatch"
-- Verify exact domain in Google Console
-- Include both www and non-www versions
-
-### "API key not working"
-- Check key is entered correctly
-- Verify API is enabled in Google Console
-- Check usage quotas
-
-### "Assets not saving"
-- Check browser IndexedDB storage
-- Try incognito mode
-- Clear site data and re-login
-
----
-
-## 📞 Support
-
-- **Documentation:** README.md, FEATURES.md
-- **Admin:** Configure in auth-config.js → ADMIN_EMAILS
-
 ---
 
 **Deployed with ❤️ - Creative Asset Validator v4.1.1**
-

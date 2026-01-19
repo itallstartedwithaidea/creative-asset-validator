@@ -46,18 +46,43 @@ class CloudinaryClient {
     // ========================================================
     
     getCredentials() {
-        // Get user's Cloudinary credentials from localStorage
+        // First try to get credentials from settings manager (supports sharing)
+        if (window.CAVSettings?.manager?.getCloudinaryCredentials) {
+            const creds = window.CAVSettings.manager.getCloudinaryCredentials();
+            if (creds?.cloudName && creds?.apiKey && creds?.apiSecret) {
+                console.log('[CloudinaryClient] Using credentials from settings manager, source:', creds.source || 'unknown');
+                return creds;
+            }
+        }
+        
+        // Fallback: Get user's own Cloudinary credentials from localStorage
         try {
             const stored = localStorage.getItem('cav_user_cloudinary');
             if (stored) {
                 const creds = JSON.parse(stored);
                 if (creds.cloudName && creds.apiKey && creds.apiSecret) {
+                    console.log('[CloudinaryClient] Using user\'s own credentials from localStorage');
                     return creds;
                 }
             }
         } catch (e) {
             console.error('[CloudinaryClient] Error reading credentials:', e);
         }
+        
+        // Also check platform credentials for shared Cloudinary
+        try {
+            const platformCreds = JSON.parse(localStorage.getItem('cav_platform_credentials') || '{}');
+            const sharing = platformCreds.sharing || {};
+            const cloudinaryCreds = platformCreds.cloudinary || {};
+            
+            if (sharing.enabled && cloudinaryCreds.cloudName && cloudinaryCreds.apiKey && cloudinaryCreds.apiSecret) {
+                console.log('[CloudinaryClient] Using shared Cloudinary credentials from platform');
+                return { ...cloudinaryCreds, source: 'shared' };
+            }
+        } catch (e) {
+            console.error('[CloudinaryClient] Error reading platform credentials:', e);
+        }
+        
         return null;
     }
     

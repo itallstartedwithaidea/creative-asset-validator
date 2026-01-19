@@ -1,7 +1,7 @@
 /**
  * Security Core Module
  * ====================
- * Version 3.0.0 - Enterprise Security
+ * Version 5.11.0 - Enterprise Security (January 16, 2026)
  * 
  * Features:
  * - AES-256-GCM encryption for all sensitive data
@@ -19,7 +19,7 @@
     // =============================================
     // SECURITY CONSTANTS
     // =============================================
-    const SECURITY_VERSION = '3.0.0';
+    const SECURITY_VERSION = '5.11.0';
     const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
     const ENCRYPTION_ALGORITHM = 'AES-GCM';
     const PBKDF2_ITERATIONS = 100000;
@@ -282,8 +282,15 @@
                 
                 this._currentSession = session;
                 
+                // Save email for cross-device session lookup
+                localStorage.setItem('cav_user_email', userData.email);
+                localStorage.setItem('cav_last_user_email', userData.email);
+                
                 // Log activity
                 this.logActivity('login', userData.email, { sessionId });
+                
+                // CROSS-DEVICE SYNC: Save session to cloud for other devices
+                await this.syncSessionToCloud(session);
                 
                 console.log('[Security] Secure session created for:', userData.email);
                 return session;
@@ -292,8 +299,101 @@
                 return null;
             }
         },
+        
+        // Sync session to cloud for cross-device access
+        async syncSessionToCloud(session) {
+            try {
+                // Get Supabase client (try multiple sources)
+                const supabase = window.CAVSupabase?.getClient?.() || 
+                                 window.supabaseClient || 
+                                 window.supabase?.createClient;
+                if (!supabase) {
+                    console.log('[Security] Supabase not available, skipping cloud sync');
+                    return;
+                }
+                
+                // Save to profiles table
+                const { error } = await supabase.from('profiles').upsert({
+                    email: session.email,
+                    user_email: session.email,
+                    owner_email: session.email,
+                    full_name: session.name,
+                    avatar_url: session.picture,
+                    google_id: session.googleId,
+                    role: session.role || 'user',
+                    preferences: {
+                        userType: session.userType,
+                        canAccessTeam: session.canAccessTeam,
+                        permissions: session.permissions
+                    },
+                    last_seen_at: new Date().toISOString(),
+                    is_active: true
+                }, { onConflict: 'email' });
+                
+                if (error) {
+                    console.warn('[Security] Cloud profile sync failed:', error.message);
+                } else {
+                    console.log('[Security] Session synced to cloud for:', session.email);
+                }
+                
+                // Also save to user_state for cross-device state
+                await supabase.from('user_state').upsert({
+                    user_email: session.email,
+                    current_tool: 'dashboard',
+                    current_view: 'personal'
+                }, { onConflict: 'user_email' });
+                
+            } catch (e) {
+                console.warn('[Security] Cloud sync error:', e);
+            }
+        },
+        
+        // Try to restore session from cloud (for cross-device login)
+        async restoreSessionFromCloud(email) {
+            try {
+                const supabase = window.CAVSupabase?.getClient?.() || 
+                                 window.supabaseClient || 
+                                 window.supabase;
+                if (!supabase || typeof supabase.from !== 'function') return null;
+                
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('email', email)
+                    .eq('is_active', true)
+                    .single();
+                
+                if (error || !profile) return null;
+                
+                // Check if profile was active recently (within 30 days)
+                const lastSeen = new Date(profile.last_seen_at || 0);
+                const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                if (lastSeen < thirtyDaysAgo) return null;
+                
+                console.log('[Security] Found active cloud session for:', email);
+                
+                // Reconstruct session from profile
+                return {
+                    email: profile.email,
+                    name: profile.full_name,
+                    picture: profile.avatar_url,
+                    googleId: profile.google_id,
+                    role: profile.role || 'user',
+                    userType: profile.preferences?.userType || 'corporate',
+                    canAccessTeam: profile.preferences?.canAccessTeam ?? true,
+                    permissions: profile.preferences?.permissions || {
+                        canUpload: true,
+                        canDelete: true,
+                        canShare: true
+                    }
+                };
+            } catch (e) {
+                console.warn('[Security] Cloud session restore failed:', e);
+                return null;
+            }
+        },
 
-        // Restore existing session
+        // Restore existing session (tries local first, then cloud)
         async restoreSession() {
             try {
                 const encryptedSession = localStorage.getItem(SECURE_KEYS.SESSION);
@@ -302,67 +402,60 @@
                 console.log('[Security] Attempting session restore...');
                 console.log('[Security] Encrypted session found:', !!encryptedSession, 
                     encryptedSession ? `(${encryptedSession.length} chars)` : '');
-                console.log('[Security] Encryption key hash:', 
-                    this._encryptionKey ? this._encryptionKey.substring(0, 20) + '...' : 'null');
                 
-                if (!encryptedSession) {
-                    console.log('[Security] No session data in localStorage');
-                    return null;
-                }
+                // Try local session first
+                if (encryptedSession) {
+                    const session = await CryptoUtils.decrypt(encryptedSession, this._encryptionKey);
+                    if (session) {
+                        console.log('[Security] Session decrypted successfully for:', session.email);
 
-                // Decrypt session
-                const session = await CryptoUtils.decrypt(encryptedSession, this._encryptionKey);
-                if (!session) {
-                    console.warn('[Security] Failed to decrypt session - key may have changed');
-                    console.warn('[Security] This can happen if browser fingerprint changed');
-                    this.clearSession();
-                    return null;
-                }
+                        // Check expiration
+                        if (Date.now() > session.expiresAt) {
+                            console.log('[Security] Session expired, checking cloud...');
+                        } else {
+                            // Valid local session found
+                            session.deviceFingerprint = this._deviceFingerprint;
+                            session.lastActivity = Date.now();
+                            this._currentSession = session;
+                            
+                            // Re-save with updated activity
+                            try {
+                                const reEncrypted = await CryptoUtils.encrypt(session, this._encryptionKey);
+                                if (reEncrypted) {
+                                    localStorage.setItem(SECURE_KEYS.SESSION, reEncrypted);
+                                }
+                            } catch (e) {}
 
-                console.log('[Security] Session decrypted successfully for:', session.email);
-
-                // Verify signature (anti-tampering) - warn but don't fail
-                if (storedSignature) {
-                    const isValid = await CryptoUtils.verifySignature(session, storedSignature, this._encryptionKey);
-                    if (!isValid) {
-                        console.warn('[Security] Session signature mismatch - continuing anyway');
+                            console.log('[Security] Session restored from local for:', session.email);
+                            return session;
+                        }
+                    } else {
+                        console.warn('[Security] Local decrypt failed, checking cloud...');
                     }
                 }
-
-                // Check expiration
-                if (Date.now() > session.expiresAt) {
-                    console.log('[Security] Session expired at:', new Date(session.expiresAt).toISOString());
-                    this.clearSession();
-                    return null;
-                }
-
-                // Verify device fingerprint (session binding) - warn but allow
-                if (session.deviceFingerprint !== this._deviceFingerprint) {
-                    console.warn('[Security] Device fingerprint changed - this is normal after browser update');
-                    console.warn('[Security] Stored:', session.deviceFingerprint?.substring(0, 20) + '...');
-                    console.warn('[Security] Current:', this._deviceFingerprint?.substring(0, 20) + '...');
-                    // Update the fingerprint in session instead of failing
-                    session.deviceFingerprint = this._deviceFingerprint;
-                }
-
-                // Update last activity
-                session.lastActivity = Date.now();
-                this._currentSession = session;
                 
-                // Re-save with updated activity (use try-catch to not fail restore)
-                try {
-                    const reEncrypted = await CryptoUtils.encrypt(session, this._encryptionKey);
-                    if (reEncrypted) {
-                        localStorage.setItem(SECURE_KEYS.SESSION, reEncrypted);
-                        const newSignature = await CryptoUtils.createSignature(session, this._encryptionKey);
-                        localStorage.setItem(SECURE_KEYS.SESSION_SIGNATURE, newSignature);
+                // CROSS-DEVICE: Try to restore from cloud if local failed
+                // Check if we have a stored email hint
+                const emailHint = localStorage.getItem('cav_user_email') || 
+                                  localStorage.getItem('cav_last_user_email');
+                
+                if (emailHint) {
+                    console.log('[Security] Checking cloud session for:', emailHint);
+                    const cloudSession = await this.restoreSessionFromCloud(emailHint);
+                    
+                    if (cloudSession) {
+                        console.log('[Security] Found cloud session, creating local session...');
+                        // Create a new local session from cloud data
+                        const newSession = await this.createSession(cloudSession);
+                        if (newSession) {
+                            console.log('[Security] Cross-device session restored for:', cloudSession.email);
+                            return newSession;
+                        }
                     }
-                } catch (e) {
-                    console.warn('[Security] Failed to update session activity:', e);
                 }
-
-                console.log('[Security] Session restored for:', session.email);
-                return session;
+                
+                console.log('[Security] No valid session found (local or cloud)');
+                return null;
             } catch (error) {
                 console.error('[Security] Session restore failed:', error);
                 this.clearSession();

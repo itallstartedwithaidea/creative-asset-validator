@@ -14,7 +14,7 @@
 (function() {
     'use strict';
 
-    const ANALYZE_VERSION = '3.0.9';
+    const ANALYZE_VERSION = '4.0.0'; // January 17, 2026 - Multi-service AI integration
     
     // User-specific storage key prefix
     function getAnalyzeStoragePrefix() {
@@ -89,6 +89,14 @@
             // Save to localStorage
             try {
                 localStorage.setItem(STORAGE_KEYS.ANALYSIS_HISTORY, JSON.stringify(this.analysisHistory));
+                
+                // Also save to unified storage for cross-device sync
+                if (window.UnifiedStorage) {
+                    window.UnifiedStorage.saveCreativeAnalysis({
+                        ...analysis,
+                        id: analysis.id || analysis.assetId || `analysis_${Date.now()}`
+                    }).catch(e => console.warn('[Analyze] Unified storage save failed:', e));
+                }
             } catch (e) {
                 console.warn('[Analyze] Failed to save analysis history:', e);
             }
@@ -626,18 +634,48 @@ Return ONLY valid JSON:
             };
 
             try {
+                // Run ENHANCED multi-service analysis if available (Google Vision, Cloudinary AI, etc.)
+                let enhancedData = null;
+                if (window.EnhancedCreativeAnalysis?.analyze) {
+                    console.log('[Analyze] Running enhanced multi-service analysis...');
+                    try {
+                        enhancedData = await window.EnhancedCreativeAnalysis.analyze(asset, imageBase64);
+                        results.enhancedAnalysis = enhancedData;
+                        console.log('[Analyze] Enhanced analysis complete:', enhancedData?.sources);
+                    } catch (e) {
+                        console.warn('[Analyze] Enhanced analysis unavailable:', e.message);
+                    }
+                }
+                
                 // Run visual analyses in parallel
                 const [hookAnalysis, ctaAnalysis, brandCompliance, thumbStopScore] = await Promise.allSettled([
                     this.analyzeHook(asset, imageBase64),
                     this.analyzeCTA(asset, imageBase64),
-                    this.analyzeBrandCompliance(asset, imageBase64),
-                    this.analyzeThumbStop(asset, imageBase64)
+                    this.analyzeBrandCompliance(asset, imageBase64, enhancedData),
+                    this.analyzeThumbStop(asset, imageBase64, enhancedData)
                 ]);
 
                 results.hookAnalysis = hookAnalysis.status === 'fulfilled' ? hookAnalysis.value : null;
                 results.ctaAnalysis = ctaAnalysis.status === 'fulfilled' ? ctaAnalysis.value : null;
                 results.brandCompliance = brandCompliance.status === 'fulfilled' ? brandCompliance.value : null;
                 results.thumbStopScore = thumbStopScore.status === 'fulfilled' ? thumbStopScore.value : null;
+                
+                // Merge enhanced data into results if available
+                if (enhancedData) {
+                    // Add detected objects and labels
+                    results.detectedObjects = enhancedData.objects || [];
+                    results.detectedLabels = enhancedData.labels || [];
+                    results.extractedText = enhancedData.detectedText || '';
+                    results.colorPalette = enhancedData.colorPalette || [];
+                    results.detectedLogos = enhancedData.logos || [];
+                    results.faceData = enhancedData.faceAnalysis || null;
+                    results.tags = enhancedData.tags || [];
+                    
+                    // Enhanced scores
+                    if (enhancedData.scores) {
+                        results.enhancedScores = enhancedData.scores;
+                    }
+                }
 
                 // Audio strategy for videos
                 if (asset.type === 'video' || asset.duration) {
@@ -723,7 +761,7 @@ If no brand is detectable, return:
 {"brandName": "unknown", "confidence": "low"}`;
 
                 const response = await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
                     {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1082,6 +1120,13 @@ If no brand is detectable, return:
                         <span class="cav-processing-time">
                             Processed in ${(analysis.processingTime / 1000).toFixed(1)}s
                         </span>
+                        ${analysis.enhancedAnalysis?.sources ? `
+                            <span class="cav-analysis-sources" title="Analysis services used">
+                                ${analysis.enhancedAnalysis.sources.googleVision ? '🔍 Vision' : ''}
+                                ${analysis.enhancedAnalysis.sources.cloudinary ? '☁️ Cloudinary' : ''}
+                                ${analysis.enhancedAnalysis.sources.aiAnalysis ? '🤖 AI' : ''}
+                            </span>
+                        ` : ''}
                     </div>
                     
                     <div class="cav-analysis-sections">
@@ -1091,6 +1136,127 @@ If no brand is detectable, return:
                         ${this.renderThumbStopSection(analysis.thumbStopScore)}
                         ${analysis.audioStrategy ? this.renderAudioSection(analysis.audioStrategy) : ''}
                         ${this.renderPredictionSection(analysis.performancePrediction)}
+                        ${this.renderEnhancedDataSection(analysis)}
+                    </div>
+                </div>
+            `;
+        }
+        
+        renderEnhancedDataSection(analysis) {
+            // Only show if we have enhanced data
+            const hasObjects = analysis.detectedObjects?.length > 0;
+            const hasLabels = analysis.detectedLabels?.length > 0 || analysis.tags?.length > 0;
+            const hasColors = analysis.colorPalette?.length > 0;
+            const hasLogos = analysis.detectedLogos?.length > 0;
+            const hasText = analysis.extractedText?.length > 0;
+            const hasFaces = analysis.faceData?.detected;
+            
+            if (!hasObjects && !hasLabels && !hasColors && !hasLogos && !hasText && !hasFaces) {
+                return ''; // No enhanced data available
+            }
+            
+            return `
+                <div class="cav-section cav-section-collapsible" data-section="enhanced">
+                    <div class="cav-section-header">
+                        <h3>🔬 Advanced Detection</h3>
+                        <div class="cav-badge cav-badge-info">Multi-Service AI</div>
+                    </div>
+                    <div class="cav-section-content">
+                        ${hasObjects ? `
+                            <div class="cav-enhanced-subsection">
+                                <h4>📦 Detected Objects</h4>
+                                <div class="cav-tags">
+                                    ${analysis.detectedObjects.slice(0, 10).map(obj => `
+                                        <span class="cav-tag" title="${obj.confidence}% confidence">
+                                            ${obj.name} <small>${obj.confidence}%</small>
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${hasLabels ? `
+                            <div class="cav-enhanced-subsection">
+                                <h4>🏷️ Scene Labels</h4>
+                                <div class="cav-tags">
+                                    ${(analysis.detectedLabels || analysis.tags || []).slice(0, 15).map(label => `
+                                        <span class="cav-tag cav-tag-label" title="${label.confidence || label.score || 0}% confidence">
+                                            ${label.name || label.tag}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${hasLogos ? `
+                            <div class="cav-enhanced-subsection">
+                                <h4>🏢 Brand/Logo Detection</h4>
+                                <div class="cav-tags">
+                                    ${analysis.detectedLogos.map(logo => `
+                                        <span class="cav-tag cav-tag-brand">
+                                            ${logo.name} <small>${logo.confidence}%</small>
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${hasColors ? `
+                            <div class="cav-enhanced-subsection">
+                                <h4>🎨 Color Palette</h4>
+                                <div class="cav-color-palette">
+                                    ${analysis.colorPalette.slice(0, 8).map(color => `
+                                        <div class="cav-color-item" title="${color.hex} (${color.percentage || 0}%)">
+                                            <span class="cav-color-swatch" style="background: ${color.hex}"></span>
+                                            <span class="cav-color-hex">${color.hex}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${hasFaces ? `
+                            <div class="cav-enhanced-subsection">
+                                <h4>👤 Face Analysis</h4>
+                                <div class="cav-face-info">
+                                    <span class="cav-stat">
+                                        <strong>${analysis.faceData.count}</strong> face(s) detected
+                                    </span>
+                                    ${analysis.faceData.details?.[0]?.emotions ? `
+                                        <div class="cav-emotions">
+                                            ${Object.entries(analysis.faceData.details[0].emotions)
+                                                .filter(([k, v]) => v && v !== 'VERY_UNLIKELY' && v !== 'UNLIKELY')
+                                                .map(([emotion, likelihood]) => `
+                                                    <span class="cav-emotion cav-emotion-${likelihood.toLowerCase()}">
+                                                        ${emotion}: ${likelihood}
+                                                    </span>
+                                                `).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${hasText ? `
+                            <div class="cav-enhanced-subsection">
+                                <h4>📝 Detected Text (OCR)</h4>
+                                <div class="cav-extracted-text">
+                                    <pre>${analysis.extractedText.substring(0, 500)}${analysis.extractedText.length > 500 ? '...' : ''}</pre>
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${analysis.enhancedScores ? `
+                            <div class="cav-enhanced-subsection">
+                                <h4>📊 Composite Scores</h4>
+                                <div class="cav-score-breakdown">
+                                    ${this.renderScoreBar('Visual Quality', analysis.enhancedScores.visualQuality)}
+                                    ${this.renderScoreBar('Object Clarity', analysis.enhancedScores.objectClarity)}
+                                    ${analysis.enhancedScores.colorHarmony ? this.renderScoreBar('Color Harmony', analysis.enhancedScores.colorHarmony) : ''}
+                                    ${analysis.enhancedScores.faceEngagement ? this.renderScoreBar('Face Engagement', analysis.enhancedScores.faceEngagement) : ''}
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -1452,6 +1618,83 @@ If no brand is detectable, return:
         // EVENT HANDLERS
         // ============================================
 
+        // Get image data from asset (checks all possible sources)
+        async getAssetImageData(asset) {
+            console.log('[Analyze] Getting image data from asset:', asset?.filename);
+            
+            // Check all possible image data sources
+            let imageData = null;
+            
+            // 1. Check dataUrl (most common for library assets)
+            if (asset.dataUrl && asset.dataUrl.startsWith('data:image')) {
+                console.log('[Analyze] Using asset.dataUrl');
+                imageData = asset.dataUrl;
+            }
+            // 2. Check thumbnail
+            else if (asset.thumbnail && asset.thumbnail.startsWith('data:image')) {
+                console.log('[Analyze] Using asset.thumbnail');
+                imageData = asset.thumbnail;
+            }
+            // 3. Check file object
+            else if (asset.file) {
+                console.log('[Analyze] Converting file object to base64');
+                imageData = await this.fileToBase64(asset.file);
+            }
+            // 4. Try to fetch from URL
+            else if (asset.url && !asset.url.startsWith('blob:')) {
+                console.log('[Analyze] Fetching from URL:', asset.url);
+                try {
+                    const response = await fetch(asset.url);
+                    const blob = await response.blob();
+                    imageData = await this.blobToBase64(blob);
+                } catch (e) {
+                    console.warn('[Analyze] Failed to fetch from URL:', e);
+                }
+            }
+            // 5. Try to get from image element in DOM
+            else {
+                console.log('[Analyze] Trying to extract from DOM image');
+                const imgEl = document.querySelector(`img[data-asset-id="${asset.id}"]`) || 
+                              document.querySelector('.cav-analyze-preview img');
+                if (imgEl && imgEl.src) {
+                    if (imgEl.src.startsWith('data:image')) {
+                        imageData = imgEl.src;
+                    } else {
+                        // Try to convert to canvas
+                        try {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = imgEl.naturalWidth || imgEl.width;
+                            canvas.height = imgEl.naturalHeight || imgEl.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(imgEl, 0, 0);
+                            imageData = canvas.toDataURL('image/jpeg', 0.9);
+                            console.log('[Analyze] Extracted from canvas');
+                        } catch (e) {
+                            console.warn('[Analyze] Canvas extraction failed:', e);
+                        }
+                    }
+                }
+            }
+            
+            if (imageData) {
+                console.log('[Analyze] Image data obtained, length:', imageData.length);
+            } else {
+                console.warn('[Analyze] No image data found for asset');
+            }
+            
+            return imageData;
+        }
+        
+        // Convert blob to base64
+        blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
         attachEventHandlers(container) {
             // Run analysis button
             container.querySelector('#run-analysis')?.addEventListener('click', async () => {
@@ -1462,12 +1705,14 @@ If no brand is detectable, return:
                 btn.innerHTML = '⏳ Analyzing...';
                 
                 try {
-                    // Get image data
-                    let imageBase64 = this.currentAsset.thumbnail;
-                    if (!imageBase64 && this.currentAsset.file) {
-                        imageBase64 = await this.fileToBase64(this.currentAsset.file);
+                    // Get image data from all possible sources
+                    const imageBase64 = await this.getAssetImageData(this.currentAsset);
+                    
+                    if (!imageBase64) {
+                        throw new Error('Could not get image data from asset. Please re-upload the asset.');
                     }
                     
+                    console.log('[Analyze] Starting comprehensive analysis with image data');
                     const analysis = await this.analyzeComprehensive(this.currentAsset, imageBase64);
                     
                     // Re-render with results
@@ -1477,13 +1722,38 @@ If no brand is detectable, return:
                     console.error('[Analyze] Analysis error:', error);
                     btn.disabled = false;
                     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Error - Try Again';
+                    // Show user-friendly error
+                    alert(`Analysis failed: ${error.message}`);
                 }
             });
 
             // Re-run analysis
-            container.querySelector('#rerun-analysis')?.addEventListener('click', () => {
+            container.querySelector('#rerun-analysis')?.addEventListener('click', async () => {
                 this.currentAnalysis = null;
-                this.render(container, this.currentAsset);
+                
+                const btn = container.querySelector('#rerun-analysis');
+                const originalHTML = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Re-analyzing...';
+                
+                try {
+                    // Get image data from all possible sources
+                    const imageBase64 = await this.getAssetImageData(this.currentAsset);
+                    
+                    if (!imageBase64) {
+                        throw new Error('Could not get image data from asset');
+                    }
+                    
+                    console.log('[Analyze] Re-running comprehensive analysis');
+                    await this.analyzeComprehensive(this.currentAsset, imageBase64);
+                    
+                    this.render(container, this.currentAsset);
+                } catch (error) {
+                    console.error('[Analyze] Re-analysis error:', error);
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                    alert(`Re-analysis failed: ${error.message}`);
+                }
             });
 
             // Collapsible sections
@@ -1499,23 +1769,74 @@ If no brand is detectable, return:
                 this.showAssetPicker();
             });
             
-            // Save analysis to history
-            container.querySelector('#save-analysis')?.addEventListener('click', () => {
-                if (this.currentAnalysis) {
+            // Save analysis to history - with feedback
+            container.querySelector('#save-analysis')?.addEventListener('click', async () => {
+                const saveBtn = container.querySelector('#save-analysis');
+                
+                if (!this.currentAnalysis) {
+                    if (window.PersistenceUI) {
+                        window.PersistenceUI.showError('Nothing to Save', 'Analyze an asset first, then save');
+                    }
+                    return;
+                }
+                
+                const originalText = saveBtn?.textContent;
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = 'Saving...';
+                }
+                
+                try {
                     this.saveAnalysisToHistory(this.currentAnalysis);
-                    alert('Analysis saved to history!');
+                    
+                    if (window.PersistenceUI) {
+                        window.PersistenceUI.showSuccess('Analysis Saved', `Analysis for "${this.currentAnalysis.assetFilename || 'asset'}" saved to history`);
+                    }
+                    
+                    if (saveBtn) {
+                        saveBtn.textContent = 'Saved!';
+                        setTimeout(() => {
+                            saveBtn.textContent = originalText;
+                            saveBtn.disabled = false;
+                        }, 2000);
+                    }
+                } catch (error) {
+                    console.error('[Analyze] Save error:', error);
+                    if (window.PersistenceUI) {
+                        window.PersistenceUI.showError('Save Failed', error.message || 'Could not save analysis');
+                    }
+                    if (saveBtn) {
+                        saveBtn.textContent = originalText;
+                        saveBtn.disabled = false;
+                    }
                 }
             });
             
-            // Clear history button
-            container.querySelector('#clear-history')?.addEventListener('click', () => {
-                if (confirm('Are you sure you want to clear all analysis history?')) {
+            // Clear history button - with confirmation
+            container.querySelector('#clear-history')?.addEventListener('click', async () => {
+                const confirmed = window.PersistenceUI
+                    ? await window.PersistenceUI.confirm({
+                        title: 'Clear All History?',
+                        message: `This will delete all ${this.analysisHistory.length} saved analyses. This action cannot be undone.`,
+                        confirmText: 'Clear All',
+                        cancelText: 'Cancel'
+                    })
+                    : confirm('Are you sure you want to clear all analysis history?');
+                
+                if (confirmed) {
                     this.analysisHistory = [];
                     try {
                         localStorage.removeItem(STORAGE_KEYS.ANALYSIS_HISTORY);
                         localStorage.removeItem(STORAGE_KEYS.CURRENT_ANALYSIS);
+                        
+                        if (window.PersistenceUI) {
+                            window.PersistenceUI.showSuccess('History Cleared', 'All analysis history has been deleted');
+                        }
                     } catch (e) {
                         console.warn('[Analyze] Failed to clear history:', e);
+                        if (window.PersistenceUI) {
+                            window.PersistenceUI.showError('Clear Failed', 'Could not clear history');
+                        }
                     }
                     this.render(container);
                 }
