@@ -410,10 +410,12 @@
             }
             if (filters.search) {
                 const search = filters.search.toLowerCase();
-                results = results.filter(c => 
-                    c.name.toLowerCase().includes(search) ||
-                    c.website.toLowerCase().includes(search)
-                );
+                results = results.filter(c => {
+                    const name = c?.name || '';
+                    const website = c?.website || '';
+                    return name.toLowerCase().includes(search) ||
+                           website.toLowerCase().includes(search);
+                });
             }
             
             results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -570,12 +572,16 @@
             }
             if (filters.search) {
                 const search = filters.search.toLowerCase();
-                results = results.filter(c => 
-                    c.firstName.toLowerCase().includes(search) ||
-                    c.lastName.toLowerCase().includes(search) ||
-                    c.email.toLowerCase().includes(search) ||
-                    c.companyName.toLowerCase().includes(search)
-                );
+                results = results.filter(c => {
+                    const firstName = c?.firstName || '';
+                    const lastName = c?.lastName || '';
+                    const email = c?.email || '';
+                    const companyName = c?.companyName || '';
+                    return firstName.toLowerCase().includes(search) ||
+                           lastName.toLowerCase().includes(search) ||
+                           email.toLowerCase().includes(search) ||
+                           companyName.toLowerCase().includes(search);
+                });
             }
 
             // Sort
@@ -1185,11 +1191,15 @@
                 this.companies[companyId].competitors = [];
             }
             
-            // Check if competitor already exists
-            const existingIndex = this.companies[companyId].competitors.findIndex(
-                c => c.name.toLowerCase() === competitor.name.toLowerCase() || 
-                     c.domain === competitor.domain
-            );
+            // Check if competitor already exists (with null safety)
+            const competitorName = competitor?.name || '';
+            const competitorDomain = competitor?.domain || '';
+            const existingIndex = this.companies[companyId].competitors.findIndex(c => {
+                const cName = c?.name || '';
+                const cDomain = c?.domain || '';
+                return (cName && competitorName && cName.toLowerCase() === competitorName.toLowerCase()) || 
+                       (cDomain && competitorDomain && cDomain === competitorDomain);
+            });
             
             if (existingIndex >= 0) {
                 this.companies[companyId].competitors[existingIndex] = {
@@ -1285,10 +1295,12 @@
             }
             if (filters.search) {
                 const search = filters.search.toLowerCase();
-                results = results.filter(c => 
-                    c.name.toLowerCase().includes(search) ||
-                    c.domain.toLowerCase().includes(search)
-                );
+                results = results.filter(c => {
+                    const name = c?.name || '';
+                    const domain = c?.domain || '';
+                    return name.toLowerCase().includes(search) ||
+                           domain.toLowerCase().includes(search);
+                });
             }
 
             results.sort((a, b) => a.name.localeCompare(b.name));
@@ -1514,10 +1526,12 @@
             }
             if (filters.search) {
                 const search = filters.search.toLowerCase();
-                results = results.filter(p => 
-                    p.name.toLowerCase().includes(search) ||
-                    p.clientName.toLowerCase().includes(search)
-                );
+                results = results.filter(p => {
+                    const name = p?.name || '';
+                    const clientName = p?.clientName || '';
+                    return name.toLowerCase().includes(search) ||
+                           clientName.toLowerCase().includes(search);
+                });
             }
 
             results.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
