@@ -295,7 +295,7 @@
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob: https: http:",
-            "connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://www.searchapi.io https://cdn.jsdelivr.net https://esm.run https://esm.sh https://res.cloudinary.com https://api.cloudinary.com https://www.youtube.com https://youtube.com https://img.youtube.com https://i.ytimg.com https://noembed.com https://vimeo.com https://player.vimeo.com https://*.tiktok.com wss://*.supabase.co",
+            "connect-src 'self' https: wss://*.supabase.co",
             "frame-src 'self' https://accounts.google.com",
             "media-src 'self' data: blob: https:"
         ].join('; ');

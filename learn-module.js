@@ -901,7 +901,7 @@ Return ONLY valid JSON:
             
             // Also save to unified storage for cross-device sync
             if (window.UnifiedStorage) {
-                window.UnifiedStorage.saveSwipeFile(entry).catch(e => console.warn('[Learn] Unified storage save failed:', e));
+                window.UnifiedStorage.saveSwipeFile(swipeEntry).catch(e => console.warn('[Learn] Unified storage save failed:', e));
                 window.UnifiedStorage.saveURLAnalysis(result).catch(e => console.warn('[Learn] URL analysis save failed:', e));
             }
             
