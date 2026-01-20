@@ -16,12 +16,51 @@
 
     const ANALYZE_VERSION = '4.0.0'; // January 17, 2026 - Multi-service AI integration
     
-    // User-specific storage key prefix
+    // User-specific storage key prefix - ROBUST multi-source check
     function getAnalyzeStoragePrefix() {
-        const session = JSON.parse(localStorage.getItem('cav_user_session') || 'null');
-        if (session?.email) {
-            const userKey = session.email.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            return `cav_analyze_${userKey}_`;
+        try {
+            // Try multiple session sources
+            let email = null;
+            
+            // 1. Check window.cavUserSession
+            if (window.cavUserSession?.email) {
+                email = window.cavUserSession.email;
+            }
+            
+            // 2. Check CAVSecurity SecureSessionManager
+            if (!email) {
+                const secureSession = window.CAVSecurity?.SecureSessionManager?.getSession?.();
+                if (secureSession?.email) email = secureSession.email;
+            }
+            
+            // 3. Check localStorage cav_user_session
+            if (!email) {
+                try {
+                    const session = JSON.parse(localStorage.getItem('cav_user_session') || 'null');
+                    if (session?.email) email = session.email;
+                } catch (e) {}
+            }
+            
+            // 4. Check localStorage cav_secure_session_v3
+            if (!email) {
+                try {
+                    const secureV3 = JSON.parse(localStorage.getItem('cav_secure_session_v3') || 'null');
+                    if (secureV3?.email) email = secureV3.email;
+                } catch (e) {}
+            }
+            
+            // 5. Check localStorage cav_last_user_email
+            if (!email) {
+                const lastEmail = localStorage.getItem('cav_last_user_email');
+                if (lastEmail && lastEmail !== 'anonymous') email = lastEmail;
+            }
+            
+            if (email) {
+                const userKey = email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                return `cav_analyze_${userKey}_`;
+            }
+        } catch (e) {
+            console.warn('[Analyze] Error getting user prefix:', e);
         }
         return 'cav_analyze_anonymous_';
     }

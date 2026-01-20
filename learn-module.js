@@ -17,12 +17,51 @@
 
     const LEARN_VERSION = '3.3.0';
 
-    // User-specific storage key prefix
+    // User-specific storage key prefix - ROBUST multi-source check
     function getLearnStoragePrefix() {
-        const session = JSON.parse(localStorage.getItem('cav_user_session') || 'null');
-        if (session?.email) {
-            const userKey = session.email.toLowerCase().replace(/[^a-z0-9]/g, '_');
-            return `cav_learn_${userKey}_`;
+        try {
+            // Try multiple session sources
+            let email = null;
+            
+            // 1. Check window.cavUserSession
+            if (window.cavUserSession?.email) {
+                email = window.cavUserSession.email;
+            }
+            
+            // 2. Check CAVSecurity SecureSessionManager
+            if (!email) {
+                const secureSession = window.CAVSecurity?.SecureSessionManager?.getSession?.();
+                if (secureSession?.email) email = secureSession.email;
+            }
+            
+            // 3. Check localStorage cav_user_session
+            if (!email) {
+                try {
+                    const session = JSON.parse(localStorage.getItem('cav_user_session') || 'null');
+                    if (session?.email) email = session.email;
+                } catch (e) {}
+            }
+            
+            // 4. Check localStorage cav_secure_session_v3
+            if (!email) {
+                try {
+                    const secureV3 = JSON.parse(localStorage.getItem('cav_secure_session_v3') || 'null');
+                    if (secureV3?.email) email = secureV3.email;
+                } catch (e) {}
+            }
+            
+            // 5. Check localStorage cav_last_user_email
+            if (!email) {
+                const lastEmail = localStorage.getItem('cav_last_user_email');
+                if (lastEmail && lastEmail !== 'anonymous') email = lastEmail;
+            }
+            
+            if (email) {
+                const userKey = email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                return `cav_learn_${userKey}_`;
+            }
+        } catch (e) {
+            console.warn('[Learn] Error getting user prefix:', e);
         }
         return 'cav_learn_anonymous_';
     }
@@ -173,12 +212,20 @@
         
         // Save detected competitor
         saveDetectedCompetitor(competitor) {
-            // Check if already exists
-            const existing = this.detectedCompetitors.find(c => 
-                c.domain === competitor.domain || c.name.toLowerCase() === competitor.name.toLowerCase()
-            );
+            if (!competitor) return null;
             
-            if (!existing) {
+            // Check if already exists - with null safety
+            const competitorName = competitor.name || '';
+            const competitorDomain = competitor.domain || '';
+            
+            const existing = this.detectedCompetitors.find(c => {
+                const cName = c?.name || '';
+                const cDomain = c?.domain || '';
+                return (cDomain && competitorDomain && cDomain === competitorDomain) || 
+                       (cName && competitorName && cName.toLowerCase() === competitorName.toLowerCase());
+            });
+            
+            if (!existing && competitorName) {
                 this.detectedCompetitors.push({
                     ...competitor,
                     id: `comp_${Date.now()}`,
@@ -2561,28 +2608,33 @@ Return ONLY valid JSON:
             const allCompetitors = [];
             
             // Priority: CRM competitors > Detected > Configured
+            // Added null checks to prevent "Cannot read properties of undefined (reading 'toLowerCase')"
             for (const c of crmCompetitors) {
-                if (!seenNames.has(c.name.toLowerCase())) {
-                    seenNames.add(c.name.toLowerCase());
-                    allCompetitors.push({ ...c, source: 'crm_competitor' });
+                const name = c?.name || c?.company_name || '';
+                if (name && !seenNames.has(name.toLowerCase())) {
+                    seenNames.add(name.toLowerCase());
+                    allCompetitors.push({ ...c, name, source: 'crm_competitor' });
                 }
             }
             for (const c of detectedCompetitors) {
-                if (!seenNames.has(c.name.toLowerCase())) {
-                    seenNames.add(c.name.toLowerCase());
-                    allCompetitors.push({ ...c, source: 'ai_detected' });
+                const name = c?.name || c?.company_name || '';
+                if (name && !seenNames.has(name.toLowerCase())) {
+                    seenNames.add(name.toLowerCase());
+                    allCompetitors.push({ ...c, name, source: 'ai_detected' });
                 }
             }
             for (const c of crmCompetitorCompanies) {
-                if (!seenNames.has(c.name.toLowerCase())) {
-                    seenNames.add(c.name.toLowerCase());
-                    allCompetitors.push({ ...c, source: 'crm_company' });
+                const name = c?.name || c?.company_name || '';
+                if (name && !seenNames.has(name.toLowerCase())) {
+                    seenNames.add(name.toLowerCase());
+                    allCompetitors.push({ ...c, name, source: 'crm_company' });
                 }
             }
             for (const c of configuredCompetitors) {
-                if (!seenNames.has(c.name.toLowerCase())) {
-                    seenNames.add(c.name.toLowerCase());
-                    allCompetitors.push({ ...c, source: 'manual' });
+                const name = c?.name || c?.company_name || '';
+                if (name && !seenNames.has(name.toLowerCase())) {
+                    seenNames.add(name.toLowerCase());
+                    allCompetitors.push({ ...c, name, source: 'manual' });
                 }
             }
 
