@@ -636,6 +636,39 @@
                 delete prepared.imageData;
                 delete prepared.thumbnail_data;
             }
+            
+            // Remove fields that commonly cause schema errors
+            // Store them in metadata instead
+            const problematicFields = [
+                'adCopySuggestions', 'ad_copy_suggestions',
+                'creativeSummary', 'creative_summary',
+                'hookAnalysis', 'messageArchitecture', 'visualStrategy',
+                'ctaEvaluation', 'platformOptimization', 'performanceIndicators',
+                'takeaways', 'comparisonResult', 'extractedBenchmarks',
+                'detectedCompetitor', 'sources', 'savedToSwipeFile',
+                'rawAIResponse', 'frames', 'transcript', 'keyMoments',
+                'sceneBreakdown', 'emotionalArc', 'brandMentions',
+                'competitorMentions', 'callToActions', 'hooks',
+                'audienceSignals', 'performanceIndicators'
+            ];
+            
+            // Move problematic fields into metadata
+            if (!prepared.metadata || typeof prepared.metadata !== 'object') {
+                prepared.metadata = {};
+            }
+            if (typeof prepared.metadata === 'string') {
+                try { prepared.metadata = JSON.parse(prepared.metadata); } catch (e) { prepared.metadata = {}; }
+            }
+            
+            problematicFields.forEach(field => {
+                if (prepared[field] !== undefined) {
+                    prepared.metadata[field] = prepared[field];
+                    delete prepared[field];
+                }
+            });
+            
+            // Stringify metadata
+            prepared.metadata = JSON.stringify(prepared.metadata);
 
             return prepared;
         }
