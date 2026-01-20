@@ -872,8 +872,12 @@
     async syncAssetToSupabase(asset) {
       if (!window.CAVSupabase?.saveAsset) return;
       
-      const userEmail = this.userEmail || window.cavUserSession?.email;
-      if (!userEmail) return;
+      // ROBUST: Get user email from multiple sources
+      const userEmail = this.getCurrentUserEmail();
+      if (!userEmail || userEmail === 'anonymous') {
+        console.warn('[CAV] No user email for asset sync, skipping');
+        return;
+      }
       
       try {
         // Create a metadata-only version (no large data URLs)
@@ -1548,10 +1552,50 @@
     }
 
     getCurrentUserEmail() {
-      if (window.cavUserSession && window.cavUserSession.email) {
-        return window.cavUserSession.email;
+      // ROBUST: Check multiple sources for user email
+      try {
+        // 1. Check window.cavUserSession
+        if (window.cavUserSession?.email) {
+          return window.cavUserSession.email;
+        }
+        
+        // 2. Check this.userEmail
+        if (this.userEmail) {
+          return this.userEmail;
+        }
+        
+        // 3. Check CAVSecurity SecureSessionManager
+        const secureSession = window.CAVSecurity?.SecureSessionManager?.getSession?.();
+        if (secureSession?.email) {
+          return secureSession.email;
+        }
+        
+        // 4. Check localStorage cav_session
+        try {
+          const cavSession = JSON.parse(localStorage.getItem('cav_session') || 'null');
+          if (cavSession?.email) return cavSession.email;
+        } catch (e) {}
+        
+        // 5. Check localStorage cav_user_session
+        try {
+          const userSession = JSON.parse(localStorage.getItem('cav_user_session') || 'null');
+          if (userSession?.email) return userSession.email;
+        } catch (e) {}
+        
+        // 6. Check localStorage cav_secure_session_v3
+        try {
+          const secureV3 = JSON.parse(localStorage.getItem('cav_secure_session_v3') || 'null');
+          if (secureV3?.email) return secureV3.email;
+        } catch (e) {}
+        
+        // 7. Check localStorage cav_last_user_email
+        const lastEmail = localStorage.getItem('cav_last_user_email');
+        if (lastEmail && lastEmail !== 'anonymous') return lastEmail;
+        
+        return null;
+      } catch (e) {
+        return null;
       }
-      return this.userEmail || null;
     }
 
     getCurrentUserAvatar() {
