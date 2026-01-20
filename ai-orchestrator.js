@@ -80,6 +80,33 @@
                 .replace(/[^\x20-\x7E]/g, '')          // Keep only printable ASCII
                 .trim();
         }
+        
+        // Convert unsupported image formats (AVIF, HEIC, etc.) to PNG
+        async convertImageToPng(dataUrl) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+                        
+                        const pngDataUrl = canvas.toDataURL('image/png', 1.0);
+                        resolve(pngDataUrl);
+                    } catch (e) {
+                        reject(e);
+                    }
+                };
+                
+                img.onerror = () => reject(new Error('Failed to load image for conversion'));
+                img.src = dataUrl;
+            });
+        }
 
         // Get API key from settings
         getAPIKey(provider) {
@@ -232,12 +259,29 @@
 
             let messages;
             if (options.image) {
-                // Vision request
+                // Vision request - convert unsupported formats first
+                let imageUrl = options.image;
+                
+                // Check if image format is supported by OpenAI (png, jpeg, gif, webp)
+                const mimeMatch = imageUrl.match(/^data:(image\/[a-z+]+);base64,/);
+                const mimeType = mimeMatch ? mimeMatch[1] : '';
+                const supportedFormats = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+                
+                if (mimeType && !supportedFormats.includes(mimeType)) {
+                    console.log(`[AIOrchestrator] Converting ${mimeType} to PNG for OpenAI...`);
+                    try {
+                        imageUrl = await this.convertImageToPng(imageUrl);
+                        console.log('[AIOrchestrator] Image converted to PNG');
+                    } catch (convErr) {
+                        console.warn('[AIOrchestrator] Image conversion failed:', convErr);
+                    }
+                }
+                
                 messages = [{
                     role: 'user',
                     content: [
                         { type: 'text', text: prompt },
-                        { type: 'image_url', image_url: { url: options.image, detail: options.detail || 'auto' } }
+                        { type: 'image_url', image_url: { url: imageUrl, detail: options.detail || 'auto' } }
                     ]
                 }];
             } else {
