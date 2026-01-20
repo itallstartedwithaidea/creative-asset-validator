@@ -1126,6 +1126,39 @@
     }
 
     // ============================================
+    // CONVERT UNSUPPORTED IMAGE FORMATS TO PNG
+    // ============================================
+    async function convertImageToPng(dataUrl) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    // Convert to PNG (widely supported)
+                    const pngDataUrl = canvas.toDataURL('image/png', 1.0);
+                    resolve(pngDataUrl);
+                } catch (e) {
+                    reject(e);
+                }
+            };
+            
+            img.onerror = (e) => {
+                reject(new Error('Failed to load image for conversion'));
+            };
+            
+            img.src = dataUrl;
+        });
+    }
+
+    // ============================================
     // AUTO-CATEGORIZE WITH AI + BRAND DETECTION + CRM AUTO-CREATE
     // ============================================
     async function autoCategorizeAsset(asset, generatedFor) {
@@ -1143,8 +1176,24 @@
             }
 
             // Extract clean base64 and mime type
-            const cleanBase64 = imageData.replace(/^data:image\/[a-z]+;base64,/, '');
-            const mimeType = imageData.match(/^data:(image\/[a-z]+);base64,/)?.[1] || 'image/jpeg';
+            let cleanBase64 = imageData.replace(/^data:image\/[a-z+]+;base64,/, '');
+            let mimeType = imageData.match(/^data:(image\/[a-z+]+);base64,/)?.[1] || 'image/jpeg';
+            
+            // Convert unsupported formats (AVIF, HEIC, etc.) to PNG
+            const supportedFormats = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+            if (!supportedFormats.includes(mimeType)) {
+                console.log(`🔄 Converting ${mimeType} to PNG for AI analysis...`);
+                try {
+                    const convertedData = await convertImageToPng(imageData);
+                    if (convertedData) {
+                        cleanBase64 = convertedData.replace(/^data:image\/[a-z+]+;base64,/, '');
+                        mimeType = 'image/png';
+                        console.log('✅ Image converted to PNG successfully');
+                    }
+                } catch (convErr) {
+                    console.warn('Image conversion failed, trying original:', convErr);
+                }
+            }
 
             // Use Gemini 2.0 Flash for analysis (it sees the image!)
             const response = await fetch(
@@ -1852,7 +1901,9 @@ If you don't know, use empty strings. Be concise.`
     // ============================================
     
     function getDefaultAIInstructions() {
-        return `CONSTRAINT: scale_x must equal scale_y. All pixels scale uniformly. Non-uniform scaling is prohibited under any circumstance.
+        return `Please always follow the instructions below
+        
+CONSTRAINT: scale_x must equal scale_y. All pixels scale uniformly. Non-uniform scaling is prohibited under any circumstance.
 
 OUTPUT IDENTITY RULE: The output must be a transformed version of the source image, not a new image that contains the source. Every pixel in the output must trace back to either: original source pixels (cropped/scaled) or environment-only fill pixels (sky, ground, texture continuation with no objects). If the output contains ANY element that cannot trace to source, reject it. The source image is the final product being resized—it is not an element to be placed within a larger generated scene.
 

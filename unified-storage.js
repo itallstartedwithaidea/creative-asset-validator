@@ -640,16 +640,25 @@
             // Remove fields that commonly cause schema errors
             // Store them in metadata instead
             const problematicFields = [
-                'adCopySuggestions', 'ad_copy_suggestions',
+                // Video analysis fields
+                'adCopySuggestions', 'ad_copy_suggestions', 'benchmarkComparison',
+                'analysis', 'frames', 'transcript', 'keyMoments',
+                'sceneBreakdown', 'emotionalArc', 'brandMentions',
+                'competitorMentions', 'callToActions', 'hooks',
+                'audienceSignals', 'rawAIResponse',
+                // URL/Creative analysis fields
                 'creativeSummary', 'creative_summary',
                 'hookAnalysis', 'messageArchitecture', 'visualStrategy',
                 'ctaEvaluation', 'platformOptimization', 'performanceIndicators',
                 'takeaways', 'comparisonResult', 'extractedBenchmarks',
                 'detectedCompetitor', 'sources', 'savedToSwipeFile',
-                'rawAIResponse', 'frames', 'transcript', 'keyMoments',
-                'sceneBreakdown', 'emotionalArc', 'brandMentions',
-                'competitorMentions', 'callToActions', 'hooks',
-                'audienceSignals', 'performanceIndicators'
+                'colorPalette', 'color_palette', 'imageMetrics', 'image_metrics',
+                // Swipe file fields
+                'collections', 'isCompetitor', 'is_competitor',
+                // Benchmark fields
+                'lastUpdated', 'last_updated', 'dataPoints', 'data_points',
+                // General
+                'enrichedData', 'strategyInsights', 'aiAnalyses'
             ];
             
             // Move problematic fields into metadata
