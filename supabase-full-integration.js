@@ -747,28 +747,40 @@
     
     function hookIntoLearnModule() {
         // Intercept localStorage for learn module data
-        const learnKeys = [
-            'cav_swipe_file',
-            'cav_best_practices', 
-            'cav_benchmarks',
-            'cav_learn_url_history',
-            'cav_learn_competitors'
-        ];
+        // NOTE: Learn module uses user-specific keys like cav_learn_john_example_com_swipe_file
         
         const origSetItem = localStorage.setItem;
         localStorage.setItem = function(key, value) {
             origSetItem.call(localStorage, key, value);
             
-            // Sync learn module data
-            if (key === 'cav_swipe_file') {
+            // Sync learn module data - match user-specific keys with patterns
+            // Old format: cav_swipe_file, cav_best_practices, cav_benchmarks
+            // New format: cav_learn_USER_swipe_file, cav_learn_USER_benchmarks, etc.
+            
+            if (key === 'cav_swipe_file' || key.includes('_swipe_file')) {
                 syncSwipeFile(value);
             }
-            if (key === 'cav_best_practices') {
+            if (key === 'cav_best_practices' || key.includes('_best_practices')) {
                 syncBestPractices(value);
+            }
+            if (key === 'cav_benchmarks' || key.includes('_benchmarks')) {
+                syncBenchmarks(value);
+            }
+            if (key.includes('_url_history') || key.includes('url_analyses')) {
+                syncURLAnalyses(value);
+            }
+            if (key.includes('_competitors')) {
+                syncCompetitors(value);
+            }
+            
+            // Also sync analyze module data (creative analyses)
+            // Format: cav_analyze_USER_history
+            if (key.includes('_analyze_') && key.includes('_history')) {
+                syncCreativeAnalyses(value);
             }
         };
         
-        console.log('[Supabase Integration] ✅ Learn Module hooks installed');
+        console.log('[Supabase Integration] ✅ Learn Module hooks installed (user-specific keys supported)');
     }
     
     async function syncSwipeFile(jsonValue) {
@@ -798,6 +810,67 @@
             console.log('[Supabase Integration] ☁️ Best practices synced');
         } catch (e) {
             console.warn('[Supabase Integration] Best practices sync error:', e);
+        }
+    }
+    
+    async function syncBenchmarks(jsonValue) {
+        if (!window.CAVSupabase?.isConfigured?.()) return;
+        
+        try {
+            const benchmarks = JSON.parse(jsonValue);
+            for (const benchmark of benchmarks.slice(0, 100)) { // Limit to 100
+                if (!benchmark.uuid) benchmark.uuid = benchmark.id || crypto.randomUUID();
+                await window.CAVSupabase.saveBenchmark?.(benchmark);
+            }
+            console.log('[Supabase Integration] ☁️ Benchmarks synced');
+        } catch (e) {
+            console.warn('[Supabase Integration] Benchmarks sync error:', e);
+        }
+    }
+    
+    async function syncURLAnalyses(jsonValue) {
+        if (!window.CAVSupabase?.isConfigured?.()) return;
+        
+        try {
+            const analyses = JSON.parse(jsonValue);
+            for (const analysis of analyses.slice(0, 100)) { // Limit to 100
+                if (!analysis.uuid) analysis.uuid = analysis.id || crypto.randomUUID();
+                // Use the correct function name: saveUrlAnalysis (not saveURLAnalysis)
+                await window.CAVSupabase.saveUrlAnalysis?.(analysis);
+            }
+            console.log('[Supabase Integration] ☁️ URL analyses synced');
+        } catch (e) {
+            console.warn('[Supabase Integration] URL analyses sync error:', e);
+        }
+    }
+    
+    async function syncCompetitors(jsonValue) {
+        if (!window.CAVSupabase?.isConfigured?.()) return;
+        
+        try {
+            const competitors = JSON.parse(jsonValue);
+            for (const competitor of competitors.slice(0, 50)) { // Limit to 50
+                if (!competitor.uuid) competitor.uuid = competitor.id || crypto.randomUUID();
+                await window.CAVSupabase.saveCompetitor?.(competitor);
+            }
+            console.log('[Supabase Integration] ☁️ Competitors synced');
+        } catch (e) {
+            console.warn('[Supabase Integration] Competitors sync error:', e);
+        }
+    }
+    
+    async function syncCreativeAnalyses(jsonValue) {
+        if (!window.CAVSupabase?.isConfigured?.()) return;
+        
+        try {
+            const analyses = JSON.parse(jsonValue);
+            for (const analysis of analyses.slice(0, 100)) { // Limit to 100
+                if (!analysis.uuid) analysis.uuid = analysis.id || analysis.assetId || crypto.randomUUID();
+                await window.CAVSupabase.saveCreativeAnalysis?.(analysis);
+            }
+            console.log('[Supabase Integration] ☁️ Creative analyses synced');
+        } catch (e) {
+            console.warn('[Supabase Integration] Creative analyses sync error:', e);
         }
     }
     
