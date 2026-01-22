@@ -1001,49 +1001,44 @@
                 console.log('[Settings] Saving API keys to Supabase for:', this.userEmail);
                 
                 // Save each API key to the user_api_keys table (works with Google Sign-In)
+                // Note: If table doesn't exist or migrations aren't run, this will fail silently
+                // Keys are still saved locally and shared via shared_api_keys table
                 for (const [provider, config] of Object.entries(this.settings.apiKeys)) {
                     if (config?.key && config.key.length >= 10) {
                         const keyId = `apikey_${provider}_${this.userEmail.replace(/[^a-z0-9]/gi, '_')}`;
                         
-                        const { error } = await supabase
-                            .from('user_api_keys')
-                            .upsert({
-                                uuid: keyId,
-                                user_email: this.userEmail,
-                                owner_email: this.userEmail,
-                                provider: provider,
-                                key: config.key,
-                                encrypted_key: config.key, // Also set encrypted_key for compatibility
-                                is_active: config.status !== 'error',
-                                domain: this.userEmail.split('@')[1] || 'local',
-                                updated_at: new Date().toISOString()
-                            }, {
-                                onConflict: 'uuid'
-                            });
-                        
-                        if (error) {
-                            console.warn(`[Settings] Supabase save error for ${provider}:`, error.message);
-                            // Try fallback to api_keys table
-                            const { error: fallbackError } = await supabase
-                                .from('api_keys')
+                        try {
+                            const { error } = await supabase
+                                .from('user_api_keys')
                                 .upsert({
-                                    id: keyId,
+                                    uuid: keyId,
                                     user_email: this.userEmail,
                                     owner_email: this.userEmail,
                                     provider: provider,
                                     key: config.key,
-                                    encrypted_key: config.key,
+                                    encrypted_key: config.key, // Also set encrypted_key for compatibility
                                     is_active: config.status !== 'error',
                                     domain: this.userEmail.split('@')[1] || 'local',
                                     updated_at: new Date().toISOString()
                                 }, {
-                                    onConflict: 'id'
+                                    onConflict: 'uuid'
                                 });
-                            if (!fallbackError) {
-                                console.log(`[Settings] ☁️ Saved ${provider} key to api_keys (fallback)`);
+                            
+                            if (error) {
+                                // Only log once per session, not for each key
+                                if (!this._userApiKeysWarnShown) {
+                                    console.log(`[Settings] user_api_keys table unavailable, using shared_api_keys instead`);
+                                    this._userApiKeysWarnShown = true;
+                                }
+                            } else {
+                                console.log(`[Settings] ☁️ Saved ${provider} key to Supabase`);
                             }
-                        } else {
-                            console.log(`[Settings] ☁️ Saved ${provider} key to Supabase`);
+                        } catch (e) {
+                            // Network error or table doesn't exist - fail silently
+                            if (!this._userApiKeysWarnShown) {
+                                console.log(`[Settings] user_api_keys sync unavailable`);
+                                this._userApiKeysWarnShown = true;
+                            }
                         }
                     }
                 }

@@ -419,11 +419,13 @@
                 }
 
             } catch (e) {
-                console.warn('[RealtimeSync] Health check failed:', e);
+                // Only log once per disconnect, not on every health check failure
                 if (isConnected) {
+                    console.warn('[RealtimeSync] Connection lost, will retry');
                     this.updateSyncStatus('error');
                     this.attemptReconnect();
                 }
+                // Silent fail for repeated health checks when already disconnected
             }
         }
 
