@@ -173,7 +173,7 @@ class CloudinaryClient {
         }
         
         const timestamp = Math.floor(Date.now() / 1000);
-        const folder = options.folder || 'cav-uploads';
+        const folder = options.folder || 'cav-assets';
         
         // Generate signature (for unsigned uploads, we just return the basic params)
         return {
@@ -201,7 +201,7 @@ class CloudinaryClient {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('upload_preset', 'cav_unsigned'); // Need to create this preset in Cloudinary
-            formData.append('folder', options.folder || 'cav-uploads');
+            formData.append('folder', options.folder || 'cav-assets');
             
             if (options.public_id) {
                 formData.append('public_id', options.public_id);
@@ -344,6 +344,224 @@ class CloudinaryClient {
         });
         
         return result;
+    }
+    
+    /**
+     * Resize image using Cloudinary's AI Generative Fill
+     * Perfect for non-standard aspect ratios that Gemini doesn't support
+     * Uses c_pad with b_gen_fill for intelligent outpainting
+     * 
+     * @param {Object} asset - The asset to resize (must have dataUrl or cloudinary_url)
+     * @param {Object} options - Resize options
+     * @param {number} options.width - Target width in pixels
+     * @param {number} options.height - Target height in pixels
+     * @param {string} options.gravity - Content gravity: auto, center, faces, etc.
+     * @param {string} options.prompt - Optional AI prompt for generative fill context
+     * @returns {Object} - Result with transformed URL and dataUrl
+     */
+    async resizeImageWithGenFill(asset, options = {}) {
+        console.log('[CloudinaryClient] AI Generative Fill resize:', asset.filename || asset.name, options);
+        
+        if (!this.hasCredentials()) {
+            this.showCloudinaryRequiredModal();
+            throw new Error('Please add your Cloudinary credentials in Settings to use AI image resize');
+        }
+        
+        const creds = this.getCredentials();
+        let publicId = asset.cloudinary_id || asset.public_id;
+        
+        // If no cloudinary_id, we need to upload the image first
+        if (!publicId) {
+            console.log('[CloudinaryClient] Uploading image to Cloudinary first...');
+            
+            // Get image data
+            let imageData = asset.dataUrl || asset.thumbnail_url || asset.file_url;
+            if (!imageData) {
+                throw new Error('No image data available for upload');
+            }
+            
+            // Upload to Cloudinary (uses cav_unsigned preset which puts in cav-assets folder)
+            const uploadResult = await this.uploadBase64Image(imageData, {
+                folder: 'cav-assets',
+                public_id: `resize_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            });
+            
+            publicId = uploadResult.public_id;
+            console.log('[CloudinaryClient] Image uploaded, public_id:', publicId);
+        }
+        
+        const { width, height, gravity = 'center', prompt } = options;
+        
+        if (!width || !height) {
+            throw new Error('Width and height are required for resize');
+        }
+        
+        // Build transformation for AI Generative Fill
+        // Using c_pad with b_gen_fill for intelligent outpainting
+        const transformations = [];
+        
+        // Target dimensions
+        transformations.push(`w_${width}`);
+        transformations.push(`h_${height}`);
+        
+        // Use pad crop mode to maintain content and fill remaining space
+        transformations.push('c_pad');
+        
+        // Gravity - where to position the original content
+        transformations.push(`g_${gravity}`);
+        
+        // AI Generative Fill background - this is the magic!
+        // b_gen_fill uses AI to intelligently extend the image
+        // Fallback to b_auto (auto background color) if gen_fill fails
+        const fillMethod = options.fillMethod || 'gen_fill'; // 'gen_fill', 'auto', 'blur'
+        
+        if (fillMethod === 'gen_fill') {
+            if (prompt) {
+                // With custom prompt for context
+                transformations.push(`b_gen_fill:${encodeURIComponent(prompt)}`);
+            } else {
+                // Default AI fill
+                transformations.push('b_gen_fill');
+            }
+        } else if (fillMethod === 'blur') {
+            // Blurred background from original image edges
+            transformations.push('b_blurred:400:15');
+        } else {
+            // Auto detect dominant color
+            transformations.push('b_auto');
+        }
+        
+        // Quality optimization
+        transformations.push('q_auto:best');
+        transformations.push('f_auto');
+        
+        const transformStr = transformations.join(',');
+        const transformedUrl = `https://res.cloudinary.com/${creds.cloudName}/image/upload/${transformStr}/${publicId}`;
+        
+        console.log('[CloudinaryClient] Generated transform URL:', transformedUrl);
+        console.log('[CloudinaryClient] Fill method:', fillMethod);
+        
+        // Fetch the transformed image and convert to dataUrl
+        let dataUrl = null;
+        let actualMethod = fillMethod;
+        
+        try {
+            const response = await fetch(transformedUrl);
+            if (response.ok) {
+                const blob = await response.blob();
+                dataUrl = await this.blobToDataUrl(blob);
+                console.log('[CloudinaryClient] ✅ AI Generative Fill successful');
+            } else {
+                // gen_fill might not be available, try fallback
+                console.warn('[CloudinaryClient] Transform failed with status:', response.status);
+                
+                if (fillMethod === 'gen_fill') {
+                    console.log('[CloudinaryClient] Trying blur fallback...');
+                    // Try with blurred background as fallback
+                    const fallbackTransforms = transformations.filter(t => !t.startsWith('b_gen_fill'));
+                    fallbackTransforms.push('b_blurred:400:15');
+                    const fallbackUrl = `https://res.cloudinary.com/${creds.cloudName}/image/upload/${fallbackTransforms.join(',')}/${publicId}`;
+                    
+                    const fallbackResponse = await fetch(fallbackUrl);
+                    if (fallbackResponse.ok) {
+                        const blob = await fallbackResponse.blob();
+                        dataUrl = await this.blobToDataUrl(blob);
+                        actualMethod = 'blur_fallback';
+                        console.log('[CloudinaryClient] ✅ Blur fallback successful');
+                        return {
+                            success: true,
+                            url: fallbackUrl,
+                            dataUrl: dataUrl,
+                            public_id: publicId,
+                            width: width,
+                            height: height,
+                            transformations: fallbackTransforms.join(','),
+                            method: 'cloudinary_blur_fallback',
+                            note: 'AI Generative Fill not available, used blur fallback'
+                        };
+                    }
+                }
+            }
+        } catch (fetchError) {
+            console.warn('[CloudinaryClient] Could not fetch transformed image:', fetchError);
+            // Still return the URL - it might work when accessed directly in browser
+        }
+        
+        return {
+            success: true,
+            url: transformedUrl,
+            dataUrl: dataUrl || transformedUrl,
+            public_id: publicId,
+            width: width,
+            height: height,
+            transformations: transformStr,
+            method: `cloudinary_${actualMethod}`
+        };
+    }
+    
+    /**
+     * Upload a base64 image to Cloudinary
+     */
+    async uploadBase64Image(base64Data, options = {}) {
+        const creds = this.getCredentials();
+        if (!creds) {
+            throw new Error('Cloudinary credentials not configured');
+        }
+        
+        const formData = new FormData();
+        
+        // Handle both data URL and raw base64
+        let imageData = base64Data;
+        if (base64Data.startsWith('data:')) {
+            imageData = base64Data;
+        } else {
+            imageData = `data:image/png;base64,${base64Data}`;
+        }
+        
+        formData.append('file', imageData);
+        formData.append('upload_preset', 'cav_unsigned');
+        formData.append('folder', options.folder || 'cav-assets');
+        
+        if (options.public_id) {
+            formData.append('public_id', options.public_id);
+        }
+        
+        const uploadUrl = `https://api.cloudinary.com/v1_1/${creds.cloudName}/image/upload`;
+        
+        const response = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            if (error.error?.message?.includes('preset')) {
+                throw new Error('Please create an unsigned upload preset named "cav_unsigned" in your Cloudinary settings (Settings → Upload → Upload presets → Add unsigned preset)');
+            }
+            throw new Error(error.error?.message || `Upload failed: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        return {
+            success: true,
+            public_id: result.public_id,
+            url: result.secure_url,
+            width: result.width,
+            height: result.height,
+            format: result.format
+        };
+    }
+    
+    /**
+     * Convert blob to data URL
+     */
+    blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
     }
     
     async resizeForPlatform(asset, platform, placement) {

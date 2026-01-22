@@ -578,8 +578,8 @@
             prepared.owner_email = prepared.owner_email || userEmail;
             
             // Transform camelCase to snake_case for Supabase compatibility
+            // NOTE: analyzedAt removed - goes to metadata for tables that don't have it
             const camelToSnakeMap = {
-                'analyzedAt': 'analyzed_at',
                 'abTestRecommendations': 'ab_test_recommendations',
                 'placementMatrix': 'placement_matrix',
                 'derivativeIdeas': 'derivative_ideas',
@@ -618,8 +618,9 @@
                 }
             });
             
-            // Convert complex objects to JSON strings
-            const jsonFields = ['analysis', 'metadata', 'results', 'data', 'insights', 'config',
+            // Convert complex objects to JSON strings (only for fields that exist in DB schema)
+            // NOTE: 'analysis' removed - it goes to metadata instead for tables that don't have it
+            const jsonFields = ['metadata', 'results', 'data', 'insights', 'config',
                                'hook_analysis', 'cta_analysis', 'brand_compliance', 'thumb_stop_score',
                                'performance_prediction', 'enhanced_analysis', 'ab_test_recommendations',
                                'placement_matrix', 'derivative_ideas', 'fatigue_prediction',
@@ -641,24 +642,32 @@
             // Store them in metadata instead
             const problematicFields = [
                 // Video analysis fields
-                'adCopySuggestions', 'ad_copy_suggestions', 'benchmarkComparison',
-                'analysis', 'frames', 'transcript', 'keyMoments',
-                'sceneBreakdown', 'emotionalArc', 'brandMentions',
-                'competitorMentions', 'callToActions', 'hooks',
-                'audienceSignals', 'rawAIResponse',
+                'adCopySuggestions', 'ad_copy_suggestions', 'benchmarkComparison', 'benchmark_comparison',
+                'analysis', 'frames', 'transcript', 'keyMoments', 'key_moments',
+                'sceneBreakdown', 'scene_breakdown', 'emotionalArc', 'emotional_arc',
+                'brandMentions', 'brand_mentions', 'competitorMentions', 'competitor_mentions',
+                'callToActions', 'call_to_actions', 'hooks', 'audienceSignals', 'audience_signals',
+                'rawAIResponse', 'raw_ai_response',
                 // URL/Creative analysis fields
-                'creativeSummary', 'creative_summary',
-                'hookAnalysis', 'messageArchitecture', 'visualStrategy',
-                'ctaEvaluation', 'platformOptimization', 'performanceIndicators',
-                'takeaways', 'comparisonResult', 'extractedBenchmarks',
-                'detectedCompetitor', 'sources', 'savedToSwipeFile',
+                'creativeSummary', 'creative_summary', 'analyzed_at', 'analyzedAt',
+                'hookAnalysis', 'messageArchitecture', 'message_architecture',
+                'visualStrategy', 'visual_strategy', 'ctaEvaluation', 'cta_evaluation',
+                'platformOptimization', 'platform_optimization',
+                'performanceIndicators', 'performance_indicators',
+                'takeaways', 'comparisonResult', 'comparison_result',
+                'extractedBenchmarks', 'extracted_benchmarks',
+                'detectedCompetitor', 'detected_competitor', 'sources', 'savedToSwipeFile',
                 'colorPalette', 'color_palette', 'imageMetrics', 'image_metrics',
                 // Swipe file fields
-                'collections', 'isCompetitor', 'is_competitor',
+                'collections', 'isCompetitor', 'is_competitor', 'swipeEntries', 'swipe_entries',
                 // Benchmark fields
                 'lastUpdated', 'last_updated', 'dataPoints', 'data_points',
                 // General
-                'enrichedData', 'strategyInsights', 'aiAnalyses'
+                'enrichedData', 'enriched_data', 'strategyInsights', 'strategy_insights',
+                'aiAnalyses', 'ai_analyses', 'rawResponse', 'raw_response',
+                // Asset-specific fields that may not exist
+                'cloudinary_data', 'cloudinaryData', 'videoFrames', 'video_frames',
+                'extractedText', 'extracted_text', 'ocrResults', 'ocr_results'
             ];
             
             // Move problematic fields into metadata
