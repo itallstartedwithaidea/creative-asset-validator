@@ -1044,11 +1044,17 @@
             // General
             'enrichedData', 'enriched_data', 'strategyInsights', 'strategy_insights',
             'aiAnalyses', 'ai_analyses', 'rawResponse', 'raw_response',
-            // Asset-specific
+            // Asset-specific fields that may not exist in schema
             'cloudinary_data', 'cloudinaryData', 'videoFrames', 'video_frames',
             'extractedText', 'extracted_text', 'ocrResults', 'ocr_results',
+            'video_url', 'has_video_blob', 'user_key', 'team_key', 'user_domain',
+            'comments', 'history', 'channels', 'validations', 'aiDescription', 'aiSubject',
+            'targetChannel', 'targetSize', 'targetRatio', 'aiModel', 'folderId', 'projectId',
+            'contactId', 'category', 'orientation', 'aiGenerated', 'is_ai_derivative',
+            'sourceAssetId', 'sourceFilename', 'createdBy', 'derivativeId',
             // Local-only fields
-            'needs_sync', 'dataUrl', 'imageData', 'thumbnail_data', 'localOnly'
+            'needs_sync', 'dataUrl', 'imageData', 'thumbnail_data', 'localOnly',
+            'file_url', 'blob_url', 'data_url'
         ];
         
         // Initialize metadata if needed

@@ -2998,31 +2998,51 @@ Generate the modified image directly.`
             newWidth = targetWidth;
             newHeight = targetHeight;
         } else {
-            // For standard ratios, calculate based on source
-            newWidth = calculateNewWidth(asset, ratioDecimal);
-            newHeight = calculateNewHeight(asset, ratioDecimal);
+            // For standard ratios, calculate based on source with minimum dimensions
+            newWidth = calculateNewWidth(asset, ratioDecimal, targetRatio);
+            newHeight = calculateNewHeight(asset, ratioDecimal, targetRatio);
         }
         const orientation = getOrientationFolder(newWidth, newHeight);
 
         // Estimate file size from dataUrl length (base64 encoding is ~33% overhead)
         const estimatedSize = generatedDataUrl ? Math.round((generatedDataUrl.length * 3) / 4) : 0;
         
+        // Determine format from filename extension
+        const fileExt = (newFilename.split('.').pop() || 'png').toLowerCase();
+        const mimeType = fileExt === 'jpg' || fileExt === 'jpeg' ? 'image/jpeg' : 
+                        fileExt === 'png' ? 'image/png' : 
+                        fileExt === 'webp' ? 'image/webp' : 'image/png';
+        
+        // Calculate aspect ratio string (e.g., "9:16", "4:15")
+        const gcd = (a, b) => b ? gcd(b, a % b) : a;
+        const divisor = gcd(newWidth, newHeight);
+        const aspectRatioStr = `${newWidth / divisor}:${newHeight / divisor}`;
+        
         // Create derivative record
         const derivative = {
             id: `fix_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            uuid: `deriv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             filename: newFilename,
+            name: newFilename,
             file_type: 'image',
             type: 'image',
+            mime_type: mimeType,
+            format: fileExt,
             width: newWidth,
             height: newHeight,
             size: estimatedSize,
             file_size: estimatedSize,
+            aspect_ratio: aspectRatioStr,
+            ratio: newWidth / newHeight,
             sourceAssetId: asset.id,
             sourceFilename: asset.filename,
             createdBy: `AI Resize - ${aiModel}`,
+            created_at: new Date().toISOString(),
             createdAt: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
             is_ai_derivative: true,
             thumbnail_url: generatedDataUrl,
+            thumbnail: generatedDataUrl,
             dataUrl: generatedDataUrl,
             // Target info for display
             targetChannel: channel,
@@ -3039,7 +3059,8 @@ Generate the modified image directly.`
             category: aiSuggestions?.category || 'Other',
             tags: aiSuggestions?.tags || [],
             orientation: orientation,
-            aiGenerated: true
+            aiGenerated: true,
+            status: 'ready'
         };
 
         // Add to library with folder/CRM linking
@@ -3135,7 +3156,29 @@ Generate the modified image directly.`
         }
     }
 
-    function calculateNewWidth(asset, targetRatio) {
+    // Minimum recommended dimensions for standard ratios (social media standards)
+    const MIN_DIMENSIONS_BY_RATIO = {
+        '1:1': { width: 1080, height: 1080 },
+        '4:5': { width: 1080, height: 1350 },
+        '5:4': { width: 1350, height: 1080 },
+        '2:3': { width: 1080, height: 1620 },
+        '3:2': { width: 1620, height: 1080 },
+        '3:4': { width: 1080, height: 1440 },
+        '4:3': { width: 1440, height: 1080 },
+        '9:16': { width: 1080, height: 1920 },
+        '16:9': { width: 1920, height: 1080 },
+        '21:9': { width: 2560, height: 1080 }
+    };
+
+    function calculateNewWidth(asset, targetRatio, targetRatioStr = null) {
+        // Check if we have minimum dimensions for this ratio
+        if (targetRatioStr && MIN_DIMENSIONS_BY_RATIO[targetRatioStr]) {
+            const minDims = MIN_DIMENSIONS_BY_RATIO[targetRatioStr];
+            // Use at least the minimum, but scale up if source is larger
+            const scaledWidth = Math.round(asset.height * targetRatio);
+            return Math.max(minDims.width, scaledWidth, asset.width);
+        }
+        
         const currentRatio = asset.width / asset.height;
         if (currentRatio < targetRatio) {
             return Math.round(asset.height * targetRatio);
@@ -3143,7 +3186,15 @@ Generate the modified image directly.`
         return asset.width;
     }
 
-    function calculateNewHeight(asset, targetRatio) {
+    function calculateNewHeight(asset, targetRatio, targetRatioStr = null) {
+        // Check if we have minimum dimensions for this ratio
+        if (targetRatioStr && MIN_DIMENSIONS_BY_RATIO[targetRatioStr]) {
+            const minDims = MIN_DIMENSIONS_BY_RATIO[targetRatioStr];
+            // Use at least the minimum, but scale up if source is larger
+            const scaledHeight = Math.round(asset.width / targetRatio);
+            return Math.max(minDims.height, scaledHeight, asset.height);
+        }
+        
         const currentRatio = asset.width / asset.height;
         if (currentRatio > targetRatio) {
             return Math.round(asset.width / targetRatio);

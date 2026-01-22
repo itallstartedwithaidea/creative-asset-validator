@@ -832,7 +832,8 @@
         const transaction = this.db.transaction(['assets', 'video_blobs'], 'readwrite');
         const assetsStore = transaction.objectStore('assets');
         
-        const request = assetsStore.add(newAsset);
+        // Use put() instead of add() to handle updates/duplicates gracefully
+        const request = assetsStore.put(newAsset);
         
         request.onsuccess = () => {
           // If video, also store the video blob
