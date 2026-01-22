@@ -113,8 +113,18 @@
 
     // ============================================
     // CHANNEL SPECIFICATIONS (Updated January 2026)
-    // All aspectRatios use Gemini API-compatible ratios:
-    // Valid: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9
+    // ============================================
+    // 
+    // ASPECT RATIO NOTES:
+    // - Gemini API Valid Ratios: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9
+    // - Display ads use exact pixel ratios (6:5, 97:9, etc.) - these are NOT Gemini-compatible
+    // - For Gemini image generation, use GEMINI_RATIO_MAP to get nearest valid ratio
+    // - Use exactSize for display ads where pixel-perfect dimensions are required
+    //
+    // ORIENTATION KEY:
+    // - orientation: 'vertical' = height > width (skyscrapers, half-pages)
+    // - orientation: 'horizontal' = width > height (leaderboards, banners)
+    // - orientation: 'square' = width === height
     // ============================================
     const CHANNEL_SPECS = {
         // === FACEBOOK ===
@@ -153,7 +163,7 @@
         
         // === X (TWITTER) ===
         'X Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '400x400', icon: 'twitter', category: 'social', notes: 'Displays as circle' },
-        'X Header Banner': { type: 'image', aspectRatios: ['3:2'], recommendedSize: '1500x500', icon: 'twitter', category: 'social', notes: '60px crop top/bottom' },
+        'X Header Banner': { type: 'image', aspectRatios: ['3:1'], recommendedSize: '1500x500', icon: 'twitter', category: 'social', notes: '60px crop top/bottom' },
         'X In-Stream Image': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1600x900', icon: 'twitter', category: 'social' },
         'X Card Image': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x628', icon: 'twitter', category: 'social', notes: 'Link preview' },
         'X Ad Landscape': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '800x418', icon: 'twitter', category: 'social' },
@@ -161,9 +171,9 @@
         
         // === LINKEDIN ===
         'LinkedIn Profile': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '400x400', icon: 'linkedin', category: 'social', notes: 'Displays as circle' },
-        'LinkedIn Personal Cover': { type: 'image', aspectRatios: ['4:3'], recommendedSize: '1584x396', icon: 'linkedin', category: 'social' },
+        'LinkedIn Personal Cover': { type: 'image', aspectRatios: ['4:1'], recommendedSize: '1584x396', icon: 'linkedin', category: 'social' },
         'LinkedIn Company Logo': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '300x300', icon: 'linkedin', category: 'social' },
-        'LinkedIn Company Cover': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1128x191', icon: 'linkedin', category: 'social' },
+        'LinkedIn Company Cover': { type: 'image', aspectRatios: ['6:1'], recommendedSize: '1128x191', icon: 'linkedin', category: 'social' },
         'LinkedIn Post/Link': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x627', icon: 'linkedin', category: 'social' },
         'LinkedIn Post Square': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1200x1200', icon: 'linkedin', category: 'social' },
         'LinkedIn Post Vertical': { type: 'image', aspectRatios: ['9:16'], recommendedSize: '628x1200', icon: 'linkedin', category: 'social' },
@@ -196,7 +206,7 @@
         
         // === BLUESKY ===
         'Bluesky Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '400x400', icon: 'bluesky', category: 'social', notes: 'Displays as circle' },
-        'Bluesky Banner/Header': { type: 'image', aspectRatios: ['3:2'], recommendedSize: '1500x500', icon: 'bluesky', category: 'social', notes: 'Mobile crops to 4:1' },
+        'Bluesky Banner/Header': { type: 'image', aspectRatios: ['3:1'], recommendedSize: '1500x500', icon: 'bluesky', category: 'social', notes: 'Mobile crops to 4:1' },
         'Bluesky Post Square': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1080x1080', icon: 'bluesky', category: 'social', notes: 'Max 2000x2000' },
         'Bluesky Post Portrait': { type: 'image', aspectRatios: ['4:5'], recommendedSize: '1080x1350', icon: 'bluesky', category: 'social' },
         'Bluesky Post Landscape': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x627', icon: 'bluesky', category: 'social' },
@@ -205,10 +215,10 @@
         
         // === REDDIT ===
         'Reddit Profile Avatar': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '256x256', icon: 'reddit', category: 'social', notes: 'Displays as circle' },
-        'Reddit Profile Banner': { type: 'image', aspectRatios: ['4:3'], recommendedSize: '1920x384', icon: 'reddit', category: 'social', notes: 'Safe zone center' },
-        'Reddit Subreddit Banner Large': { type: 'image', aspectRatios: ['4:3'], recommendedSize: '1920x384', icon: 'reddit', category: 'social' },
-        'Reddit Subreddit Banner Medium': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1920x256', icon: 'reddit', category: 'social' },
-        'Reddit Subreddit Banner Small': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1920x128', icon: 'reddit', category: 'social' },
+        'Reddit Profile Banner': { type: 'image', aspectRatios: ['5:1'], recommendedSize: '1920x384', icon: 'reddit', category: 'social', notes: 'Safe zone center' },
+        'Reddit Subreddit Banner Large': { type: 'image', aspectRatios: ['5:1'], recommendedSize: '1920x384', icon: 'reddit', category: 'social' },
+        'Reddit Subreddit Banner Medium': { type: 'image', aspectRatios: ['7.5:1'], recommendedSize: '1920x256', icon: 'reddit', category: 'social' },
+        'Reddit Subreddit Banner Small': { type: 'image', aspectRatios: ['15:1'], recommendedSize: '1920x128', icon: 'reddit', category: 'social' },
         'Reddit Community Icon': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '256x256', icon: 'reddit', category: 'social' },
         'Reddit Post Image': { type: 'image', aspectRatios: ['4:3'], recommendedSize: '1200x900', icon: 'reddit', category: 'social', notes: 'Best for feed display' },
         'Reddit Post Background': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '4000x4000', icon: 'reddit', category: 'social', notes: 'Tiling recommended' },
@@ -236,7 +246,7 @@
         // === QUORA ===
         'Quora Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '400x400', icon: 'quora', category: 'social', notes: 'Displays as circle' },
         'Quora Post/Answer Image': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1200x675', icon: 'quora', category: 'social' },
-        'Quora Space Cover': { type: 'image', aspectRatios: ['4:3'], recommendedSize: '1400x350', icon: 'quora', category: 'social' },
+        'Quora Space Cover': { type: 'image', aspectRatios: ['4:1'], recommendedSize: '1400x350', icon: 'quora', category: 'social' },
         
         // === DISCORD ===
         'Discord Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '512x512', icon: 'discord', category: 'social', notes: 'Animated allowed with Nitro' },
@@ -246,7 +256,7 @@
         
         // === TWITCH ===
         'Twitch Profile Picture': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '800x800', icon: 'twitch', category: 'social' },
-        'Twitch Profile Banner': { type: 'image', aspectRatios: ['3:2'], recommendedSize: '1200x480', icon: 'twitch', category: 'social' },
+        'Twitch Profile Banner': { type: 'image', aspectRatios: ['5:2'], recommendedSize: '1200x480', icon: 'twitch', category: 'social' },
         'Twitch Video Player Banner': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1920x1080', icon: 'twitch', category: 'social' },
         'Twitch Stream Thumbnail': { type: 'image', aspectRatios: ['16:9'], recommendedSize: '1280x720', icon: 'twitch', category: 'social' },
         
@@ -255,49 +265,95 @@
         'Telegram Channel Photo': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '512x512', icon: 'telegram', category: 'social' },
         'Telegram Sticker': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '512x512', icon: 'telegram', category: 'social', notes: 'Transparent BG' },
         
-        // === GOOGLE DISPLAY NETWORK (GDN) - Desktop ===
-        'GDN Medium Rectangle': { type: 'image', exactSize: { width: 300, height: 250 }, aspectRatios: ['6:5'], icon: 'google', category: 'gdn', platform: 'GDN', popular: true },
-        'GDN Large Rectangle': { type: 'image', exactSize: { width: 336, height: 280 }, aspectRatios: ['6:5'], icon: 'google', category: 'gdn', platform: 'GDN' },
-        'GDN Leaderboard': { type: 'image', exactSize: { width: 728, height: 90 }, aspectRatios: ['728:90'], icon: 'google', category: 'gdn', platform: 'GDN', popular: true },
-        'GDN Wide Skyscraper': { type: 'image', exactSize: { width: 160, height: 600 }, aspectRatios: ['4:15'], icon: 'google', category: 'gdn', platform: 'GDN' },
-        'GDN Half-Page': { type: 'image', exactSize: { width: 300, height: 600 }, aspectRatios: ['1:2'], icon: 'google', category: 'gdn', platform: 'GDN' },
-        'GDN Square': { type: 'image', exactSize: { width: 250, height: 250 }, aspectRatios: ['1:1'], icon: 'google', category: 'gdn', platform: 'GDN' },
-        'GDN Banner': { type: 'image', exactSize: { width: 468, height: 60 }, aspectRatios: ['39:5'], icon: 'google', category: 'gdn', platform: 'GDN' },
-        'GDN Large Leaderboard': { type: 'image', exactSize: { width: 970, height: 90 }, aspectRatios: ['97:9'], icon: 'google', category: 'gdn', platform: 'GDN' },
+        // ============================================
+        // PROGRAMMATIC DISPLAY ADS
+        // ============================================
+        // NOTE: Display ads use exact pixel dimensions.
+        // aspectRatios shown are mathematically correct but NOT Gemini-compatible.
+        // Use exactSize for validation; aspectRatios for reference only.
+        // ============================================
+        
+        // === GOOGLE DISPLAY NETWORK (GDN) - Desktop Horizontal ===
+        'GDN Leaderboard': { type: 'image', exactSize: { width: 728, height: 90 }, aspectRatios: ['728:90'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN', popular: true, notes: 'Top of page placement' },
+        'GDN Large Leaderboard': { type: 'image', exactSize: { width: 970, height: 90 }, aspectRatios: ['97:9'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN', notes: 'Premium placements' },
+        'GDN Super Leaderboard': { type: 'image', exactSize: { width: 970, height: 90 }, aspectRatios: ['97:9'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN', notes: 'Same as Large Leaderboard' },
+        'GDN Banner': { type: 'image', exactSize: { width: 468, height: 60 }, aspectRatios: ['39:5'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN' },
+        'GDN Billboard': { type: 'image', exactSize: { width: 970, height: 250 }, aspectRatios: ['97:25'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN', notes: 'High-impact unit' },
+        
+        // === GOOGLE DISPLAY NETWORK (GDN) - Desktop Rectangles ===
+        'GDN Medium Rectangle': { type: 'image', exactSize: { width: 300, height: 250 }, aspectRatios: ['6:5'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN', popular: true, notes: 'Most common ad size' },
+        'GDN Large Rectangle': { type: 'image', exactSize: { width: 336, height: 280 }, aspectRatios: ['6:5'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN' },
+        'GDN Square': { type: 'image', exactSize: { width: 250, height: 250 }, aspectRatios: ['1:1'], orientation: 'square', icon: 'google', category: 'gdn', platform: 'GDN' },
+        'GDN Small Square': { type: 'image', exactSize: { width: 200, height: 200 }, aspectRatios: ['1:1'], orientation: 'square', icon: 'google', category: 'gdn', platform: 'GDN' },
+        
+        // === GOOGLE DISPLAY NETWORK (GDN) - Desktop Vertical (Skyscrapers) ===
+        'GDN Wide Skyscraper': { type: 'image', exactSize: { width: 160, height: 600 }, aspectRatios: ['4:15'], orientation: 'vertical', icon: 'google', category: 'gdn', platform: 'GDN', notes: 'Sidebar placement' },
+        'GDN Skyscraper': { type: 'image', exactSize: { width: 120, height: 600 }, aspectRatios: ['1:5'], orientation: 'vertical', icon: 'google', category: 'gdn', platform: 'GDN' },
+        'GDN Half-Page': { type: 'image', exactSize: { width: 300, height: 600 }, aspectRatios: ['1:2'], orientation: 'vertical', icon: 'google', category: 'gdn', platform: 'GDN', notes: 'High viewability' },
+        'GDN Portrait': { type: 'image', exactSize: { width: 300, height: 1050 }, aspectRatios: ['2:7'], orientation: 'vertical', icon: 'google', category: 'gdn', platform: 'GDN', notes: 'Pushdown/expanding' },
+        'GDN Vertical Banner': { type: 'image', exactSize: { width: 120, height: 240 }, aspectRatios: ['1:2'], orientation: 'vertical', icon: 'google', category: 'gdn', platform: 'GDN' },
+        'GDN Vertical Rectangle': { type: 'image', exactSize: { width: 240, height: 400 }, aspectRatios: ['3:5'], orientation: 'vertical', icon: 'google', category: 'gdn', platform: 'GDN' },
         
         // === GOOGLE DISPLAY NETWORK (GDN) - Mobile ===
-        'GDN Mobile Leaderboard': { type: 'image', exactSize: { width: 320, height: 50 }, aspectRatios: ['32:5'], icon: 'google', category: 'gdn', platform: 'GDN', mobile: true },
-        'GDN Large Mobile Banner': { type: 'image', exactSize: { width: 320, height: 100 }, aspectRatios: ['16:5'], icon: 'google', category: 'gdn', platform: 'GDN', mobile: true },
-        'GDN Mobile Banner Large': { type: 'image', exactSize: { width: 320, height: 250 }, aspectRatios: ['16:12.5'], icon: 'google', category: 'gdn', platform: 'GDN', mobile: true },
+        'GDN Mobile Banner': { type: 'image', exactSize: { width: 300, height: 50 }, aspectRatios: ['6:1'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN', mobile: true },
+        'GDN Mobile Leaderboard': { type: 'image', exactSize: { width: 320, height: 50 }, aspectRatios: ['32:5'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN', mobile: true, popular: true },
+        'GDN Large Mobile Banner': { type: 'image', exactSize: { width: 320, height: 100 }, aspectRatios: ['16:5'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN', mobile: true },
+        'GDN Mobile Rectangle': { type: 'image', exactSize: { width: 320, height: 250 }, aspectRatios: ['32:25'], orientation: 'horizontal', icon: 'google', category: 'gdn', platform: 'GDN', mobile: true },
+        'GDN Mobile Interstitial': { type: 'image', exactSize: { width: 320, height: 480 }, aspectRatios: ['2:3'], orientation: 'vertical', icon: 'google', category: 'gdn', platform: 'GDN', mobile: true },
         
-        // === GOOGLE DISPLAY NETWORK (GDN) - Other ===
-        'GDN Skyscraper': { type: 'image', exactSize: { width: 120, height: 600 }, aspectRatios: ['1:5'], icon: 'google', category: 'gdn', platform: 'GDN' },
-        'GDN Small Square': { type: 'image', exactSize: { width: 200, height: 200 }, aspectRatios: ['1:1'], icon: 'google', category: 'gdn', platform: 'GDN' },
-        'GDN Billboard': { type: 'image', exactSize: { width: 970, height: 250 }, aspectRatios: ['97:25'], icon: 'google', category: 'gdn', platform: 'GDN' },
+        // === THE TRADE DESK (TTD) - Horizontal ===
+        'TTD Leaderboard': { type: 'image', exactSize: { width: 728, height: 90 }, aspectRatios: ['728:90'], orientation: 'horizontal', icon: 'ttd', category: 'ttd', platform: 'TTD', popular: true },
+        'TTD Super Leaderboard': { type: 'image', exactSize: { width: 970, height: 90 }, aspectRatios: ['97:9'], orientation: 'horizontal', icon: 'ttd', category: 'ttd', platform: 'TTD' },
+        'TTD Billboard': { type: 'image', exactSize: { width: 970, height: 250 }, aspectRatios: ['97:25'], orientation: 'horizontal', icon: 'ttd', category: 'ttd', platform: 'TTD' },
         
-        // === THE TRADE DESK (TTD) ===
-        'TTD Medium Rectangle': { type: 'image', exactSize: { width: 300, height: 250 }, aspectRatios: ['6:5'], icon: 'ttd', category: 'ttd', platform: 'TTD', popular: true },
-        'TTD Large Rectangle': { type: 'image', exactSize: { width: 336, height: 280 }, aspectRatios: ['6:5'], icon: 'ttd', category: 'ttd', platform: 'TTD' },
-        'TTD Leaderboard': { type: 'image', exactSize: { width: 728, height: 90 }, aspectRatios: ['728:90'], icon: 'ttd', category: 'ttd', platform: 'TTD', popular: true },
-        'TTD Wide Skyscraper': { type: 'image', exactSize: { width: 160, height: 600 }, aspectRatios: ['4:15'], icon: 'ttd', category: 'ttd', platform: 'TTD' },
-        'TTD Half-Page': { type: 'image', exactSize: { width: 300, height: 600 }, aspectRatios: ['1:2'], icon: 'ttd', category: 'ttd', platform: 'TTD' },
-        'TTD Billboard': { type: 'image', exactSize: { width: 970, height: 250 }, aspectRatios: ['97:25'], icon: 'ttd', category: 'ttd', platform: 'TTD' },
-        'TTD Mobile Leaderboard': { type: 'image', exactSize: { width: 320, height: 50 }, aspectRatios: ['32:5'], icon: 'ttd', category: 'ttd', platform: 'TTD', mobile: true },
-        'TTD Large Mobile Banner': { type: 'image', exactSize: { width: 320, height: 100 }, aspectRatios: ['16:5'], icon: 'ttd', category: 'ttd', platform: 'TTD', mobile: true },
+        // === THE TRADE DESK (TTD) - Rectangles ===
+        'TTD Medium Rectangle': { type: 'image', exactSize: { width: 300, height: 250 }, aspectRatios: ['6:5'], orientation: 'horizontal', icon: 'ttd', category: 'ttd', platform: 'TTD', popular: true },
+        'TTD Large Rectangle': { type: 'image', exactSize: { width: 336, height: 280 }, aspectRatios: ['6:5'], orientation: 'horizontal', icon: 'ttd', category: 'ttd', platform: 'TTD' },
         
-        // === DV360 (Display & Video 360) ===
-        'DV360 Medium Rectangle': { type: 'image', exactSize: { width: 300, height: 250 }, aspectRatios: ['6:5'], icon: 'dv360', category: 'dv360', platform: 'DV360', popular: true },
-        'DV360 Large Rectangle': { type: 'image', exactSize: { width: 336, height: 280 }, aspectRatios: ['6:5'], icon: 'dv360', category: 'dv360', platform: 'DV360' },
-        'DV360 Leaderboard': { type: 'image', exactSize: { width: 728, height: 90 }, aspectRatios: ['728:90'], icon: 'dv360', category: 'dv360', platform: 'DV360', popular: true },
-        'DV360 Wide Skyscraper': { type: 'image', exactSize: { width: 160, height: 600 }, aspectRatios: ['4:15'], icon: 'dv360', category: 'dv360', platform: 'DV360' },
-        'DV360 Half-Page': { type: 'image', exactSize: { width: 300, height: 600 }, aspectRatios: ['1:2'], icon: 'dv360', category: 'dv360', platform: 'DV360' },
-        'DV360 Billboard': { type: 'image', exactSize: { width: 970, height: 250 }, aspectRatios: ['97:25'], icon: 'dv360', category: 'dv360', platform: 'DV360' },
-        'DV360 Mobile Leaderboard': { type: 'image', exactSize: { width: 320, height: 50 }, aspectRatios: ['32:5'], icon: 'dv360', category: 'dv360', platform: 'DV360', mobile: true },
-        'DV360 Large Mobile Banner': { type: 'image', exactSize: { width: 320, height: 100 }, aspectRatios: ['16:5'], icon: 'dv360', category: 'dv360', platform: 'DV360', mobile: true },
-        'DV360 Interstitial': { type: 'image', exactSize: { width: 320, height: 480 }, aspectRatios: ['2:3'], icon: 'dv360', category: 'dv360', platform: 'DV360', mobile: true },
-        'DV360 Native': { type: 'image', aspectRatios: ['1.91:1', '1:1'], icon: 'dv360', category: 'dv360', platform: 'DV360' },
-        'DV360 Video 16:9': { type: 'video', aspectRatios: ['16:9'], minDuration: 6, maxDuration: 120, icon: 'dv360', category: 'dv360', platform: 'DV360' },
-        'DV360 Video Vertical': { type: 'video', aspectRatios: ['9:16'], minDuration: 6, maxDuration: 60, icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        // === THE TRADE DESK (TTD) - Vertical ===
+        'TTD Wide Skyscraper': { type: 'image', exactSize: { width: 160, height: 600 }, aspectRatios: ['4:15'], orientation: 'vertical', icon: 'ttd', category: 'ttd', platform: 'TTD' },
+        'TTD Skyscraper': { type: 'image', exactSize: { width: 120, height: 600 }, aspectRatios: ['1:5'], orientation: 'vertical', icon: 'ttd', category: 'ttd', platform: 'TTD' },
+        'TTD Half-Page': { type: 'image', exactSize: { width: 300, height: 600 }, aspectRatios: ['1:2'], orientation: 'vertical', icon: 'ttd', category: 'ttd', platform: 'TTD' },
+        'TTD Portrait': { type: 'image', exactSize: { width: 300, height: 1050 }, aspectRatios: ['2:7'], orientation: 'vertical', icon: 'ttd', category: 'ttd', platform: 'TTD' },
+        'TTD Vertical Banner': { type: 'image', exactSize: { width: 120, height: 240 }, aspectRatios: ['1:2'], orientation: 'vertical', icon: 'ttd', category: 'ttd', platform: 'TTD' },
+        'TTD Vertical Rectangle': { type: 'image', exactSize: { width: 240, height: 400 }, aspectRatios: ['3:5'], orientation: 'vertical', icon: 'ttd', category: 'ttd', platform: 'TTD' },
+        
+        // === THE TRADE DESK (TTD) - Mobile ===
+        'TTD Mobile Banner': { type: 'image', exactSize: { width: 300, height: 50 }, aspectRatios: ['6:1'], orientation: 'horizontal', icon: 'ttd', category: 'ttd', platform: 'TTD', mobile: true },
+        'TTD Mobile Leaderboard': { type: 'image', exactSize: { width: 320, height: 50 }, aspectRatios: ['32:5'], orientation: 'horizontal', icon: 'ttd', category: 'ttd', platform: 'TTD', mobile: true },
+        'TTD Large Mobile Banner': { type: 'image', exactSize: { width: 320, height: 100 }, aspectRatios: ['16:5'], orientation: 'horizontal', icon: 'ttd', category: 'ttd', platform: 'TTD', mobile: true },
+        'TTD Mobile Rectangle': { type: 'image', exactSize: { width: 320, height: 250 }, aspectRatios: ['32:25'], orientation: 'horizontal', icon: 'ttd', category: 'ttd', platform: 'TTD', mobile: true },
+        'TTD Mobile Interstitial': { type: 'image', exactSize: { width: 320, height: 480 }, aspectRatios: ['2:3'], orientation: 'vertical', icon: 'ttd', category: 'ttd', platform: 'TTD', mobile: true },
+        
+        // === DV360 (Display & Video 360) - Horizontal ===
+        'DV360 Leaderboard': { type: 'image', exactSize: { width: 728, height: 90 }, aspectRatios: ['728:90'], orientation: 'horizontal', icon: 'dv360', category: 'dv360', platform: 'DV360', popular: true },
+        'DV360 Super Leaderboard': { type: 'image', exactSize: { width: 970, height: 90 }, aspectRatios: ['97:9'], orientation: 'horizontal', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        'DV360 Billboard': { type: 'image', exactSize: { width: 970, height: 250 }, aspectRatios: ['97:25'], orientation: 'horizontal', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        
+        // === DV360 (Display & Video 360) - Rectangles ===
+        'DV360 Medium Rectangle': { type: 'image', exactSize: { width: 300, height: 250 }, aspectRatios: ['6:5'], orientation: 'horizontal', icon: 'dv360', category: 'dv360', platform: 'DV360', popular: true },
+        'DV360 Large Rectangle': { type: 'image', exactSize: { width: 336, height: 280 }, aspectRatios: ['6:5'], orientation: 'horizontal', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        
+        // === DV360 (Display & Video 360) - Vertical ===
+        'DV360 Wide Skyscraper': { type: 'image', exactSize: { width: 160, height: 600 }, aspectRatios: ['4:15'], orientation: 'vertical', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        'DV360 Skyscraper': { type: 'image', exactSize: { width: 120, height: 600 }, aspectRatios: ['1:5'], orientation: 'vertical', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        'DV360 Half-Page': { type: 'image', exactSize: { width: 300, height: 600 }, aspectRatios: ['1:2'], orientation: 'vertical', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        'DV360 Portrait': { type: 'image', exactSize: { width: 300, height: 1050 }, aspectRatios: ['2:7'], orientation: 'vertical', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        'DV360 Vertical Banner': { type: 'image', exactSize: { width: 120, height: 240 }, aspectRatios: ['1:2'], orientation: 'vertical', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        'DV360 Vertical Rectangle': { type: 'image', exactSize: { width: 240, height: 400 }, aspectRatios: ['3:5'], orientation: 'vertical', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        
+        // === DV360 (Display & Video 360) - Mobile ===
+        'DV360 Mobile Banner': { type: 'image', exactSize: { width: 300, height: 50 }, aspectRatios: ['6:1'], orientation: 'horizontal', icon: 'dv360', category: 'dv360', platform: 'DV360', mobile: true },
+        'DV360 Mobile Leaderboard': { type: 'image', exactSize: { width: 320, height: 50 }, aspectRatios: ['32:5'], orientation: 'horizontal', icon: 'dv360', category: 'dv360', platform: 'DV360', mobile: true },
+        'DV360 Large Mobile Banner': { type: 'image', exactSize: { width: 320, height: 100 }, aspectRatios: ['16:5'], orientation: 'horizontal', icon: 'dv360', category: 'dv360', platform: 'DV360', mobile: true },
+        'DV360 Mobile Rectangle': { type: 'image', exactSize: { width: 320, height: 250 }, aspectRatios: ['32:25'], orientation: 'horizontal', icon: 'dv360', category: 'dv360', platform: 'DV360', mobile: true },
+        'DV360 Interstitial': { type: 'image', exactSize: { width: 320, height: 480 }, aspectRatios: ['2:3'], orientation: 'vertical', icon: 'dv360', category: 'dv360', platform: 'DV360', mobile: true },
+        
+        // === DV360 Native & Video ===
+        'DV360 Native Landscape': { type: 'image', aspectRatios: ['1.91:1'], recommendedSize: '1200x628', orientation: 'horizontal', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        'DV360 Native Square': { type: 'image', aspectRatios: ['1:1'], recommendedSize: '1200x1200', orientation: 'square', icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        'DV360 Video 16:9': { type: 'video', aspectRatios: ['16:9'], orientation: 'horizontal', minDuration: 6, maxDuration: 120, icon: 'dv360', category: 'dv360', platform: 'DV360' },
+        'DV360 Video Vertical': { type: 'video', aspectRatios: ['9:16'], orientation: 'vertical', minDuration: 6, maxDuration: 60, icon: 'dv360', category: 'dv360', platform: 'DV360' },
         
         // === CONNECTED TV (CTV) ===
         'CTV Standard': { type: 'video', aspectRatios: ['16:9'], minDuration: 15, maxDuration: 120, icon: 'ctv', category: 'ctv', platform: 'CTV' },
@@ -306,6 +362,58 @@
         'Google Ads Display': { type: 'image', aspectRatios: ['16:9', '1:1'], icon: 'google', category: 'gdn', platform: 'GDN' },
         'Google Ads Video': { type: 'video', aspectRatios: ['16:9', '1:1', '9:16'], minDuration: 10, icon: 'google', category: 'gdn', platform: 'GDN' },
     };
+
+    // ============================================
+    // HELPER: Map display ad ratios to nearest Gemini-compatible ratio
+    // Use this when generating images via Gemini API
+    // ============================================
+    const GEMINI_RATIO_MAP = {
+        // Exact matches
+        '1:1': '1:1',
+        '2:3': '2:3',
+        '3:2': '3:2',
+        '3:4': '3:4',
+        '4:3': '4:3',
+        '4:5': '4:5',
+        '5:4': '5:4',
+        '9:16': '9:16',
+        '16:9': '16:9',
+        '21:9': '21:9',
+        
+        // Display ad mappings (nearest Gemini-compatible)
+        '6:5': '1:1',       // 300x250, 336x280 → closest to 1:1
+        '728:90': '16:9',   // Leaderboard → 16:9 (will need crop)
+        '97:9': '16:9',     // Super Leaderboard → 16:9 (will need crop)
+        '97:25': '4:3',     // Billboard → 4:3 (will need crop)
+        '39:5': '16:9',     // Banner → 16:9 (will need crop)
+        '4:15': '9:16',     // Wide Skyscraper → 9:16 (will need crop)
+        '1:5': '9:16',      // Skyscraper → 9:16
+        '1:2': '9:16',      // Half-Page → 9:16 (will need crop)
+        '2:7': '9:16',      // Portrait → 9:16
+        '3:5': '9:16',      // Vertical Rectangle → 9:16 (will need crop)
+        '6:1': '16:9',      // Mobile Banner → 16:9 (will need crop)
+        '32:5': '16:9',     // Mobile Leaderboard → 16:9 (will need crop)
+        '16:5': '16:9',     // Large Mobile Banner → 16:9 (will need crop)
+        '32:25': '1:1',     // Mobile Rectangle → 1:1 (will need crop)
+        '3:1': '21:9',      // Wide banners (X Header, Bluesky) → 21:9
+        '4:1': '21:9',      // LinkedIn Personal Cover → 21:9 (will need crop)
+        '5:1': '21:9',      // Reddit banners → 21:9 (will need crop)
+        '5:2': '21:9',      // Twitch Profile Banner → 21:9 (will need crop)
+        '7.5:1': '21:9',    // Reddit Medium Banner → 21:9 (will need crop)
+        '15:1': '21:9',     // Reddit Small Banner → 21:9 (will need crop)
+        '1.91:1': '16:9',   // Native landscape → 16:9
+    };
+
+    // ============================================
+    // HELPER: Get Gemini-compatible ratio for any spec
+    // ============================================
+    function getGeminiRatio(specName) {
+        const spec = CHANNEL_SPECS[specName];
+        if (!spec) return null;
+        
+        const ratio = spec.aspectRatios[0];
+        return GEMINI_RATIO_MAP[ratio] || ratio;
+    }
     
     // ============================================
     // SOCIAL MEDIA PACKAGES (Quick Select)
@@ -1685,6 +1793,14 @@ If you don't know, use empty strings. Be concise.`
         const isExactSize = targetWidth && targetHeight;
         const displaySize = isExactSize ? `${targetWidth}x${targetHeight}` : targetRatio;
         
+        // Determine which AI service will be used
+        const isGeminiRatio = isGeminiCompatibleRatio(targetRatio, targetWidth, targetHeight);
+        const cloudinaryClient = window.cloudinaryClient;
+        const hasCloudinary = cloudinaryClient?.hasCredentials?.() || false;
+        const aiServiceInfo = isGeminiRatio 
+            ? { name: 'Google Gemini', icon: '🍌', color: '#8B5CF6', needsKey: !apiKeyExists }
+            : { name: 'Cloudinary AI', icon: '☁️', color: '#3B82F6', needsKey: !hasCloudinary };
+        
         const modal = document.createElement('div');
         modal.className = 'ai-modal-overlay';
         modal.innerHTML = `
@@ -1696,20 +1812,28 @@ If you don't know, use empty strings. Be concise.`
                 </div>
                 
                 <div class="ai-modal-body">
-                    ${!apiKeyExists ? `
+                    ${aiServiceInfo.needsKey ? `
                         <div class="ai-api-key-required">
                             <div class="ai-api-warning">
-                                <span class="ai-api-icon">🔑</span>
+                                <span class="ai-api-icon">${isGeminiRatio ? '🔑' : '☁️'}</span>
                                 <div>
-                                    <strong>Google AI API Key Required</strong>
-                                    <p>To generate AI-resized images, you need a Google AI Studio API key.</p>
+                                    <strong>${isGeminiRatio ? 'Google AI API Key Required' : 'Cloudinary Credentials Required'}</strong>
+                                    <p>${isGeminiRatio 
+                                        ? 'Standard ratios (1:1, 4:5, 9:16, 16:9, etc.) use Google Gemini API.' 
+                                        : `Non-standard ratios like ${displaySize} require Cloudinary AI Generative Fill.`
+                                    }</p>
                                 </div>
                             </div>
-                            <div class="ai-api-input-group">
-                                <input type="password" id="ai-api-key-input" placeholder="Enter your Google AI API key" class="ai-api-key-field">
-                                <button class="ai-api-save-btn" id="save-api-key-btn">Save Key</button>
-                            </div>
-                            <p class="ai-api-help">Get your free API key at <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a></p>
+                            ${isGeminiRatio ? `
+                                <div class="ai-api-input-group">
+                                    <input type="password" id="ai-api-key-input" placeholder="Enter your Google AI API key" class="ai-api-key-field">
+                                    <button class="ai-api-save-btn" id="save-api-key-btn">Save Key</button>
+                                </div>
+                                <p class="ai-api-help">Get your free API key at <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a></p>
+                            ` : `
+                                <p class="ai-api-help">Configure Cloudinary in <strong>Settings → API Keys → Your Cloudinary Account</strong></p>
+                                <p class="ai-api-help" style="margin-top: 8px;">Get a free account at <a href="https://cloudinary.com/users/register_free" target="_blank">cloudinary.com</a></p>
+                            `}
                         </div>
                     ` : ''}
                     
@@ -1781,15 +1905,21 @@ If you don't know, use empty strings. Be concise.`
                         <textarea id="single-fix-prompt" rows="6" style="font-size: 11px; line-height: 1.4;">${getDefaultAIInstructions()}</textarea>
                     </div>
                     
-                    <div class="ai-info-box">
-                        <p>🎨 AI will extend your image to fit ${targetRatio} using intelligent outpainting.</p>
+                    <div class="ai-info-box" style="background: linear-gradient(135deg, ${aiServiceInfo.color}15, ${aiServiceInfo.color}05); border-left: 3px solid ${aiServiceInfo.color};">
+                        <p>${aiServiceInfo.icon} <strong>${aiServiceInfo.name}</strong> will ${isGeminiRatio ? 'extend' : 'intelligently resize'} your image to fit ${displaySize}.</p>
+                        <p style="font-size: 12px; opacity: 0.8; margin-top: 4px;">
+                            ${isGeminiRatio 
+                                ? '✓ Standard ratio - using Gemini API for outpainting' 
+                                : '✓ Non-standard ratio - using Cloudinary AI Generative Fill for precise dimensions'
+                            }
+                        </p>
                         <p>✅ Original image will NOT be modified - a new version will be created.</p>
                     </div>
                 </div>
                 
                 <div class="ai-modal-footer">
                     <button class="ai-btn-secondary" onclick="this.closest('.ai-modal-overlay').remove()">Cancel</button>
-                    <button class="ai-btn-primary ${!apiKeyExists ? 'disabled' : ''}" id="single-fix-btn" ${!apiKeyExists ? 'disabled' : ''}>
+                    <button class="ai-btn-primary ${aiServiceInfo.needsKey ? 'disabled' : ''}" id="single-fix-btn" ${aiServiceInfo.needsKey ? 'disabled' : ''}>
                         🚀 Generate ${displaySize} Version
                     </button>
                 </div>
@@ -2005,6 +2135,41 @@ VALIDATION: Confirm scale_x equals scale_y. Confirm preservation_ratio at or abo
         '16:9': 16/9,
         '21:9': 21/9
     };
+
+    // Helper function to check if a ratio is Gemini-compatible (within 5% tolerance)
+    function isGeminiCompatibleRatio(targetRatio, targetWidth, targetHeight) {
+        let numericRatio;
+        
+        // Calculate numeric ratio from dimensions if provided
+        if (targetWidth && targetHeight) {
+            numericRatio = targetWidth / targetHeight;
+        } else if (targetRatio && targetRatio.includes(':')) {
+            const parts = targetRatio.split(':').map(p => parseFloat(p.trim()));
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[1] !== 0) {
+                numericRatio = parts[0] / parts[1];
+            }
+        } else if (targetRatio && targetRatio.includes('x')) {
+            const parts = targetRatio.split('x').map(Number);
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[1] !== 0) {
+                numericRatio = parts[0] / parts[1];
+            }
+        }
+        
+        if (!numericRatio) return false;
+        
+        // Check against each valid Gemini ratio with 5% tolerance
+        const tolerance = 0.05;
+        for (const [name, ratio] of Object.entries(VALID_API_ASPECT_RATIOS)) {
+            const diff = Math.abs(numericRatio - ratio) / ratio;
+            if (diff <= tolerance) {
+                console.log(`📐 Ratio ${numericRatio.toFixed(3)} matches Gemini ratio ${name} (${(diff * 100).toFixed(1)}% diff)`);
+                return true;
+            }
+        }
+        
+        console.log(`📐 Ratio ${numericRatio.toFixed(3)} is NOT Gemini-compatible (requires Cloudinary)`);
+        return false;
+    }
 
     // Helper function to find the closest valid API aspect ratio from a numeric ratio
     function findClosestValidRatio(targetRatio) {
@@ -2684,10 +2849,13 @@ Generate the modified image directly.`
     async function createResizedVersion(asset, targetRatio, ratioDecimal, channel, customPrompt, options = {}) {
         const { folderId, projectId, contactId, aiSuggestions: providedSuggestions, autoName, targetWidth, targetHeight } = options;
         
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            throw new Error('API key required. Please configure your Google AI API key in AI Settings, then refresh the page.');
-        }
+        // Determine if this is an exact size request (display ads)
+        const isExactSize = targetWidth && targetHeight;
+        const displaySize = isExactSize ? `${targetWidth}x${targetHeight}` : targetRatio;
+
+        // Check if the target ratio is Gemini-compatible
+        const isGeminiCompatible = isGeminiCompatibleRatio(targetRatio, targetWidth, targetHeight);
+        console.log(`📐 Target: ${displaySize} - Gemini compatible: ${isGeminiCompatible}`);
 
         // Get image data (handles URL fetching if dataUrl not available)
         console.log('📷 Getting asset image data...');
@@ -2696,10 +2864,6 @@ Generate the modified image directly.`
         if (!imageData) {
             throw new Error('Could not retrieve image data. The image may have been deleted or is inaccessible. Please re-upload the asset.');
         }
-
-        // Determine if this is an exact size request (display ads)
-        const isExactSize = targetWidth && targetHeight;
-        const displaySize = isExactSize ? `${targetWidth}x${targetHeight}` : targetRatio;
 
         // ALWAYS analyze image content for proper naming and context
         console.log('🔍 Analyzing image content...');
@@ -2738,22 +2902,111 @@ Generate the modified image directly.`
             console.log(`📝 Using fallback filename: ${newFilename}`);
         }
 
-        // GENERATE IMAGE - NO FALLBACKS
-        console.log('🚀 Starting AI image generation (NO FALLBACKS)...');
-        console.log(`   Target: ${displaySize} for ${channel}`);
-        const generatedDataUrl = await generateImageWithNanoBanana(
-            imageData, 
-            prompt, 
-            targetRatio, 
-            apiKey,
-            { targetWidth, targetHeight }
-        );
+        let generatedDataUrl;
+        let aiModel;
 
-        // Calculate new dimensions
-        const newWidth = calculateNewWidth(asset, ratioDecimal);
-        const newHeight = calculateNewHeight(asset, ratioDecimal);
+        // ROUTE TO APPROPRIATE SERVICE BASED ON RATIO COMPATIBILITY
+        if (isGeminiCompatible) {
+            // Use Gemini for standard ratios (1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9)
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                throw new Error('API key required. Please configure your Google AI API key in AI Settings, then refresh the page.');
+            }
+            
+            console.log('🚀 Using Gemini API for standard ratio...');
+            console.log(`   Target: ${displaySize} for ${channel}`);
+            generatedDataUrl = await generateImageWithNanoBanana(
+                imageData, 
+                prompt, 
+                targetRatio, 
+                apiKey,
+                { targetWidth, targetHeight }
+            );
+            aiModel = 'Nano Banana Pro (gemini-3-pro-image-preview)';
+        } else {
+            // Use Cloudinary Generative Fill for non-standard ratios (display ads, banners, etc.)
+            console.log('☁️ Using Cloudinary AI Generative Fill for non-standard ratio...');
+            console.log(`   Target: ${displaySize} for ${channel}`);
+            
+            const cloudinaryClient = window.cloudinaryClient;
+            if (!cloudinaryClient?.hasCredentials?.()) {
+                throw new Error(
+                    'Cloudinary credentials required for non-standard aspect ratios like display ads.\n\n' +
+                    'Standard ratios (1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9) use Gemini API.\n' +
+                    'Non-standard ratios (160x600, 728x90, 300x250, etc.) require Cloudinary.\n\n' +
+                    'Please add your Cloudinary credentials in Settings → API Keys → Your Cloudinary Account'
+                );
+            }
+            
+            // Calculate exact dimensions for non-standard ratios
+            let finalWidth = targetWidth;
+            let finalHeight = targetHeight;
+            
+            if (!finalWidth || !finalHeight) {
+                // Calculate from ratio if not provided
+                const ratioParts = targetRatio.split(':').map(Number);
+                if (ratioParts.length === 2 && ratioParts[0] && ratioParts[1]) {
+                    // Use source dimensions to calculate target
+                    const sourceWidth = asset.width || 1080;
+                    const sourceHeight = asset.height || 1080;
+                    const targetRatioNum = ratioParts[0] / ratioParts[1];
+                    const sourceRatioNum = sourceWidth / sourceHeight;
+                    
+                    if (targetRatioNum > sourceRatioNum) {
+                        // Need to extend width
+                        finalHeight = sourceHeight;
+                        finalWidth = Math.round(sourceHeight * targetRatioNum);
+                    } else {
+                        // Need to extend height
+                        finalWidth = sourceWidth;
+                        finalHeight = Math.round(sourceWidth / targetRatioNum);
+                    }
+                }
+            }
+            
+            // Ensure we have dimensions
+            if (!finalWidth || !finalHeight) {
+                throw new Error('Could not determine target dimensions for resize');
+            }
+            
+            // Create temp asset with image data for Cloudinary
+            const tempAsset = {
+                ...asset,
+                dataUrl: imageData
+            };
+            
+            const cloudinaryResult = await cloudinaryClient.resizeImageWithGenFill(tempAsset, {
+                width: finalWidth,
+                height: finalHeight,
+                gravity: 'center',
+                prompt: aiSuggestions?.subject ? `Seamlessly extend this image of ${aiSuggestions.subject}` : null
+            });
+            
+            if (!cloudinaryResult.success) {
+                throw new Error('Cloudinary AI Generative Fill failed');
+            }
+            
+            generatedDataUrl = cloudinaryResult.dataUrl || cloudinaryResult.url;
+            aiModel = 'Cloudinary AI Generative Fill';
+            console.log('☁️ Cloudinary resize complete');
+        }
+
+        // Calculate new dimensions - use exact dimensions if provided, otherwise calculate from ratio
+        let newWidth, newHeight;
+        if (isExactSize) {
+            // For display ads and exact sizes, use the target dimensions
+            newWidth = targetWidth;
+            newHeight = targetHeight;
+        } else {
+            // For standard ratios, calculate based on source
+            newWidth = calculateNewWidth(asset, ratioDecimal);
+            newHeight = calculateNewHeight(asset, ratioDecimal);
+        }
         const orientation = getOrientationFolder(newWidth, newHeight);
 
+        // Estimate file size from dataUrl length (base64 encoding is ~33% overhead)
+        const estimatedSize = generatedDataUrl ? Math.round((generatedDataUrl.length * 3) / 4) : 0;
+        
         // Create derivative record
         const derivative = {
             id: `fix_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -2762,9 +3015,11 @@ Generate the modified image directly.`
             type: 'image',
             width: newWidth,
             height: newHeight,
+            size: estimatedSize,
+            file_size: estimatedSize,
             sourceAssetId: asset.id,
             sourceFilename: asset.filename,
-            createdBy: `AI Resize - Nano Banana Pro`,
+            createdBy: `AI Resize - ${aiModel}`,
             createdAt: new Date().toISOString(),
             is_ai_derivative: true,
             thumbnail_url: generatedDataUrl,
@@ -2773,7 +3028,7 @@ Generate the modified image directly.`
             targetChannel: channel,
             targetSize: isExactSize ? `${targetWidth}x${targetHeight}` : targetRatio,
             targetRatio: targetRatio,
-            aiModel: 'Nano Banana Pro',
+            aiModel: aiModel,
             // AI Analysis data
             aiDescription: aiSuggestions?.description || null,
             aiSubject: aiSuggestions?.subject || null,
@@ -2784,10 +3039,7 @@ Generate the modified image directly.`
             category: aiSuggestions?.category || 'Other',
             tags: aiSuggestions?.tags || [],
             orientation: orientation,
-            targetChannel: channel,
-            targetRatio: targetRatio,
-            aiGenerated: true,
-            aiModel: 'Nano Banana Pro (gemini-3-pro-image-preview)'
+            aiGenerated: true
         };
 
         // Add to library with folder/CRM linking

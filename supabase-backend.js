@@ -1013,6 +1013,70 @@
     // GENERIC ENTITY OPERATIONS
     // ============================================
     
+    // Prepare entity data for Supabase - filter out problematic fields
+    function prepareEntityData(data) {
+        const prepared = { ...data };
+        
+        // Fields that commonly cause schema errors (don't exist in DB)
+        // These get stored in metadata instead
+        const problematicFields = [
+            // Video analysis fields
+            'adCopySuggestions', 'ad_copy_suggestions', 'benchmarkComparison', 'benchmark_comparison',
+            'analysis', 'frames', 'transcript', 'keyMoments', 'key_moments',
+            'sceneBreakdown', 'scene_breakdown', 'emotionalArc', 'emotional_arc',
+            'brandMentions', 'brand_mentions', 'competitorMentions', 'competitor_mentions',
+            'callToActions', 'call_to_actions', 'hooks', 'audienceSignals', 'audience_signals',
+            'rawAIResponse', 'raw_ai_response',
+            // URL/Creative analysis fields
+            'creativeSummary', 'creative_summary', 'analyzed_at', 'analyzedAt',
+            'hookAnalysis', 'messageArchitecture', 'message_architecture',
+            'visualStrategy', 'visual_strategy', 'ctaEvaluation', 'cta_evaluation',
+            'platformOptimization', 'platform_optimization',
+            'performanceIndicators', 'performance_indicators',
+            'takeaways', 'comparisonResult', 'comparison_result',
+            'extractedBenchmarks', 'extracted_benchmarks',
+            'detectedCompetitor', 'detected_competitor', 'sources', 'savedToSwipeFile',
+            'colorPalette', 'color_palette', 'imageMetrics', 'image_metrics',
+            // Swipe file fields
+            'collections', 'isCompetitor', 'is_competitor', 'swipeEntries', 'swipe_entries',
+            // Benchmark fields
+            'lastUpdated', 'last_updated', 'dataPoints', 'data_points',
+            // General
+            'enrichedData', 'enriched_data', 'strategyInsights', 'strategy_insights',
+            'aiAnalyses', 'ai_analyses', 'rawResponse', 'raw_response',
+            // Asset-specific
+            'cloudinary_data', 'cloudinaryData', 'videoFrames', 'video_frames',
+            'extractedText', 'extracted_text', 'ocrResults', 'ocr_results',
+            // Local-only fields
+            'needs_sync', 'dataUrl', 'imageData', 'thumbnail_data', 'localOnly'
+        ];
+        
+        // Initialize metadata if needed
+        if (!prepared.metadata || typeof prepared.metadata !== 'object') {
+            prepared.metadata = {};
+        }
+        if (typeof prepared.metadata === 'string') {
+            try { prepared.metadata = JSON.parse(prepared.metadata); } catch (e) { prepared.metadata = {}; }
+        }
+        
+        // Move problematic fields to metadata
+        problematicFields.forEach(field => {
+            if (prepared[field] !== undefined) {
+                prepared.metadata[field] = prepared[field];
+                delete prepared[field];
+            }
+        });
+        
+        // Stringify metadata
+        if (Object.keys(prepared.metadata).length > 0) {
+            prepared.metadata = JSON.stringify(prepared.metadata);
+        } else {
+            prepared.metadata = '{}';
+        }
+        
+        return prepared;
+    }
+    
     async function saveEntity(table, data) {
         if (!supabase) await initSupabase();
         if (!supabase) return { success: false, error: 'Not initialized' };
@@ -1028,8 +1092,8 @@
                 'video_chat_messages'
             ];
             
-            // Prepare data
-            const saveData = { ...data };
+            // Prepare data - filter out problematic fields that don't exist in schema
+            const saveData = prepareEntityData(data);
             delete saveData.id; // Always remove id - let Supabase auto-generate
             
             // Add user identification
