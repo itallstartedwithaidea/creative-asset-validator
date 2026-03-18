@@ -1,0 +1,125 @@
+{
+  "name": "ad-creative-validator",
+  "description": "Validate, resize, and optimize advertising creative assets across 50+ platforms",
+  "version": "1.0.0",
+  "setup": {
+    "cursor": {
+      "file": "~/.cursor/mcp.json",
+      "config": {
+        "mcpServers": {
+          "ad-creative": {
+            "command": "node",
+            "args": ["${INSTALL_PATH}/mcp-server/src/index.js"],
+            "env": {
+              "CLOUDINARY_CLOUD_NAME": "your_cloud_name",
+              "CLOUDINARY_API_KEY": "your_api_key",
+              "CLOUDINARY_API_SECRET": "your_api_secret"
+            }
+          }
+        }
+      }
+    },
+    "claude_desktop": {
+      "file": "claude_desktop_config.json",
+      "config": {
+        "mcpServers": {
+          "ad-creative": {
+            "command": "node",
+            "args": ["${INSTALL_PATH}/mcp-server/src/index.js"],
+            "env": {
+              "CLOUDINARY_CLOUD_NAME": "your_cloud_name",
+              "CLOUDINARY_API_KEY": "your_api_key",
+              "CLOUDINARY_API_SECRET": "your_api_secret"
+            }
+          }
+        }
+      }
+    },
+    "claude_code": {
+      "commands": [
+        "claude mcp add ad-creative --env CLOUDINARY_CLOUD_NAME=your_cloud_name --env CLOUDINARY_API_KEY=your_api_key --env CLOUDINARY_API_SECRET=your_api_secret -- node ${INSTALL_PATH}/mcp-server/src/index.js"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "name": "validate_asset",
+      "description": "Validate an image or video asset against 50+ advertising platform specs",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "width": { "type": "number", "description": "Asset width in pixels" },
+          "height": { "type": "number", "description": "Asset height in pixels" },
+          "type": { "type": "string", "enum": ["image", "video"], "description": "Asset type" },
+          "duration": { "type": "number", "description": "Video duration in seconds" },
+          "fileSizeMB": { "type": "number", "description": "File size in MB" },
+          "filterCategory": { "type": "string", "enum": ["social", "gdn", "ttd", "dv360", "ctv", "all"] }
+        },
+        "required": ["width", "height", "type"]
+      }
+    },
+    {
+      "name": "resize_for_platform",
+      "description": "Generate a Cloudinary transformation URL to resize an asset for a specific channel",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "publicId": { "type": "string", "description": "Cloudinary public_id" },
+          "channel": { "type": "string", "description": "Target channel (e.g. 'GDN Medium Rectangle')" },
+          "sourceWidth": { "type": "number" },
+          "sourceHeight": { "type": "number" },
+          "useGenFill": { "type": "boolean", "description": "Force AI generative fill" }
+        },
+        "required": ["publicId", "channel"]
+      }
+    },
+    {
+      "name": "batch_resize",
+      "description": "Generate URLs for entire platform package (GDN Essential, Meta Complete, etc.)",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "publicId": { "type": "string" },
+          "package": { "type": "string", "enum": ["GDN Essential", "TTD Complete", "DV360 Complete", "Meta Complete", "Universal Display"] },
+          "sourceWidth": { "type": "number" },
+          "sourceHeight": { "type": "number" }
+        },
+        "required": ["publicId", "package"]
+      }
+    },
+    {
+      "name": "get_platform_specs",
+      "description": "Get specs for any advertising platform or channel",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "channel": { "type": "string", "description": "Channel name or category" }
+        },
+        "required": ["channel"]
+      }
+    },
+    {
+      "name": "generate_transform_url",
+      "description": "Generate a custom Cloudinary transformation URL",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "publicId": { "type": "string" },
+          "width": { "type": "number" },
+          "height": { "type": "number" },
+          "crop": { "type": "string", "enum": ["fill", "fit", "limit", "pad", "scale", "crop"] },
+          "gravity": { "type": "string" },
+          "background": { "type": "string" },
+          "format": { "type": "string" },
+          "quality": { "type": "string" }
+        },
+        "required": ["publicId", "width", "height"]
+      }
+    },
+    {
+      "name": "list_packages",
+      "description": "List all available platform packages with channels included",
+      "input_schema": { "type": "object", "properties": {} }
+    }
+  ]
+}

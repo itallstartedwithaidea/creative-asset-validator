@@ -1,0 +1,97 @@
+{
+  "name": "Ad Creative Validator",
+  "description": "Validate, resize, and optimize advertising creative assets across 50+ platforms using Cloudinary AI generative fill",
+  "version": "1.0.0",
+  "tools": [
+    {
+      "functionDeclarations": [
+        {
+          "name": "validate_creative_asset",
+          "description": "Validate an advertising creative asset against 50+ platform specs (Google Ads, Meta, TikTok, YouTube, DV360, TTD, CTV). Returns compatible channels, off-size channels needing resize, and incompatible channels.",
+          "parameters": {
+            "type": "OBJECT",
+            "properties": {
+              "width": { "type": "NUMBER", "description": "Asset width in pixels" },
+              "height": { "type": "NUMBER", "description": "Asset height in pixels" },
+              "type": { "type": "STRING", "enum": ["image", "video"], "description": "Asset type" },
+              "duration": { "type": "NUMBER", "description": "Video duration in seconds (video only)" },
+              "fileSizeMB": { "type": "NUMBER", "description": "File size in MB" },
+              "category": { "type": "STRING", "enum": ["social", "gdn", "ttd", "dv360", "ctv", "all"], "description": "Filter results by platform category" }
+            },
+            "required": ["width", "height", "type"]
+          }
+        },
+        {
+          "name": "resize_for_ad_platform",
+          "description": "Generate a Cloudinary transformation URL to resize an asset for a specific advertising platform. Uses AI generative fill (b_gen_fill) for extreme aspect ratio changes and smart crop (c_fill,g_auto) for similar ratios.",
+          "parameters": {
+            "type": "OBJECT",
+            "properties": {
+              "cloudName": { "type": "STRING", "description": "Cloudinary cloud name" },
+              "publicId": { "type": "STRING", "description": "Cloudinary public_id of the source asset" },
+              "channel": { "type": "STRING", "description": "Target channel name (e.g. 'GDN Medium Rectangle', 'Facebook Stories', 'Instagram Feed Portrait')" },
+              "sourceWidth": { "type": "NUMBER", "description": "Source asset width in pixels" },
+              "sourceHeight": { "type": "NUMBER", "description": "Source asset height in pixels" }
+            },
+            "required": ["cloudName", "publicId", "channel"]
+          }
+        },
+        {
+          "name": "batch_resize_ad_package",
+          "description": "Generate Cloudinary transformation URLs for an entire platform package at once. Available packages: GDN Essential (8 sizes), Meta Complete (6 placements), TTD Complete, DV360 Complete, Universal Display (15 IAB sizes).",
+          "parameters": {
+            "type": "OBJECT",
+            "properties": {
+              "cloudName": { "type": "STRING", "description": "Cloudinary cloud name" },
+              "publicId": { "type": "STRING", "description": "Cloudinary public_id of the source asset" },
+              "package": { "type": "STRING", "enum": ["GDN Essential", "Meta Complete", "TTD Complete", "DV360 Complete", "Universal Display"], "description": "Platform package name" },
+              "sourceWidth": { "type": "NUMBER", "description": "Source asset width" },
+              "sourceHeight": { "type": "NUMBER", "description": "Source asset height" }
+            },
+            "required": ["cloudName", "publicId", "package"]
+          }
+        },
+        {
+          "name": "get_ad_platform_specs",
+          "description": "Get exact specifications for any advertising platform or channel. Returns dimensions, aspect ratios, file size limits, and duration constraints. Can query by channel name or category (social, gdn, ttd, dv360, ctv).",
+          "parameters": {
+            "type": "OBJECT",
+            "properties": {
+              "channel": { "type": "STRING", "description": "Channel name (e.g. 'Facebook Feed Square') or category (e.g. 'gdn', 'social', 'ttd')" }
+            },
+            "required": ["channel"]
+          }
+        },
+        {
+          "name": "generate_cloudinary_transform_url",
+          "description": "Generate a custom Cloudinary transformation URL with specific parameters. Use for transforms not covered by resize_for_ad_platform.",
+          "parameters": {
+            "type": "OBJECT",
+            "properties": {
+              "cloudName": { "type": "STRING", "description": "Cloudinary cloud name" },
+              "publicId": { "type": "STRING", "description": "Cloudinary public_id" },
+              "width": { "type": "NUMBER", "description": "Target width in pixels" },
+              "height": { "type": "NUMBER", "description": "Target height in pixels" },
+              "crop": { "type": "STRING", "enum": ["fill", "fit", "limit", "pad", "scale", "crop"], "description": "Crop mode" },
+              "gravity": { "type": "STRING", "description": "Gravity: auto, auto:faces, center, north, south, etc." },
+              "background": { "type": "STRING", "description": "Background: gen_fill, blurred, auto, or hex color" },
+              "format": { "type": "STRING", "description": "Output format: auto, jpg, png, webp" },
+              "quality": { "type": "STRING", "description": "Quality: auto, auto:best, auto:good, auto:eco, or 1-100" }
+            },
+            "required": ["cloudName", "publicId", "width", "height"]
+          }
+        }
+      ]
+    }
+  ],
+  "api_endpoint": "https://www.googleadsagent.ai/api/creative-tools",
+  "mcp_server": {
+    "command": "node",
+    "args": ["src/index.js"],
+    "env": {
+      "CLOUDINARY_CLOUD_NAME": "${CLOUDINARY_CLOUD_NAME}",
+      "CLOUDINARY_API_KEY": "${CLOUDINARY_API_KEY}",
+      "CLOUDINARY_API_SECRET": "${CLOUDINARY_API_SECRET}"
+    }
+  }
+}
