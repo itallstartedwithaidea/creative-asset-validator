@@ -210,7 +210,7 @@
             comingSoon: true,
             superAdminOnly: false,
             appKey: 'REDACTED_DROPBOX_KEY',
-            appSecret: 'REDACTED_DROPBOX_SECRET', // Stored securely, used server-side
+            appSecret: window.__CAV_CONFIG__?.DROPBOX_APP_SECRET || '', // Set via config — never hardcode
             redirectUris: [
                 'http://localhost:6400',
                 'https://itallstartedwithaidea.com',

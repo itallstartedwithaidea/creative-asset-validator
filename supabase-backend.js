@@ -18,8 +18,8 @@
     // ============================================
     // CONFIGURATION - UPDATE THESE VALUES
     // ============================================
-    const SUPABASE_URL = 'https://REDACTED_PROJECT_REF.supabase.co'; // e.g., 'https://xxxxx.supabase.co'
-    const SUPABASE_ANON_KEY = 'REDACTED_SUPABASE_ANON_KEY'; // From Settings > API
+    const SUPABASE_URL = window.__CAV_CONFIG__?.SUPABASE_URL || localStorage.getItem('cav_supabase_url') || '';
+    const SUPABASE_ANON_KEY = window.__CAV_CONFIG__?.SUPABASE_ANON_KEY || localStorage.getItem('cav_supabase_key') || '';
 
     // Check if Supabase is configured
     const isConfigured = () => {

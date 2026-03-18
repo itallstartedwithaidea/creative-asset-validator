@@ -295,7 +295,7 @@
         
         // Initialize if needed
         if (!window._cavSupabaseClient) {
-            const url = 'https://REDACTED_PROJECT_REF.supabase.co';
+            const url = window.__CAV_CONFIG__?.SUPABASE_URL || localStorage.getItem('cav_supabase_url') || '';
             const key = document.querySelector('script[src*="supabase-backend"]')?.dataset?.key;
             
             // Get from CAVSupabase module

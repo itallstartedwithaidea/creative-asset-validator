@@ -30,8 +30,8 @@
     // ═══════════════════════════════════════════════════════════════
     const CONFIG = {
         // Your Supabase project - works for ALL users automatically
-        supabaseUrl: 'https://REDACTED_PROJECT_REF.supabase.co',
-        supabaseAnonKey: 'REDACTED_SUPABASE_ANON_KEY',
+        supabaseUrl: window.__CAV_CONFIG__?.SUPABASE_URL || localStorage.getItem('cav_supabase_url') || '',
+        supabaseAnonKey: window.__CAV_CONFIG__?.SUPABASE_ANON_KEY || localStorage.getItem('cav_supabase_key') || '',
         edgeFunctionName: 'smart-worker',
         maxRetries: 3,
         timeout: 120000, // 2 minutes for full analysis

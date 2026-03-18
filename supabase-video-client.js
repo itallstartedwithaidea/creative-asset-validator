@@ -54,7 +54,7 @@
             // Get Supabase project URL from the client
             const url = this.supabase?.supabaseUrl || 
                         localStorage.getItem('supabase_url') ||
-                        'https://REDACTED_PROJECT_REF.supabase.co';
+                        window.__CAV_CONFIG__?.SUPABASE_URL || '';
             return `${url}/functions/v1/video-process`;
         }
 
