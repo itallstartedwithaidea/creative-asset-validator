@@ -46,7 +46,7 @@
     </div>
 
     <script>
-        const CLIENT_ID = '487493187407-tpdf56sd9elitl7fke0votho17h7m7gs.apps.googleusercontent.com';
+        const CLIENT_ID = window.__CAV_CONFIG__?.GOOGLE_CLIENT_ID || '';
         
         function log(message, type = 'info') {
             const status = document.getElementById('status');

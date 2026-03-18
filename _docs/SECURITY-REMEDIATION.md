@@ -47,7 +47,7 @@ The following credentials are currently hardcoded in client-side JavaScript file
 ## Issue 3: Google OAuth Client ID (MEDIUM)
 
 **File:** `auth-config.production.js`, line with `clientId`
-**Value:** `487493187407-tpdf56sd9elitl7fke0votho17h7m7gs.apps.googleusercontent.com`
+**Value:** `[REDACTED — Google OAuth Client ID]`
 
 **Risk:** OAuth client IDs are semi-public (they appear in redirect URLs), but the admin email list is also exposed. The file should be loaded from environment config, not committed.
 
