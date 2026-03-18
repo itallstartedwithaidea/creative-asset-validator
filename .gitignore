@@ -45,6 +45,7 @@ build/
 
 # Authentication config with real credentials
 auth-config.js
+auth-config.production.js
 
 # API backend config (contains DB password)
 api/config/config.php

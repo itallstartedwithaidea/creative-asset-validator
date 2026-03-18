@@ -1,0 +1,34 @@
+{
+  "name": "@itallstartedwithaidea/ad-creative-mcp",
+  "version": "1.0.0",
+  "description": "Ad Creative MCP Server - Validate, resize, and optimize advertising creative assets across 50+ platforms using Cloudinary",
+  "main": "src/index.js",
+  "type": "module",
+  "bin": {
+    "ad-creative-mcp": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "cloudinary",
+    "advertising",
+    "creative",
+    "google-ads",
+    "facebook",
+    "display",
+    "resize",
+    "validate"
+  ],
+  "author": "It All Started With An Idea",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "cloudinary": "^2.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
